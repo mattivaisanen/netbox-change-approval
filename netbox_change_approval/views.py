@@ -6,6 +6,7 @@ from django.urls import reverse
 from django.utils.translation import gettext as _
 from django.views.generic import View
 
+from netbox.object_actions import BulkExport
 from netbox.views import generic
 from utilities.forms.forms import ConfirmationForm
 from utilities.views import ConditionalLoginRequiredMixin, register_model_view
@@ -221,6 +222,10 @@ class MyChangeRequestsView(generic.ObjectListView):
     filterset_form = forms.ChangeRequestFilterForm
     table = tables.ChangeRequestTable
     template_name = 'netbox_change_approval/changerequest_mine.html'
+    # Export only: no Add/Import (requests come from edits elsewhere) and no
+    # bulk edit/delete, which also drops the selection checkboxes so both
+    # tables have the same columns.
+    actions = (BulkExport,)
 
     # Two tables on one page: "Waiting for decision" (this user's pending
     # requests, small, unpaginated) on top, and the normal NetBox list below for
@@ -241,6 +246,8 @@ class MyChangeRequestsView(generic.ObjectListView):
         # Own prefix so its paging/sort parameters don't clash with the main table's.
         pending_table = tables.ChangeRequestTable(pending, prefix='pending_', orderable=False)
         pending_table.configure(request)  # applies the user's column choices
+        if 'pk' in pending_table.columns.names():
+            pending_table.columns.hide('pk')
         return {'pending_table': pending_table, 'pending_total': pending.count()}
 
 

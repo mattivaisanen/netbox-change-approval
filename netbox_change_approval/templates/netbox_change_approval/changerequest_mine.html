@@ -5,6 +5,21 @@
 
 {% block title %}{% trans "My Requests" %}{% endblock %}
 
+{% block head %}
+  {{ block.super }}
+  <style>
+    /* Same fixed column grid for both tables so they line up: Request and the
+       button column get a set width, the rest share the remaining space. */
+    .nbca-my-requests table.table { table-layout: fixed; width: 100%; }
+    .nbca-my-requests table.table th:first-child,
+    .nbca-my-requests table.table td:first-child { width: 7rem; }
+    .nbca-my-requests table.table th:last-child,
+    .nbca-my-requests table.table td:last-child { width: 7rem; }
+    .nbca-my-requests table.table td { overflow: hidden; text-overflow: ellipsis; }
+    .nbca-my-requests .nbca-section-title { margin: 0 0 .5rem; }
+  </style>
+{% endblock %}
+
 {% block tabs %}
   <ul class="nav nav-tabs" role="tablist">
     <li class="nav-item" role="presentation">
@@ -24,23 +39,25 @@
 {% endblock tabs %}
 
 {% block content %}
-  <div class="card mb-3">
-    <h2 class="card-header">
-      {% trans "Waiting for decision" %}
-      {% badge pending_total bg_color="yellow" %}
-    </h2>
-    {% if pending_total %}
-      <div class="table-responsive">
+<div class="nbca-my-requests">
+  <h2 class="h3 nbca-section-title">
+    {% trans "Waiting for decision" %}
+    <span class="badge text-bg-secondary">{{ pending_total }}</span>
+  </h2>
+  <div class="card mb-4">
+    <div class="table-responsive">
+      {% if pending_total %}
         {% render_table pending_table 'inc/table.html' %}
-      </div>
-    {% else %}
-      <div class="card-body text-muted">{% trans "Nothing waiting for a decision." %}</div>
-    {% endif %}
+      {% else %}
+        <div class="card-body text-muted">{% trans "Nothing waiting for a decision." %}</div>
+      {% endif %}
+    </div>
   </div>
 
-  <h2 class="h3 mt-4 mb-2">
+  <h2 class="h3 nbca-section-title">
     {% trans "Decided" %}
     <span class="badge text-bg-secondary total-object-count">{% if table.page.paginator.count %}{{ table.page.paginator.count }}{% else %}{{ total_count|default:"0" }}{% endif %}</span>
   </h2>
   {{ block.super }}
+</div>
 {% endblock content %}
