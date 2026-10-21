@@ -24,13 +24,11 @@ __all__ = (
 
 
 class ActionChoices(models.TextChoices):
-    # Past tense, matching NetBox's own core.choices.ObjectChangeActionChoices
-    # (Created/Updated/Deleted) — this describes what *was done*, unlike
-    # AutoApprovalActionChoices below (a rule's match criterion — "applies to
-    # Create", not "this already happened"), which stays present-tense.
-    CREATE = 'create', _('Created')
-    UPDATE = 'update', _('Updated')
-    DELETE = 'delete', _('Deleted')
+    # Present tense: a change request asks for something to be done
+    # ("Create rack R1"), it isn't a record of what already happened.
+    CREATE = 'create', _('Create')
+    UPDATE = 'update', _('Update')
+    DELETE = 'delete', _('Delete')
 
 
 class AutoApprovalActionChoices(models.TextChoices):

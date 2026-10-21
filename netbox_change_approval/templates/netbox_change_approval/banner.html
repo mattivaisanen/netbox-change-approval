@@ -4,7 +4,7 @@
     <i class="mdi mdi-clock-alert-outline"></i>
     <strong>Waiting for approval</strong>
     &mdash;
-    {% if change_request.action == "create" %}Created{% elif change_request.action == "delete" %}Deletion requested{% else %}Change requested{% endif %}
+    {% if change_request.action == "create" %}Creation requested{% elif change_request.action == "delete" %}Deletion requested{% else %}Change requested{% endif %}
     by {{ change_request.submitted_by|default:"unknown user" }}, {{ change_request.submitted_at|timesince }} ago.
     {% if change_request.approver_group %}Approvers: {{ change_request.approver_group.name }}.{% endif %}
   </div>

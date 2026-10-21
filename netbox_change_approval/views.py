@@ -9,7 +9,6 @@ from django.views.generic import View
 from netbox.object_actions import BulkExport
 from netbox.views import generic
 from utilities.forms.forms import ConfirmationForm
-from utilities.htmx import htmx_partial
 from utilities.views import ConditionalLoginRequiredMixin, register_model_view
 
 from . import filtersets, forms, inbox, permissions, placement, revision, serialization, tables
@@ -270,58 +269,11 @@ class ChangeRequestListView(_AnyLoggedInUserCanView, generic.ObjectListView):
 
 
 @register_model_view(ChangeRequest, 'mine', path='mine', detail=False)
-class MyChangeRequestsView(_AnyLoggedInUserCanView, generic.ObjectListView):
-    """
-    "My Requests" nav tab: always exactly what this user submitted, regardless
-    of view_all — unlike the main list, this one never shows anyone else's.
-
-    Shown as two tables, "Waiting for decision" and "Decided", under one shared
-    set of controls: the quick search, filters and column settings at the top
-    apply to both tables. Quick search/paging are HTMX requests that normally
-    re-render one table; get() returns both instead.
-    """
-    queryset = ChangeRequest.objects.all()
-    filterset = filtersets.ChangeRequestFilterSet
-    filterset_form = forms.ChangeRequestFilterForm
-    table = tables.ChangeRequestTable
-    template_name = 'netbox_change_approval/changerequest_mine.html'
-    # Export only: no Add/Import (requests come from edits elsewhere) and no
-    # bulk edit/delete, which also drops the selection checkboxes.
-    actions = (BulkExport,)
-
-    def get_queryset(self, request):
-        return super().get_queryset(request).filter(submitted_by=request.user)
-
-    def get_table(self, data, request, bulk_actions=True):
-        # The main (paginated) table is the "Decided" one. `data` is already
-        # filtered by search/filters at this point.
-        return super().get_table(data.exclude(status=StatusChoices.PENDING), request, bulk_actions)
-
-    def _pending_table(self, request):
-        # self.queryset has been filtered by ObjectListView.get() by now.
-        pending = self.queryset.filter(status=StatusChoices.PENDING).order_by('-submitted_at')
-        # Own prefix so its paging/sort parameters don't clash with the main table's.
-        table = tables.ChangeRequestTable(pending, prefix='pending_', orderable=False)
-        table.configure(request)  # same column choices as the main table
-        return table
-
-    def get_extra_context(self, request):
-        return {'pending_table': self._pending_table(request)}
-
+class MyChangeRequestsView(View):
+    """Old "My Requests" page, replaced by the Approval Inbox. Kept as a
+    redirect so bookmarks and old links still work."""
     def get(self, request):
-        response = super().get(request)
-        # Quick search / saved filter target the whole #object_list (both
-        # tables). Sorting and paging target just the Decided table's own
-        # container, so the default single-table response is right for those.
-        if htmx_partial(request) and request.headers.get('HX-Target') == 'object_list':
-            actions = self.get_permitted_actions(request.user)
-            return render(request, 'netbox_change_approval/inc/my_requests_tables.html', {
-                'table': self.get_table(self.queryset, request, False),
-                'pending_table': self._pending_table(request),
-                'model': ChangeRequest,
-                'actions': actions,
-            })
-        return response
+        return redirect(reverse('plugins:netbox_change_approval:changerequest_inbox'))
 
 
 @register_model_view(ChangeRequest, 'approvals', path='approvals', detail=False)
@@ -363,7 +315,7 @@ class ChangeRequestView(_AnyLoggedInUserCanView, generic.ObjectView):
                 request,
                 _("You don't have access to this change request, because you can't view the object it changes."),
             )
-            return redirect(reverse('plugins:netbox_change_approval:changerequest_mine'))
+            return redirect(reverse('plugins:netbox_change_approval:changerequest_inbox'))
         if change_request is not None and request.user.is_authenticated:
             # Opening your own rejected request takes it out of your inbox count.
             inbox.mark_rejections_seen(request.user, ChangeRequest.objects.filter(pk=change_request.pk))
@@ -642,8 +594,15 @@ class ChangeRequestDiscardView(_SentBackView):
         if not form.is_valid():
             messages.error(request, _('Could not process request.'))
             return redirect(self.change_request.get_absolute_url())
-        self.change_request.retract(request.user)
-        messages.success(request, _('Discarded request #%(pk)s.') % {'pk': self.change_request.pk})
+        targets = [self.change_request]
+        if self.change_request.batch_id:
+            targets = list(ChangeRequest.objects.filter(
+                batch_id=self.change_request.batch_id, status=StatusChoices.RETURNED,
+                submitted_by_id=request.user.pk,
+            ))
+        for change_request in targets:
+            change_request.retract(request.user)
+        messages.success(request, _('Discarded %(count)d change(s).') % {'count': len(targets)})
         return redirect(reverse('plugins:netbox_change_approval:changerequest_inbox'))
 
 
@@ -656,13 +615,17 @@ class InboxView(ConditionalLoginRequiredMixin, View):
         user = request.user
         sections = []
         for key, title, queryset, counted in inbox.inbox_sections(user):
-            rows = list(queryset[:50])
+            items = inbox.group_items(queryset)
+            for item in items:
+                for member in item['members']:
+                    # Shown by the row's quick-view toggle.
+                    member.quick_rows = _diff_rows(member)
             sections.append({
                 'key': key,
                 'title': title,
                 'counted': counted,
-                'rows': rows,
-                'total': queryset.count() if len(rows) == 50 else len(rows),
+                'items': items,
+                'total': inbox.item_count(queryset),
             })
         return render(request, 'netbox_change_approval/inbox.html', {
             'sections': sections,

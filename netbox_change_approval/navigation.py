@@ -36,10 +36,6 @@ menu = PluginMenu(
                 permissions=['netbox_change_approval.is_approver_changerequest'],
             ),
             PluginMenuItem(
-                link='plugins:netbox_change_approval:changerequest_mine',
-                link_text='My Requests',
-            ),
-            PluginMenuItem(
                 link='plugins:netbox_change_approval:changerequest_list',
                 link_text='All Change Requests',
             ),

@@ -5,10 +5,23 @@
 {% block title %}{% trans "Approval Inbox" %}{% if inbox_count %} ({{ inbox_count }}){% endif %}{% endblock %}
 
 {% block subtitle %}
-  <div class="text-secondary">{% trans "Change requests waiting on you." %}</div>
+  <div class="text-secondary">{% trans "Your change requests, and what is waiting on you." %}</div>
+{% endblock %}
+
+{% block head %}
+  {{ block.super }}
+  <style>
+    .nbca-inbox .nbca-quick > td { background: var(--tblr-bg-surface-secondary); }
+    .nbca-inbox .nbca-quick table { margin-bottom: 0; }
+    .nbca-inbox .nbca-quick table td,
+    .nbca-inbox .nbca-quick table th { padding: .25rem .5rem; font-size: .8125rem; }
+    .nbca-inbox .nbca-toggle .mdi { transition: transform .15s; }
+    .nbca-inbox .nbca-toggle[aria-expanded="true"] .mdi { transform: rotate(180deg); }
+  </style>
 {% endblock %}
 
 {% block content %}
+<div class="nbca-inbox">
 {% if not inbox_count %}
   <div class="alert alert-success" role="alert">
     <i class="mdi mdi-check-circle-outline"></i> {% trans "Nothing waiting on you." %}
@@ -16,14 +29,14 @@
 {% endif %}
 
 {% for section in sections %}
-  {% if section.rows %}
+  {% if section.items %}
   <div class="card mb-3{% if not section.counted %} opacity-75{% endif %}">
     <h2 class="card-header d-flex align-items-center">
       <span class="flex-grow-1">
         {{ section.title }}
         <span class="badge {% if section.counted and section.total %}text-bg-primary{% else %}text-bg-secondary{% endif %} ms-1">{{ section.total }}</span>
       </span>
-      {% if section.key == 'rejected' and section.rows %}
+      {% if section.key == 'rejected' %}
         <form method="post" class="m-0">
           {% csrf_token %}
           <button type="submit" name="clear" value="rejected" class="btn btn-sm btn-ghost-secondary">
@@ -34,17 +47,27 @@
     </h2>
     <table class="table table-hover mb-0">
       <tbody>
-        {% for cr in section.rows %}
+        {% for item in section.items %}
+        {% with cr=item.lead count=item.members|length %}
         <tr>
           <td>
-            <a href="{{ cr.get_absolute_url }}">#{{ cr.pk }} {{ cr.get_action_display }} {{ cr.object_repr }}</a>
-            <span class="text-muted small">&middot; {{ cr.content_type.name|capfirst }}</span>
+            {% if count > 1 %}
+              <a href="{{ cr.get_absolute_url }}">{% blocktrans with action=cr.get_action_display %}{{ action }} {{ count }} objects{% endblocktrans %}</a>
+              <span class="badge text-bg-blue ms-1" title="{% trans 'One bulk action. Deciding it decides all of them.' %}">{% trans "batch" %}</span>
+              <span class="text-muted small">&middot; {{ cr.content_type.name|capfirst }}: {{ cr.object_repr }}{% if count > 1 %}, &hellip;{% endif %}</span>
+            {% else %}
+              <a href="{{ cr.get_absolute_url }}">#{{ cr.pk }} {{ cr.get_action_display }} {{ cr.object_repr }}</a>
+              <span class="text-muted small">&middot; {{ cr.content_type.name|capfirst }}</span>
+            {% endif %}
             {% if cr.revision > 1 %}<span class="badge text-bg-secondary ms-1">{% blocktrans with n=cr.revision %}revision {{ n }}{% endblocktrans %}</span>{% endif %}
+            {% if cr.auto_approved %}<span class="badge text-bg-blue ms-1">{% trans "auto-approved" %}</span>{% endif %}
             <div class="text-muted small">
               {% if section.key == 'decide' %}
                 {% trans "from" %} {{ cr.submitted_by|default:_("unknown user") }} &middot; {{ cr.submitted_at|timesince }} {% trans "ago" %}
               {% elif section.key == 'waiting' %}
                 {% trans "waiting on" %} {{ cr.approver_group|default:_("the default approver group") }} &middot; {{ cr.submitted_at|timesince }} {% trans "ago" %}
+              {% elif section.key == 'approved' %}
+                {% if cr.decided_by %}{% trans "approved by" %} {{ cr.decided_by }} &middot; {% endif %}{{ cr.applied_at|timesince }} {% trans "ago" %}
               {% else %}
                 {% if cr.decided_by_id and cr.decided_by_id == cr.submitted_by_id %}{% trans "You retracted this to edit it" %}{% else %}{{ cr.decided_by|default:_("An approver") }}{% if cr.decision_comment %}: &ldquo;{{ cr.decision_comment|truncatechars:200 }}&rdquo;{% endif %}{% endif %}
                 &middot; {{ cr.decided_at|timesince }} {% trans "ago" %}
@@ -52,6 +75,11 @@
             </div>
           </td>
           <td class="text-end text-nowrap align-middle">
+            <button type="button" class="btn btn-sm btn-ghost-secondary nbca-toggle" data-bs-toggle="collapse"
+                    data-bs-target="#nbca-quick-{{ section.key }}-{{ cr.pk }}" aria-expanded="false"
+                    aria-controls="nbca-quick-{{ section.key }}-{{ cr.pk }}" title="{% trans 'Show details' %}">
+              <i class="mdi mdi-chevron-down"></i>
+            </button>
             {% if section.key == 'decide' %}
               <a href="{% url 'plugins:netbox_change_approval:changerequest_approve' pk=cr.pk %}?return_url={{ request.path|urlencode }}"
                  class="btn btn-sm btn-success" title="{% trans "Approve" %}"><i class="mdi mdi-check"></i></a>
@@ -60,23 +88,71 @@
               <a href="{% url 'plugins:netbox_change_approval:changerequest_reject' pk=cr.pk %}?return_url={{ request.path|urlencode }}"
                  class="btn btn-sm btn-danger" title="{% trans "Reject" %}"><i class="mdi mdi-close"></i></a>
             {% elif section.key == 'sent_back' %}
+              {% if count == 1 %}
               <a href="{% url 'plugins:netbox_change_approval:changerequest_revise' pk=cr.pk %}"
                  class="btn btn-sm btn-primary"><i class="mdi mdi-pencil"></i> {% trans "Revise" %}</a>
+              {% endif %}
               <a href="{% url 'plugins:netbox_change_approval:changerequest_discard' pk=cr.pk %}?return_url={{ request.path|urlencode }}"
                  class="btn btn-sm btn-primary" title="{% trans "Discard" %}" aria-label="{% trans "Discard" %}"><i class="mdi mdi-delete-outline"></i></a>
+            {% elif section.key == 'waiting' %}
+              <a href="{% url 'plugins:netbox_change_approval:changerequest_retract' pk=cr.pk %}?return_url={{ request.path|urlencode }}"
+                 class="btn btn-sm btn-primary" title="{% trans "Retract" %}" aria-label="{% trans "Retract" %}"><i class="mdi mdi-undo"></i></a>
+            {% endif %}
+            {% if section.key == 'waiting' or section.key == 'approved' %}
+              <a href="{% url 'plugins:netbox_change_approval:changerequest_changelog' pk=cr.pk %}"
+                 class="btn btn-sm btn-primary" title="{% trans "Changelog" %}" aria-label="{% trans "Changelog" %}"><i class="mdi mdi-history"></i></a>
             {% endif %}
           </td>
         </tr>
+        <tr class="collapse nbca-quick" id="nbca-quick-{{ section.key }}-{{ cr.pk }}">
+          <td colspan="2">
+            {% for member in item.members %}
+              <div class="{% if not forloop.last %}mb-2{% endif %}">
+                {% if count > 1 %}
+                  <div class="d-flex align-items-center mb-1">
+                    <a href="{{ member.get_absolute_url }}" class="fw-semibold flex-grow-1">#{{ member.pk }} {{ member.object_repr }}</a>
+                    {% if section.key == 'sent_back' %}
+                      <a href="{% url 'plugins:netbox_change_approval:changerequest_revise' pk=member.pk %}"
+                         class="btn btn-sm btn-primary"><i class="mdi mdi-pencil"></i> {% trans "Revise" %}</a>
+                    {% endif %}
+                  </div>
+                {% endif %}
+                {% if member.quick_rows %}
+                <table class="table table-sm">
+                  <thead><tr><th>{% trans "Field" %}</th><th>{% trans "Old" %}</th><th>{% trans "New" %}</th></tr></thead>
+                  <tbody>
+                  {% for row in member.quick_rows %}
+                    <tr>
+                      <th scope="row" class="fw-normal">{{ row.label|capfirst }}</th>
+                      <td class="text-danger">{% if row.old is not None %}{{ row.old }}{% else %}&mdash;{% endif %}</td>
+                      <td class="text-success">{% if row.new is not None %}{{ row.new }}{% else %}&mdash;{% endif %}</td>
+                    </tr>
+                  {% endfor %}
+                  </tbody>
+                </table>
+                {% else %}
+                  <div class="text-muted small">{% trans "No field-level diff recorded." %}</div>
+                {% endif %}
+              </div>
+            {% endfor %}
+          </td>
+        </tr>
+        {% endwith %}
         {% endfor %}
       </tbody>
     </table>
-    {% if section.total > section.rows|length %}
+    {% if section.total > section.items|length %}
       <div class="card-footer text-muted small">
-        {% blocktrans with shown=section.rows|length total=section.total %}Showing {{ shown }} of {{ total }}.{% endblocktrans %}
-        {% if section.key == 'decide' %}<a href="{% url 'plugins:netbox_change_approval:changerequest_approvals' %}">{% trans "See all" %}</a>{% endif %}
+        {% blocktrans with shown=section.items|length total=section.total %}Showing {{ shown }} of {{ total }}.{% endblocktrans %}
+        {% if section.key == 'decide' %}
+          <a href="{% url 'plugins:netbox_change_approval:changerequest_approvals' %}">{% trans "See all" %}</a>
+        {% else %}
+          <a href="{% url 'plugins:netbox_change_approval:changerequest_list' %}?submitted_by={{ request.user.pk }}">{% trans "See all your requests" %}</a>
+        {% endif %}
       </div>
     {% endif %}
   </div>
   {% endif %}
 {% endfor %}
+</div>
 {% endblock %}

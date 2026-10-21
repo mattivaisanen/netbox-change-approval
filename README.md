@@ -122,14 +122,17 @@ the object until you resubmit.
 NetBox logo, shows how many requests are waiting on you and opens a page
 listing them: requests you need to decide, your requests sent back to you, and
 your rejected requests you haven't opened yet. Your own requests still waiting
-on others are listed there too, but aren't counted.
+on others, and your approved ones, are listed there too but aren't counted.
+A bulk edit, import or delete shows as one item. The arrow on each row shows
+the field changes without leaving the page. (This page replaced the old
+**My Requests** page; old links to it open the inbox.)
 
 ### As an approver
 
 Go to **Change Approvals → Approvals** (its own top-level nav tab, not under
 Plugins) — the actionable queue: pending requests routed to a group you're in.
 A red badge next to the page title shows how many are waiting on you right
-now. **My Requests** shows what you've submitted yourself; **All Change
+now. The **Approval Inbox** shows what you've submitted yourself; **All Change
 Requests** is the full history (scoped the same way as everywhere else — see
 "Who can see which requests" below).
 
@@ -140,7 +143,7 @@ request unfiltered with no way to act on them), this one shows only what's
 routed to you and still pending, with Approve/Reject buttons right there —
 decide without leaving the homepage.
 
-Each entry shows the object, the action (Created/Updated/Deleted, color-coded
+Each entry shows the object, the action (Create/Update/Delete, color-coded
 green/blue/red in the list — matching NetBox's own change-log convention),
 who submitted it, and a field-by-field old/new
 diff — only fields that actually changed (or, for a new object, fields that
@@ -162,8 +165,8 @@ conflict or validation error means none of the batch is applied.
 You can only approve/reject requests routed to a group you belong to (or any
 request, if you're a superuser).
 
-**Who can see which requests:** every logged-in user has **My Requests**
-(your own submissions) and **All Change Requests**. A request shows the
+**Who can see which requests:** every logged-in user has the **Approval
+Inbox** (your own submissions) and **All Change Requests**. A request shows the
 object's field values, so it follows NetBox's own view permissions: you see
 requests about object types you're allowed to view (e.g. no VPN permission,
 no VPN requests), plus your own submissions and anything routed to your
