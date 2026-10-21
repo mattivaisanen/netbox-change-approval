@@ -69,7 +69,7 @@
         </tr>
         <tr>
           <th scope="row">{% trans "Status" %}</th>
-          <td>{{ object.get_status_display }}{% if object.auto_approved %} <span class="badge text-bg-blue">{% trans "auto-approved" %}</span>{% endif %}</td>
+          <td>{% badge object.get_status_display bg_color=object.get_status_color %}{% if object.auto_approved %} <span class="badge text-bg-blue">{% trans "auto-approved" %}</span>{% endif %}</td>
         </tr>
         <tr>
           <th scope="row">{% trans "Submitted by" %}</th>

@@ -294,6 +294,15 @@ class ChangeRequest(NetBoxModel):
             ActionChoices.DELETE: 'red',
         }.get(self.action, 'secondary')
 
+    def get_status_color(self):
+        # Used by NetBox's ChoiceFieldColumn in lists and by the detail page badge.
+        return {
+            StatusChoices.PENDING: 'yellow',
+            StatusChoices.APPLIED: 'green',
+            StatusChoices.REJECTED: 'red',
+            StatusChoices.RETRACTED: 'gray',
+        }.get(self.status, 'secondary')
+
     @property
     def approver_names(self):
         """Human-readable "who can decide this" string, e.g. 'alice, bob (Change
