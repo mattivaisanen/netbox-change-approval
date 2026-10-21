@@ -52,6 +52,7 @@ on all of them, and connect one `pre_delete` receiver to all of them.
 | `views.py`, `forms.py`, `tables.py`, `filtersets.py`, `urls.py`, `navigation.py`, `template_content.py` | Standard NetBox UI scaffolding (`@register_model_view` + `get_model_urls()`), one `PluginTemplateExtension.alerts()` banner shared across every gated model. |
 | `widgets.py` | `ApprovalsWidget`, a custom `extras.dashboard.widgets.DashboardWidget` — see "The dashboard widget" below for two real gotchas hit building it. |
 | `table_styling.py` | Monkeypatches `NetBoxTable.configure()` to highlight any row with a pending `ChangeRequest`, across every model's list view generically — see its own module docstring. |
+| `rack_styling.py` | Monkeypatches `dcim.svg.racks.RackElevationSVG` to draw the same pending-highlight around devices in a rack elevation. A separate patch target from `table_styling.py` because the elevation is a standalone SVG document embedded via `<object>`, not part of the host page's DOM — see its own module docstring. |
 
 ## Why field-level, not DRF serializers
 

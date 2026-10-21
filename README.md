@@ -96,7 +96,9 @@ list view, with a **"Pending Approval"** tag on it. This is deliberate: it's
 there specifically so a second person browsing Racks/Devices/IPs/etc. sees
 yours already exists instead of creating a duplicate. The object is locked
 against further edits until decided. If approved, the tag is simply removed.
-If rejected, the object is deleted.
+If rejected, the object is deleted. Any list view also outlines a pending
+row in yellow (even without the Tags column visible), and a pending Device
+gets the same outline in its rack's elevation view.
 
 Bulk edit, bulk import, and bulk delete are each gated as a single request
 covering the whole action — approving or rejecting applies to everything in that
@@ -134,6 +136,14 @@ anything that references another object (site, rack, location, tenant, ...) is
 shown by name, not a bare database ID. Approve applies the change immediately;
 reject requires a short comment and discards it permanently (there is
 currently no "send back for revision" — see Limitations).
+
+**Approvals never overwrite newer edits.** If any field in an update request
+was changed after it was submitted (through the API, a script, or a user with
+`bypass_approval`), the request can't be approved: its page shows which fields
+changed, Approve is hidden, and approving from the queue is refused with an
+error. Reject it and resubmit against the current values. The same applies if
+the object was deleted meanwhile. Approving a bulk batch is all-or-nothing: one
+conflict or validation error means none of the batch is applied.
 
 You can only approve/reject requests routed to a group you belong to (or any
 request, if you're a superuser).
@@ -186,16 +196,23 @@ object-type/constraint/priority matching as routing rules, plus which action
 instead of being queued — a request is still recorded (marked auto-approved),
 so there's always a full audit trail of what happened and why.
 
-**Worked example — let people create "planned" objects freely, but still
-gate promoting them to active:** many NetBox models (Device, Rack, Prefix,
-VLAN, ...) already ship a `status` field with a `planned` choice built in.
-Add a rule with **Object type** left blank (or scoped to specific models),
-**Constraint** `{"status": "planned"}`, **Action** `Create`, enabled. Creating
-anything with `status=planned` now goes through immediately, logged as
-auto-approved; later changing that same object's status to anything else is
-a normal update, still gated like any other change (the `action=Create` scope
-on the rule means it never touches updates) — no separate feature needed,
-this is just the existing rule table doing what it already does.
+**Worked example: create and edit "planned" objects freely, but gate
+promoting them to active.** Add a rule with **Object type** set to the model
+(e.g. DCIM > Device; add one rule per model, since not every model has a
+`planned` status, e.g. Prefix and VLAN don't), **Constraint**
+`{"status": "planned"}`, **Action** `Any`, enabled. Then:
+
+- creating a device with `status=planned` goes through immediately;
+- editing a planned device goes through immediately, as long as it stays
+  planned;
+- changing its status to anything else (e.g. active) is queued for approval;
+- deleting a planned device also goes through immediately with `Any`. Use two
+  rules (`Create` and `Update`) instead if deletes should still be approved.
+
+For **updates**, an auto-approval rule must match both the object as currently
+stored *and* the values being submitted. That's what makes the last step work:
+the stored device is planned, but the submitted one isn't, so the rule doesn't
+match. Routing rules only look at the stored object.
 
 ### Choosing which object types are gated
 
