@@ -1,0 +1,46 @@
+{% extends 'generic/object_list.html' %}
+{% load helpers %}
+{% load render_table from django_tables2 %}
+{% load i18n %}
+
+{% block title %}{% trans "My Requests" %}{% endblock %}
+
+{% block tabs %}
+  <ul class="nav nav-tabs" role="tablist">
+    <li class="nav-item" role="presentation">
+      <button class="nav-link active" id="object-list-tab" data-bs-toggle="tab" data-bs-target="#object-list" type="button" role="tab" aria-controls="object-list" aria-selected="true">
+        {% trans "Requests" %}
+      </button>
+    </li>
+    {% if filter_form %}
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="filters-form-tab" data-bs-toggle="tab" data-bs-target="#filters-form" type="button" role="tab" aria-controls="filters-form" aria-selected="false">
+          {% trans "Filters" %}
+          {% badge filter_form.changed_data|length bg_color="primary" %}
+        </button>
+      </li>
+    {% endif %}
+  </ul>
+{% endblock tabs %}
+
+{% block content %}
+  <div class="card mb-3">
+    <h2 class="card-header">
+      {% trans "Waiting for decision" %}
+      {% badge pending_total bg_color="yellow" %}
+    </h2>
+    {% if pending_total %}
+      <div class="table-responsive">
+        {% render_table pending_table 'inc/table.html' %}
+      </div>
+    {% else %}
+      <div class="card-body text-muted">{% trans "Nothing waiting for a decision." %}</div>
+    {% endif %}
+  </div>
+
+  <h2 class="h3 mt-4 mb-2">
+    {% trans "Decided" %}
+    <span class="badge text-bg-secondary total-object-count">{% if table.page.paginator.count %}{{ table.page.paginator.count }}{% else %}{{ total_count|default:"0" }}{% endif %}</span>
+  </h2>
+  {{ block.super }}
+{% endblock content %}

@@ -220,9 +220,28 @@ class MyChangeRequestsView(generic.ObjectListView):
     filterset = filtersets.ChangeRequestFilterSet
     filterset_form = forms.ChangeRequestFilterForm
     table = tables.ChangeRequestTable
+    template_name = 'netbox_change_approval/changerequest_mine.html'
+
+    # Two tables on one page: "Waiting for decision" (this user's pending
+    # requests, small, unpaginated) on top, and the normal NetBox list below for
+    # everything already decided — that one keeps search, filters, paging and
+    # export, which only work for one table per page.
 
     def get_queryset(self, request):
-        return super().get_queryset(request).filter(submitted_by=request.user)
+        return (
+            super().get_queryset(request)
+            .filter(submitted_by=request.user)
+            .exclude(status=StatusChoices.PENDING)
+        )
+
+    def get_extra_context(self, request):
+        pending = ChangeRequest.objects.filter(
+            submitted_by=request.user, status=StatusChoices.PENDING,
+        ).order_by('-submitted_at')
+        # Own prefix so its paging/sort parameters don't clash with the main table's.
+        pending_table = tables.ChangeRequestTable(pending, prefix='pending_', orderable=False)
+        pending_table.configure(request)  # applies the user's column choices
+        return {'pending_table': pending_table, 'pending_total': pending.count()}
 
 
 @register_model_view(ChangeRequest, 'approvals', path='approvals', detail=False)
