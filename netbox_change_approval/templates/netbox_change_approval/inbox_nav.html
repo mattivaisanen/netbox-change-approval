@@ -3,10 +3,10 @@
 <template id="nbca-inbox-nav">
   <div class="nbca-inbox-nav px-3 mt-2 mb-1">
     <a href="{% url 'plugins:netbox_change_approval:changerequest_inbox' %}"
-       class="btn {% if count %}btn-primary{% else %}btn-outline-secondary{% endif %} w-100 justify-content-between{% if active %} active{% endif %}"
+       class="btn {% if count %}btn-outline-primary{% else %}btn-outline-secondary{% endif %} w-100 justify-content-between{% if active %} active{% endif %}"
        title="{% trans 'Change requests waiting on you' %}">
       <span><i class="mdi mdi-inbox{% if count %}-full{% endif %}-outline me-1"></i>{% trans "Approval Inbox" %}</span>
-      {% if count %}<span class="badge bg-white text-primary ms-2">{{ count }}</span>{% endif %}
+      {% if count %}<span class="badge text-bg-red ms-2">{{ count }}</span>{% endif %}
     </a>
   </div>
 </template>

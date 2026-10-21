@@ -28,7 +28,8 @@ from .models import ChangeRequest, StatusChoices
 class ApprovalsWidget(DashboardWidget):
     default_title = _('Pending Approvals')
     description = _(
-        'Change requests currently routed to you for approval, with a quick link to decide each one.'
+        'Change requests routed to you for approval, and your own requests sent back to you, '
+        'with quick links to act on each one.'
     )
     template_name = 'netbox_change_approval/dashboard_widget.html'
     width = 12
@@ -40,7 +41,7 @@ class ApprovalsWidget(DashboardWidget):
 
         queryset = permissions.approver_queue(
             request.user, ChangeRequest.objects.filter(status=StatusChoices.PENDING),
-        ).order_by('submitted_at')[:10]
+        ).order_by('-submitted_at')[:10]
 
         user = request.user
         group_ids = set(user.groups.values_list('pk', flat=True))
@@ -48,4 +49,8 @@ class ApprovalsWidget(DashboardWidget):
             (cr, user.is_superuser or cr.approver_group_id in group_ids)
             for cr in queryset
         ]
-        return render_to_string(self.template_name, {'change_requests': rows})
+        # Your own requests sent back to you (or retracted to edit), with Revise.
+        sent_back = ChangeRequest.objects.filter(
+            submitted_by=user, status=StatusChoices.RETURNED,
+        ).order_by('-decided_at')[:10]
+        return render_to_string(self.template_name, {'change_requests': rows, 'sent_back': sent_back})

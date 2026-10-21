@@ -16,7 +16,7 @@ from . import permissions
 def _decide(user):
     return permissions.approver_queue(
         user, ChangeRequest.objects.filter(status=StatusChoices.PENDING),
-    ).order_by('submitted_at')
+    ).order_by('-submitted_at')
 
 
 def _sent_back(user):
