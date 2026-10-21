@@ -51,19 +51,21 @@ class AutoApprovalRuleTable(NetBoxTable):
 #: delete URL unconditionally for any user with the relevant permission (including
 #: superusers), regardless of whether one is actually registered, which raises
 #: NoReverseMatch rather than just hiding the button. So: no 'edit'/'delete' here,
-#: and our own approve/reject/retract buttons instead, shown only while still
-#: pending. Same as approve/reject, retract is shown unconditionally for any
-#: pending row rather than only on "My Requests" — the view itself checks
-#: "is this your own request" and redirects with an error if not, the same
-#: deferred-permission pattern already used for approve/reject.
+#: and our own buttons instead, shown only while still pending and only to who
+#: can use them (same rules the views enforce): Approve/Reject to superusers and
+#: members of the request's approver group, Retract to the submitter.
 _DECISION_BUTTONS = """
 {% if record.status == "pending" %}
+{% if request.user.is_superuser or record.approver_group and record.approver_group in request.user.groups.all %}
 <a href="{% url 'plugins:netbox_change_approval:changerequest_approve' pk=record.pk %}?return_url={{ request.get_full_path|urlencode }}"
    class="btn btn-sm btn-success" title="Approve"><i class="mdi mdi-check"></i></a>
 <a href="{% url 'plugins:netbox_change_approval:changerequest_reject' pk=record.pk %}?return_url={{ request.get_full_path|urlencode }}"
    class="btn btn-sm btn-danger" title="Reject"><i class="mdi mdi-close"></i></a>
+{% endif %}
+{% if record.submitted_by_id == request.user.pk %}
 <a href="{% url 'plugins:netbox_change_approval:changerequest_retract' pk=record.pk %}?return_url={{ request.get_full_path|urlencode }}"
    class="btn btn-sm btn-secondary" title="Retract"><i class="mdi mdi-undo"></i></a>
+{% endif %}
 {% endif %}
 """
 

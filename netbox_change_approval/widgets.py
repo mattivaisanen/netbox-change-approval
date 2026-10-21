@@ -42,4 +42,10 @@ class ApprovalsWidget(DashboardWidget):
             request.user, ChangeRequest.objects.filter(status=StatusChoices.PENDING),
         ).order_by('submitted_at')[:10]
 
-        return render_to_string(self.template_name, {'change_requests': queryset})
+        user = request.user
+        group_ids = set(user.groups.values_list('pk', flat=True))
+        rows = [
+            (cr, user.is_superuser or cr.approver_group_id in group_ids)
+            for cr in queryset
+        ]
+        return render_to_string(self.template_name, {'change_requests': rows})
