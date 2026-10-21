@@ -10,7 +10,7 @@ from netbox.views import generic
 from utilities.forms.forms import ConfirmationForm
 from utilities.views import ConditionalLoginRequiredMixin, register_model_view
 
-from . import filtersets, forms, permissions, serialization, tables
+from . import filtersets, forms, permissions, placement, serialization, tables
 from .exceptions import ChangeConflict
 from .models import ActionChoices, ApprovalRoutingRule, AutoApprovalRule, ChangeRequest, ExemptModel, StatusChoices
 
@@ -273,6 +273,7 @@ class ChangeRequestView(generic.ObjectView):
                 _field_label(instance.content_type.model_class(), f) for f in conflict_fields
             ],
             'object_missing': object_missing,
+            'placement_rows': placement.placement_rows(instance),
             'batch_siblings': batch_siblings,
             'can_decide': _can_decide(request.user, instance),
             'can_retract': (
