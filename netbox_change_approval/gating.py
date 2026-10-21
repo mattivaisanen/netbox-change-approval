@@ -99,7 +99,7 @@ def gate(instance, action, request):
     if user is not None and not user.is_authenticated:
         user = None
 
-    if permissions.has_bypass(user, instance):
+    if permissions.has_bypass(user, instance, check_new_state=action == ActionChoices.UPDATE):
         return None
 
     if ChangeRequest.is_object_locked(content_type, instance.pk):
