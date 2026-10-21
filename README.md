@@ -213,7 +213,10 @@ type applied immediately, same as if no approval gate existed.
 ### Approval rules
 
 Everything about *which* changes need approval, from *whom*, lives on one
-page: **Change Approvals → Approval Rules**. Each rule has:
+page: **Change Approvals → Approval Rules**. Only superusers can add, change
+or delete rules, whatever NetBox permissions say: a rule can switch approval
+off, so editing rules is as powerful as the bypass permission. Anyone with
+NetBox's "view" permission on approval rules can read them. Each rule has:
 
 - **Object type**: leave blank to match anything, or pick a model.
 - **Constraint**: an optional filter in the same JSON format as NetBox
