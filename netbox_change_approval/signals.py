@@ -10,7 +10,7 @@ from .bulk import wrap_model_delete
 from .discovery import iter_gated_models
 from .exceptions import ChangeApprovalRequired, ObjectLocked
 from .gating import gate
-from .models import ActionChoices, ApprovalRoutingRule, StatusChoices
+from .models import ActionChoices, ApprovalRule, StatusChoices
 
 
 def gate_delete(sender, instance, **kwargs):
@@ -105,7 +105,7 @@ def connect():
 
     # Keeps the "Approvals" nav item's backing permission (permissions.
     # IS_APPROVER_ACTION) in sync with whichever groups are approvers right
-    # now, every time an admin adds/edits/deletes an ApprovalRoutingRule — see
+    # now, every time an admin adds/edits/deletes an ApprovalRule — see
     # sync_is_approver_permission()'s docstring. The *initial* sync (covering
     # process start and default_approver_group config changes, which don't go
     # through this model at all) happens in __init__.py's ready() instead,
@@ -113,11 +113,11 @@ def connect():
     # module can be imported before one exists (e.g. during the first
     # `migrate` itself).
     post_save.connect(
-        _resync_approver_permission, sender=ApprovalRoutingRule,
+        _resync_approver_permission, sender=ApprovalRule,
         dispatch_uid='netbox_change_approval:resync_approver_permission:save',
     )
     post_delete.connect(
-        _resync_approver_permission, sender=ApprovalRoutingRule,
+        _resync_approver_permission, sender=ApprovalRule,
         dispatch_uid='netbox_change_approval:resync_approver_permission:delete',
     )
 

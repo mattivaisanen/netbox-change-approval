@@ -14,7 +14,53 @@ from utilities.views import ConditionalLoginRequiredMixin, register_model_view
 
 from . import filtersets, forms, permissions, placement, serialization, tables
 from .exceptions import ChangeConflict
-from .models import ActionChoices, ApprovalRoutingRule, AutoApprovalRule, ChangeRequest, ExemptModel, StatusChoices
+from .models import (
+    ActionChoices, ApprovalRoutingRule, ApprovalRule, AutoApprovalRule, ChangeRequest, ExemptModel, StatusChoices,
+)
+
+#
+# Approval rules (the one rule table)
+#
+
+
+@register_model_view(ApprovalRule, 'list', path='', detail=False)
+class ApprovalRuleListView(generic.ObjectListView):
+    queryset = ApprovalRule.objects.all()
+    filterset = filtersets.ApprovalRuleFilterSet
+    filterset_form = forms.ApprovalRuleFilterForm
+    table = tables.ApprovalRuleTable
+
+
+@register_model_view(ApprovalRule)
+class ApprovalRuleView(generic.ObjectView):
+    queryset = ApprovalRule.objects.all()
+    template_name = 'netbox_change_approval/approvalrule.html'
+
+
+@register_model_view(ApprovalRule, 'add', detail=False)
+@register_model_view(ApprovalRule, 'edit')
+class ApprovalRuleEditView(generic.ObjectEditView):
+    queryset = ApprovalRule.objects.all()
+    form = forms.ApprovalRuleForm
+
+
+@register_model_view(ApprovalRule, 'delete')
+class ApprovalRuleDeleteView(generic.ObjectDeleteView):
+    queryset = ApprovalRule.objects.all()
+
+
+@register_model_view(ApprovalRule, 'bulk_delete', path='delete', detail=False)
+class ApprovalRuleBulkDeleteView(generic.BulkDeleteView):
+    queryset = ApprovalRule.objects.all()
+    filterset = filtersets.ApprovalRuleFilterSet
+    table = tables.ApprovalRuleTable
+
+
+#
+# Legacy rule tables (replaced by ApprovalRule; kept reachable so old links
+# and change log entries still open, but not in the menu)
+#
+
 
 #
 # Exempt models

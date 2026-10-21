@@ -4,7 +4,23 @@ from django.utils.translation import gettext as _
 from netbox.filtersets import NetBoxModelFilterSet
 from utilities.filters import ContentTypeFilter
 
-from .models import ApprovalRoutingRule, AutoApprovalRule, ChangeRequest, ExemptModel
+from .models import ApprovalRoutingRule, ApprovalRule, AutoApprovalRule, ChangeRequest, ExemptModel
+
+
+class ApprovalRuleFilterSet(NetBoxModelFilterSet):
+    q = django_filters.CharFilter(method='search', label=_('Search'))
+    content_type = ContentTypeFilter()
+    outcome = django_filters.MultipleChoiceFilter(choices=ApprovalRule._meta.get_field('outcome').choices)
+    action = django_filters.MultipleChoiceFilter(choices=ApprovalRule._meta.get_field('action').choices)
+
+    class Meta:
+        model = ApprovalRule
+        fields = ('id', 'priority', 'content_type', 'approver_group', 'enabled')
+
+    def search(self, queryset, name, value):
+        if not value.strip():
+            return queryset
+        return queryset.filter(description__icontains=value)
 
 
 class ExemptModelFilterSet(NetBoxModelFilterSet):

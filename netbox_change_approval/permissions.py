@@ -133,11 +133,11 @@ def approver_queue(user, queryset):
 def sync_is_approver_permission():
     """
     Keeps one ObjectPermission's `groups` in sync with "every Group that is
-    currently an approver" — i.e. referenced by an *enabled* ApprovalRoutingRule,
+    currently an approver" — i.e. referenced by an enabled "Needs approval" ApprovalRule,
     or the configured default_approver_group (which also decides who approves
-    when no rule matches — see gating._resolve_approver_group). Called from
+    when no rule matches — see gating._default_approver_group). Called from
     __init__.py's ready() at process start, and again on every
-    ApprovalRoutingRule save/delete, so "Approvals" nav visibility
+    ApprovalRule save/delete, so "Approvals" nav visibility
     (navigation.py, permissions=[f'...{IS_APPROVER_ACTION}_changerequest']) stays
     correct without anyone needing to grant this by hand — unlike
     BYPASS_ACTION, this one is entirely our own bookkeeping, not
@@ -147,10 +147,12 @@ def sync_is_approver_permission():
     from netbox.plugins.utils import get_plugin_config
     from users.models import Group, ObjectPermission
 
-    from .models import ApprovalRoutingRule, ChangeRequest
+    from .models import ApprovalRule, ChangeRequest, RuleOutcomeChoices
 
     group_ids = set(
-        ApprovalRoutingRule.objects.filter(enabled=True).values_list('approver_group_id', flat=True)
+        ApprovalRule.objects.filter(
+            enabled=True, outcome=RuleOutcomeChoices.REQUIRE, approver_group__isnull=False,
+        ).values_list('approver_group_id', flat=True)
     )
     default_name = get_plugin_config('netbox_change_approval', 'default_approver_group')
     if default_name:

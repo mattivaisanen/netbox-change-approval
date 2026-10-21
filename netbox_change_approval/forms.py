@@ -11,7 +11,8 @@ from utilities.forms.rendering import FieldSet
 
 from .discovery import iter_gated_models
 from .models import (
-    ActionChoices, ApprovalRoutingRule, AutoApprovalRule, ChangeRequest, ExemptModel, StatusChoices,
+    ActionChoices, ApprovalRoutingRule, ApprovalRule, AutoApprovalActionChoices, AutoApprovalRule, ChangeRequest,
+    ExemptModel, RuleOutcomeChoices, StatusChoices,
 )
 
 
@@ -39,6 +40,42 @@ class BaseRuleForm(NetBoxModelForm):
             'Leave blank to match all objects.'
         ),
     )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['content_type'].queryset = _gated_object_types()
+
+
+class ApprovalRuleForm(BaseRuleForm):
+    approver_group = DynamicModelChoiceField(
+        queryset=Group.objects.all(),
+        required=False,
+        label=_('Approver group'),
+        help_text=_('Only for "Needs approval". Leave blank to use the default approver group.'),
+    )
+
+    fieldsets = (
+        FieldSet('description', 'priority', 'enabled', name=_('Rule')),
+        FieldSet('content_type', 'constraint', 'action', name=_('Applies to')),
+        FieldSet('outcome', 'approver_group', name=_('Outcome')),
+    )
+
+    class Meta:
+        model = ApprovalRule
+        fields = (
+            'priority', 'content_type', 'constraint', 'action', 'outcome', 'approver_group',
+            'enabled', 'description', 'tags',
+        )
+
+
+class ApprovalRuleFilterForm(NetBoxModelFilterSetForm):
+    model = ApprovalRule
+    content_type = ContentTypeChoiceField(queryset=ObjectType.objects.none(), required=False)
+    outcome = forms.MultipleChoiceField(choices=RuleOutcomeChoices.choices, required=False)
+    action = forms.MultipleChoiceField(choices=AutoApprovalActionChoices.choices, required=False)
+    enabled = forms.NullBooleanField(required=False, widget=forms.Select(choices=(
+        ('', '---------'), ('true', _('Yes')), ('false', _('No')),
+    )))
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

@@ -5,13 +5,18 @@ from dcim.models import Cable, Device, DeviceRole, DeviceType, Interface, Manufa
 from users.models import User
 
 from .. import gating
-from ..models import ActionChoices, ChangeRequest, ExemptModel
+from ..models import ActionChoices, ApprovalRule, ChangeRequest
 from .utils import fake_request
 
 TAMPERE_CABLES = [
     {'a_terminations__device__site__region__slug': 'tampere'},
     {'b_terminations__device__site__region__slug': 'tampere'},
 ]
+
+
+def _skipped(instance, action):
+    rule = gating._first_matching_rule(instance, action)
+    return rule is not None and rule.outcome == 'skip'
 
 
 class ExemptConstraintTests(TestCase):
@@ -32,7 +37,7 @@ class ExemptConstraintTests(TestCase):
         cls.tre_if = [Interface.objects.create(device=tre, name=f'eth{i}', type='1000base-t') for i in range(4)]
         cls.hki_if = [Interface.objects.create(device=hki, name=f'eth{i}', type='1000base-t') for i in range(4)]
         cls.cable_ct = ObjectType.objects.get_for_model(Cable)
-        ExemptModel.objects.create(content_type=cls.cable_ct, constraint=TAMPERE_CABLES)
+        ApprovalRule.objects.create(content_type=cls.cable_ct, constraint=TAMPERE_CABLES, outcome='skip')
 
     def test_new_cable_in_tampere_is_exempt(self):
         cable = Cable(a_terminations=[self.tre_if[0]], b_terminations=[self.tre_if[1]])
@@ -68,10 +73,10 @@ class ExemptConstraintTests(TestCase):
         cable.a_terminations = [self.hki_if[2]]
         cable.b_terminations = [self.hki_if[3]]
 
-        self.assertFalse(gating._is_exempt(cable, self.cable_ct, ActionChoices.UPDATE))
+        self.assertFalse(_skipped(cable, ActionChoices.UPDATE))
 
     def test_unconstrained_row_still_exempts_everything(self):
         ct = ObjectType.objects.get_for_model(Manufacturer)
-        ExemptModel.objects.create(content_type=ct)
+        ApprovalRule.objects.create(content_type=ct, outcome='skip')
 
-        self.assertTrue(gating._is_exempt(Manufacturer(name='X', slug='x'), ct, ActionChoices.CREATE))
+        self.assertTrue(_skipped(Manufacturer(name='X', slug='x'), ActionChoices.CREATE))

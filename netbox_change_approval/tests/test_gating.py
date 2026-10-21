@@ -9,7 +9,7 @@ from users.models import Group, User
 from .. import gating
 from ..context import applying_change_on, batch_scope
 from ..exceptions import ObjectLocked
-from ..models import ActionChoices, ApprovalRoutingRule, AutoApprovalRule, ChangeRequest, StatusChoices
+from ..models import ActionChoices, ApprovalRule, ChangeRequest, StatusChoices
 from .utils import fake_request, grant_bypass
 
 
@@ -95,8 +95,8 @@ class GatingTests(TestCase):
     def test_approval_routing_rule_picks_approver_group(self):
         content_type = ObjectType.objects.get_for_model(Manufacturer)
         specific_group = Group.objects.create(name='Hardware Approvers')
-        ApprovalRoutingRule.objects.create(
-            priority=10, content_type=content_type, approver_group=specific_group,
+        ApprovalRule.objects.create(
+            priority=10, content_type=content_type, outcome='require', approver_group=specific_group,
         )
 
         unsaved = Manufacturer(name='Acme', slug='acme')
@@ -115,7 +115,7 @@ class GatingTests(TestCase):
 
     def test_auto_approval_rule_applies_immediately_and_untagged(self):
         content_type = ObjectType.objects.get_for_model(Manufacturer)
-        AutoApprovalRule.objects.create(priority=10, content_type=content_type, action='create')
+        ApprovalRule.objects.create(priority=10, content_type=content_type, action='create', outcome='auto')
 
         unsaved = Manufacturer(name='Acme', slug='acme')
         obj = _gate_and_save(unsaved, self.alice)
@@ -129,7 +129,7 @@ class GatingTests(TestCase):
 
     def test_auto_approval_rule_respects_action_scope(self):
         content_type = ObjectType.objects.get_for_model(Manufacturer)
-        AutoApprovalRule.objects.create(priority=10, content_type=content_type, action='delete')
+        ApprovalRule.objects.create(priority=10, content_type=content_type, action='delete', outcome='auto')
 
         unsaved = Manufacturer(name='Acme', slug='acme')
         obj = _gate_and_save(unsaved, self.alice)
@@ -212,7 +212,7 @@ class GatingTests(TestCase):
         # from within its own pre_delete signal) — it's logged directly and the
         # caller is told to let the original delete proceed.
         content_type = ObjectType.objects.get_for_model(Manufacturer)
-        AutoApprovalRule.objects.create(priority=10, content_type=content_type, action='delete')
+        ApprovalRule.objects.create(priority=10, content_type=content_type, action='delete', outcome='auto')
         obj = Manufacturer.objects.create(name='Acme', slug='acme')
 
         result = gating.gate(obj, ActionChoices.DELETE, fake_request(self.alice))

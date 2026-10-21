@@ -11,18 +11,11 @@ from core.models import ObjectType
 from . import permissions, serialization
 from .context import applying_change, batch_collector, current_batch
 from .exceptions import ObjectLocked
-from .models import (
-    ActionChoices, ApprovalRoutingRule, AutoApprovalRule, ChangeRequest, ExemptModel, StatusChoices,
-)
+from .models import ActionChoices, ApprovalRule, ChangeRequest, RuleOutcomeChoices, StatusChoices
 
 
-def _resolve_approver_group(instance):
+def _default_approver_group():
     from netbox.plugins.utils import get_plugin_config
-
-    for rule in ApprovalRoutingRule.objects.filter(enabled=True).order_by('priority'):
-        if rule.matches(instance):
-            return rule.approver_group
-
     from users.models import Group
 
     default_name = get_plugin_config('netbox_change_approval', 'default_approver_group')
@@ -32,24 +25,15 @@ def _resolve_approver_group(instance):
         return None
 
 
-def _matching_auto_approval_rule(instance, action):
-    for rule in AutoApprovalRule.objects.filter(enabled=True).order_by('priority'):
+def _first_matching_rule(instance, action):
+    """The first enabled ApprovalRule (by priority) that matches, or None."""
+    rules = ApprovalRule.objects.filter(enabled=True).select_related(
+        'content_type', 'approver_group',
+    ).order_by('priority', 'pk')
+    for rule in rules:
         if rule.matches(instance, action=action):
             return rule
     return None
-
-
-def _is_exempt(instance, content_type, action):
-    """
-    Live, DB-backed exemption check — see ExemptModel's docstring for how this
-    differs from (and complements) the static PLUGINS_CONFIG['exempt_models']
-    list discovery.py uses to decide validator/signal *registration* at process
-    start. Checked on every gate() call specifically so toggling a model's
-    exemption on or off takes effect immediately, no restart needed.
-    """
-    rows = ExemptModel.objects.filter(content_type=content_type, enabled=True)
-    check_new_state = action == ActionChoices.UPDATE
-    return any(row.matches(instance, check_new_state=check_new_state) for row in rows)
 
 
 def gate(instance, action, request):
@@ -85,8 +69,8 @@ def gate(instance, action, request):
     approval" is *also* a "proceed" case: gate() stashes the not-yet-saved
     ChangeRequest on `instance._nbca_pending_create` and returns None. A post_save
     receiver (signals.py) picks it up once the real pk exists, saves it with
-    that object_id, and applies the tag. ChangeRequest.apply() for a CREATE just
-    removes the tag (the data's already live); .reject() deletes the object.
+    that object_id. ChangeRequest.apply() for a CREATE just closes the request
+    (the data's already live); .reject() deletes the object.
     """
     if applying_change.get():
         return None
@@ -94,7 +78,10 @@ def gate(instance, action, request):
     model = type(instance)
     content_type = ObjectType.objects.get_for_model(model)
 
-    if _is_exempt(instance, content_type, action):
+    # One rule list, first match wins (see models.ApprovalRule). "Skip
+    # approval" is checked before anything else, as exemptions always were.
+    rule = _first_matching_rule(instance, action)
+    if rule is not None and rule.outcome == RuleOutcomeChoices.SKIP:
         return None
 
     user = getattr(request, 'user', None)
@@ -126,11 +113,14 @@ def gate(instance, action, request):
         diff=diff,
         submitted_by=user,
         batch_id=current_batch.get(),
-        approver_group=_resolve_approver_group(instance),
+        approver_group=(
+            rule.approver_group
+            if rule is not None and rule.outcome == RuleOutcomeChoices.REQUIRE and rule.approver_group_id
+            else _default_approver_group()
+        ),
     )
 
-    auto_rule = _matching_auto_approval_rule(instance, action)
-    if auto_rule is not None:
+    if rule is not None and rule.outcome == RuleOutcomeChoices.AUTO:
         change_request.auto_approved = True
         change_request.status = StatusChoices.APPLIED
         change_request.applied_at = timezone.now()

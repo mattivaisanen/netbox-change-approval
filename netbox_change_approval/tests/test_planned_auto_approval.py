@@ -6,7 +6,7 @@ from users.models import Group, User
 
 from .. import gating
 from ..matching import rule_matches
-from ..models import ActionChoices, AutoApprovalActionChoices, AutoApprovalRule, ChangeRequest, StatusChoices
+from ..models import ActionChoices, ApprovalRule, AutoApprovalActionChoices, ChangeRequest, StatusChoices
 from .test_matching import FakeRule
 from .utils import fake_request
 
@@ -47,7 +47,8 @@ class PlannedAutoApprovalTests(TestCase):
     def setUpTestData(cls):
         Group.objects.create(name='Change Approvers')
         cls.alice = User.objects.create(username='alice')
-        AutoApprovalRule.objects.create(
+        ApprovalRule.objects.create(
+            outcome='auto',
             content_type=ObjectType.objects.get_for_model(Site),
             constraint={'status': 'planned'},
             action=AutoApprovalActionChoices.ANY,

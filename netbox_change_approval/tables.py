@@ -3,7 +3,28 @@ from django.utils.translation import gettext_lazy as _
 
 from netbox.tables import NetBoxTable, columns
 
-from .models import ApprovalRoutingRule, AutoApprovalRule, ChangeRequest, ExemptModel
+from .models import ApprovalRoutingRule, ApprovalRule, AutoApprovalRule, ChangeRequest, ExemptModel
+
+
+class ApprovalRuleTable(NetBoxTable):
+    priority = tables.Column(linkify=True)
+    description = tables.Column(linkify=True)
+    content_type = columns.ContentTypeColumn(verbose_name=_('Object type'))
+    action = columns.ChoiceFieldColumn()
+    outcome = columns.ChoiceFieldColumn()
+    approver_group = tables.Column(linkify=True)
+    enabled = columns.BooleanColumn()
+
+    class Meta(NetBoxTable.Meta):
+        model = ApprovalRule
+        fields = (
+            'pk', 'id', 'priority', 'description', 'content_type', 'constraint', 'action',
+            'outcome', 'approver_group', 'enabled', 'created', 'last_updated',
+        )
+        default_columns = (
+            'pk', 'priority', 'description', 'content_type', 'constraint', 'action',
+            'outcome', 'approver_group', 'enabled',
+        )
 
 
 class ExemptModelTable(NetBoxTable):

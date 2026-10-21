@@ -36,8 +36,8 @@ Every model that inherits from NetBox's `NetBoxModel` base class is gated
 automatically — every core app (DCIM, IPAM, Virtualization, Circuits, Tenancy,
 VPN, Wireless, ...) and, importantly, **any other plugin's models too**, as long
 as they use the standard NetBox model base. You don't maintain a list of models
-by hand. See "Choosing which object types are gated" below if you want to
-exclude specific models — either a config-file list or a live, UI-editable one.
+by hand. See "Approval rules" below to skip or auto-approve specific models
+or objects.
 
 **Not yet gated (see Limitations):** the plugin's own models (an approval rule
 doesn't require its own approval), tag assignment, and anything done through the
@@ -167,73 +167,40 @@ Go to **Admin → Permissions → Add**:
 Anyone with this permission for a given object type has their changes to that
 type applied immediately, same as if no approval gate existed.
 
-### Routing different objects to different approver groups
+### Approval rules
 
-By default every gated object routes to the single `default_approver_group`.
-To split this out — e.g. a networking team approves IPAM changes, a different
-team approves everything else — go to **Change Approvals → Approval
-Routing Rules → Add**:
+Everything about *which* changes need approval, from *whom*, lives on one
+page: **Change Approvals → Approval Rules**. Each rule has:
 
-- **Object type**: leave blank to match anything, or pick a specific model.
-- **Constraint**: a Django ORM filter (the exact same JSON format NetBox's own
-  object permissions use), e.g. `{"tenant__slug": "acme"}` or
-  `{"site__region__slug": "emea"}`. Leave blank to match unconditionally.
-- **Priority**: rules are evaluated in ascending order; the first enabled rule
-  that matches wins.
-- **Approver group**: who gets routed this change.
+- **Object type**: leave blank to match anything, or pick a model.
+- **Constraint**: an optional filter in the same JSON format as NetBox
+  permission constraints, e.g. `{"tenant__slug": "acme"}`. A list means "any
+  of these". Leave blank to match every object of that type.
+- **Action**: Create, Update, Delete, or Any.
+- **Outcome**:
+  - **Needs approval**: from the chosen **Approver group**, or the default
+    approver group if left blank.
+  - **Approve automatically**: the change goes through right away and is
+    logged as an auto-approved request.
+  - **Skip approval**: the change goes through with no record at all.
+- **Priority**: rules are checked lowest number first, and **the first enabled
+  rule that matches decides**. If no rule matches, the change needs approval
+  from `default_approver_group`.
 
-If no rule matches, the plugin falls back to `default_approver_group`.
+For an **update**, "Approve automatically" and "Skip approval" rules must
+match both the object as it is now *and* the new values. That's what keeps
+an object from being moved out of a rule's scope without approval.
 
-### Auto-approving certain changes
+**Example: create and edit "planned" devices freely, but approve going
+live.** Object type **DCIM > Device**, constraint `{"status": "planned"}`,
+action **Any**, outcome **Approve automatically**. Creating or editing a
+planned device goes through; changing it to active needs approval. (Not every
+model has a `planned` status, e.g. Prefix and VLAN don't, so add one rule per
+model.) With action **Any**, deleting a planned device also goes through; use
+two rules (Create and Update) if deletes should still be approved.
 
-Go to **Change Approvals → Auto-Approval Rules → Add**. Same
-object-type/constraint/priority matching as routing rules, plus which action
-(create/update/delete/any) it applies to. A match is applied immediately
-instead of being queued — a request is still recorded (marked auto-approved),
-so there's always a full audit trail of what happened and why.
-
-**Worked example: create and edit "planned" objects freely, but gate
-promoting them to active.** Add a rule with **Object type** set to the model
-(e.g. DCIM > Device; add one rule per model, since not every model has a
-`planned` status, e.g. Prefix and VLAN don't), **Constraint**
-`{"status": "planned"}`, **Action** `Any`, enabled. Then:
-
-- creating a device with `status=planned` goes through immediately;
-- editing a planned device goes through immediately, as long as it stays
-  planned;
-- changing its status to anything else (e.g. active) is queued for approval;
-- deleting a planned device also goes through immediately with `Any`. Use two
-  rules (`Create` and `Update`) instead if deletes should still be approved.
-
-For **updates**, an auto-approval rule must match both the object as currently
-stored *and* the values being submitted. That's what makes the last step work:
-the stored device is planned, but the submitted one isn't, so the rule doesn't
-match. Routing rules only look at the stored object.
-
-### Choosing which object types are gated
-
-By default every `NetBoxModel`-based object type is gated — see "What gets
-gated" above. There are two ways to turn gating off for a specific type:
-
-- **`exempt_models` in `PLUGINS_CONFIG`** (`configuration.py`) — a static list
-  of `app_label.model_name` strings, e.g. `['dcim.cable']`. This controls
-  registration at process start, so it needs a NetBox restart to take effect.
-  Good for permanent, deploy-time exclusions you want version-controlled
-  alongside the rest of your config.
-- **Change Approvals → Exempt Models → Add** — pick an object type from a
-  dropdown, same as any other rule table in this plugin. This is checked live
-  on every single change, so toggling the **Enabled** checkbox takes effect
-  immediately — no restart. Good for day-to-day adjustments an admin makes
-  through the UI rather than editing a config file and restarting NetBox.
-
-Both apply independently; a model exempted either way isn't gated.
-
-**Exempting only some objects of a type.** An Exempt Models row can also have
-a **Constraint**, in the same format as the rule tables, so only matching
-objects skip approval. You can add several rows for the same object type.
-Constraints can follow relations and many-valued properties, not just real
-database fields. For example, to let anyone change cables in the Tampere
-region without approval, add a row for **DCIM > Cable** with:
+**Example: no approval for cables in the Tampere region.** Object type
+**DCIM > Cable**, outcome **Skip approval**, constraint:
 
 ```json
 [
@@ -242,12 +209,20 @@ region without approval, add a row for **DCIM > Cable** with:
 ]
 ```
 
-(a list means "any of these", so a cable with either end on a device in a
-Tampere site is exempt). For models with a direct site, it's simpler:
-`{"site__region__slug": "tampere"}`. For an update, both the current object
-and the new values must match, so moving a cable out of Tampere still needs
-approval. Exempted changes leave no change request behind; use an
-auto-approval rule instead if you want them logged.
+Constraints can follow relations and many-valued properties like a cable's
+ends. For objects with a direct site, `{"site__region__slug": "tampere"}`
+is enough.
+
+**Upgrading:** earlier versions had three separate pages (Approval Routing
+Rules, Auto-Approval Rules, Exempt Models). Migration 0005 copies all of them
+into Approval Rules, keeping the order the old code checked them in.
+
+### Turning the plugin off for a model entirely
+
+`exempt_models` in `PLUGINS_CONFIG` (`configuration.py`) is a list of
+`app_label.model_name` strings, e.g. `['dcim.cable']`. Listed models aren't
+touched by the plugin at all. It needs a NetBox restart, so for day-to-day
+use prefer a **Skip approval** rule; this setting is an emergency off switch.
 
 ### Getting notified of pending changes
 

@@ -40,19 +40,9 @@ menu = PluginMenu(
                 link_text='All Change Requests',
             ),
             PluginMenuItem(
-                link='plugins:netbox_change_approval:approvalroutingrule_list',
-                link_text='Approval Routing Rules',
-                permissions=['netbox_change_approval.view_approvalroutingrule'],
-            ),
-            PluginMenuItem(
-                link='plugins:netbox_change_approval:autoapprovalrule_list',
-                link_text='Auto-Approval Rules',
-                permissions=['netbox_change_approval.view_autoapprovalrule'],
-            ),
-            PluginMenuItem(
-                link='plugins:netbox_change_approval:exemptmodel_list',
-                link_text='Exempt Models',
-                permissions=['netbox_change_approval.view_exemptmodel'],
+                link='plugins:netbox_change_approval:approvalrule_list',
+                link_text='Approval Rules',
+                permissions=['netbox_change_approval.view_approvalrule'],
             ),
         )),
     ),

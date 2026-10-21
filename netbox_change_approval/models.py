@@ -15,6 +15,8 @@ __all__ = (
     'AutoApprovalActionChoices',
     'StatusChoices',
     'ApprovalRoutingRule',
+    'ApprovalRule',
+    'RuleOutcomeChoices',
     'AutoApprovalRule',
     'ChangeRequest',
     'ExemptModel',
@@ -46,6 +48,12 @@ class StatusChoices(models.TextChoices):
     # the audit trail — the submitter changed their own mind vs. an approver
     # declining it. See ChangeRequest.retract().
     RETRACTED = 'retracted', _('Retracted')
+
+
+class RuleOutcomeChoices(models.TextChoices):
+    REQUIRE = 'require', _('Needs approval')
+    AUTO = 'auto', _('Approve automatically')
+    SKIP = 'skip', _('Skip approval')
 
 
 class BaseMatchRule(NetBoxModel):
@@ -94,6 +102,10 @@ class BaseMatchRule(NetBoxModel):
 
 class ApprovalRoutingRule(BaseMatchRule):
     """
+    LEGACY: replaced by ApprovalRule (migration 0005 copied every row). Kept
+    only so the old table and its change log stay readable; not used for
+    gating. Remove in a later cleanup.
+
     Decides which Group must approve a change to a given object. The first enabled
     rule (by priority) whose content type and constraint match the object wins; if
     none match, PLUGINS_CONFIG['netbox_change_approval']['default_approver_group'] is
@@ -120,6 +132,10 @@ class ApprovalRoutingRule(BaseMatchRule):
 
 class AutoApprovalRule(BaseMatchRule):
     """
+    LEGACY: replaced by ApprovalRule (migration 0005 copied every row). Kept
+    only so the old table and its change log stay readable; not used for
+    gating. Remove in a later cleanup.
+
     A change matching an enabled AutoApprovalRule (content type + constraint + action)
     is applied immediately instead of being queued — a ChangeRequest row is still
     created, marked auto_approved, so there is always a full audit trail.
@@ -148,8 +164,77 @@ class AutoApprovalRule(BaseMatchRule):
         return super().matches(instance, check_new_state=(action == AutoApprovalActionChoices.UPDATE))
 
 
+class ApprovalRule(BaseMatchRule):
+    """
+    The one rule table (replaces ApprovalRoutingRule, AutoApprovalRule and
+    ExemptModel, which migration 0005 copied into this one). Rules are checked
+    in priority order and the first enabled match decides the outcome:
+
+    - REQUIRE: the change needs approval, from `approver_group` (or the
+      default approver group if blank).
+    - AUTO: the change goes through and a request is logged as auto-approved.
+    - SKIP: the change goes through with no record, as if the plugin weren't
+      installed for that object.
+
+    No match: needs approval from the default approver group.
+    """
+    action = models.CharField(
+        max_length=10,
+        choices=AutoApprovalActionChoices.choices,
+        default=AutoApprovalActionChoices.ANY,
+    )
+    outcome = models.CharField(
+        max_length=10,
+        choices=RuleOutcomeChoices.choices,
+        default=RuleOutcomeChoices.REQUIRE,
+    )
+    approver_group = models.ForeignKey(
+        to='users.Group',
+        on_delete=models.PROTECT,
+        related_name='+',
+        null=True,
+        blank=True,
+        help_text=_('Only for "Needs approval". Leave blank to use the default approver group.'),
+    )
+
+    class Meta(BaseMatchRule.Meta):
+        verbose_name = _('approval rule')
+        verbose_name_plural = _('approval rules')
+
+    def get_absolute_url(self):
+        return reverse('plugins:netbox_change_approval:approvalrule', args=[self.pk])
+
+    def get_outcome_color(self):
+        return {
+            RuleOutcomeChoices.REQUIRE: 'yellow',
+            RuleOutcomeChoices.AUTO: 'green',
+            RuleOutcomeChoices.SKIP: 'gray',
+        }.get(self.outcome, 'secondary')
+
+    def matches_action(self, action):
+        return self.action == AutoApprovalActionChoices.ANY or self.action == action
+
+    def matches(self, instance, action=None):
+        if not self.enabled:
+            return False
+        if action is not None and not self.matches_action(action):
+            return False
+        # Letting a change through (AUTO/SKIP) on an update needs both the stored
+        # and the submitted values to match, so {"status": "planned"} doesn't
+        # wave through planned -> active. Choosing approvers looks at the
+        # stored object, as routing always did.
+        check_new_state = (
+            action == AutoApprovalActionChoices.UPDATE and self.outcome != RuleOutcomeChoices.REQUIRE
+        )
+        return rule_matches(self, instance, check_new_state=check_new_state)
+
+
 class ExemptModel(NetBoxModel):
     """
+    LEGACY: replaced by ApprovalRule (migration 0005 copied every row). Kept
+    only so the old table and its change log stay readable; not used for
+    gating. Remove in a later cleanup.
+
     DB-backed, UI-editable list of object types excluded from gating entirely —
     complements (doesn't replace) PLUGINS_CONFIG['exempt_models']. That static
     list controls validator/signal *registration* in discovery.py at process

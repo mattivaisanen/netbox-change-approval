@@ -70,10 +70,10 @@ class ApprovalGateValidatorTests(TestCase):
     def test_auto_approved_update_passes_validation(self):
         from core.models import ObjectType
 
-        from ..models import AutoApprovalRule
+        from ..models import ApprovalRule
 
-        AutoApprovalRule.objects.create(
-            content_type=ObjectType.objects.get_for_model(Manufacturer), action='update',
+        ApprovalRule.objects.create(
+            content_type=ObjectType.objects.get_for_model(Manufacturer), action='update', outcome='auto',
         )
         obj = Manufacturer.objects.create(name='Acme', slug='acme')
         obj.description = 'auto edit'

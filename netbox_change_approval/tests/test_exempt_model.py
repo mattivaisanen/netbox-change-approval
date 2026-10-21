@@ -5,13 +5,13 @@ from dcim.models import Manufacturer
 from users.models import User
 
 from .. import gating
-from ..models import ActionChoices, ChangeRequest, ExemptModel
+from ..models import ActionChoices, ApprovalRule, ChangeRequest
 from .utils import fake_request
 
 
 class ExemptModelGatingTests(TestCase):
     """
-    ExemptModel is checked live inside gate() (see gating._is_exempt), not at
+    "Skip approval" rules are checked live inside gate(), not at
     process-start registration time like PLUGINS_CONFIG['exempt_models'] — so
     toggling `enabled` here must take effect on the very next call, no restart,
     which is the whole point of this table over the static config list.
@@ -22,7 +22,7 @@ class ExemptModelGatingTests(TestCase):
         cls.content_type = ObjectType.objects.get_for_model(Manufacturer)
 
     def test_enabled_exemption_skips_gating_entirely(self):
-        ExemptModel.objects.create(content_type=self.content_type, enabled=True)
+        ApprovalRule.objects.create(content_type=self.content_type, outcome='skip', enabled=True)
         unsaved = Manufacturer(name='Acme', slug='acme')
 
         result = gating.gate(unsaved, ActionChoices.CREATE, fake_request(self.alice))
@@ -34,7 +34,7 @@ class ExemptModelGatingTests(TestCase):
         self.assertFalse(ChangeRequest.objects.filter(object_id=unsaved.pk).exists())
 
     def test_disabled_exemption_does_not_skip_gating(self):
-        ExemptModel.objects.create(content_type=self.content_type, enabled=False)
+        ApprovalRule.objects.create(content_type=self.content_type, outcome='skip', enabled=False)
         unsaved = Manufacturer(name='Acme', slug='acme')
 
         result = gating.gate(unsaved, ActionChoices.CREATE, fake_request(self.alice))
@@ -53,7 +53,7 @@ class ExemptModelGatingTests(TestCase):
         self.assertTrue(hasattr(unsaved, '_nbca_pending_create'))
 
     def test_toggling_enabled_takes_effect_immediately(self):
-        exemption = ExemptModel.objects.create(content_type=self.content_type, enabled=True)
+        exemption = ApprovalRule.objects.create(content_type=self.content_type, outcome='skip', enabled=True)
         gated = Manufacturer(name='Gated', slug='gated')
         gating.gate(gated, ActionChoices.CREATE, fake_request(self.alice))
         self.assertFalse(hasattr(gated, '_nbca_pending_create'))  # exempt: not gated

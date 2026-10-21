@@ -7,6 +7,9 @@ from . import views  # noqa: F401  (import triggers @register_model_view registr
 app_name = 'netbox_change_approval'
 
 urlpatterns = [
+    path('rules/', include(get_model_urls('netbox_change_approval', 'approvalrule', detail=False))),
+    path('rules/<int:pk>/', include(get_model_urls('netbox_change_approval', 'approvalrule'))),
+
     path('exempt-models/', include(get_model_urls('netbox_change_approval', 'exemptmodel', detail=False))),
     path('exempt-models/<int:pk>/', include(get_model_urls('netbox_change_approval', 'exemptmodel'))),
 
