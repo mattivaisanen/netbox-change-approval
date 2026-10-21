@@ -8,7 +8,9 @@
     by {{ change_request.submitted_by|default:"unknown user" }}, {{ change_request.submitted_at|timesince }} ago.
     {% if change_request.approver_group %}Approvers: {{ change_request.approver_group.name }}.{% endif %}
   </div>
+  {% if can_view %}
   <a href="{{ change_request.get_absolute_url }}" class="btn btn-sm btn-warning">
     View request
   </a>
+  {% endif %}
 </div>

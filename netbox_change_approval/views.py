@@ -256,6 +256,25 @@ class ChangeRequestView(generic.ObjectView):
         # filtered out of the list.
         return permissions.visible_change_requests(request.user, super().get_queryset(request))
 
+    def get(self, request, **kwargs):
+        # A request that exists but isn't visible to this user would otherwise
+        # be a bare 404 ("page does not exist"), which reads like a bug. Say it's
+        # an access issue instead, and send them to the object it's about.
+        pk = kwargs.get('pk')
+        if pk is not None and not self.get_queryset(request).filter(pk=pk).exists():
+            hidden = ChangeRequest.objects.filter(pk=pk).first()
+            if hidden is not None:
+                messages.warning(
+                    request,
+                    _("You don't have access to this change request. "
+                      "Only the person who submitted it and its approvers can open it."),
+                )
+                target = hidden.target_object
+                if target is not None and hasattr(target, 'get_absolute_url'):
+                    return redirect(target.get_absolute_url())
+                return redirect(reverse('plugins:netbox_change_approval:changerequest_mine'))
+        return super().get(request, **kwargs)
+
     def get_extra_context(self, request, instance):
         batch_siblings = ChangeRequest.objects.none()
         if instance.batch_id:
