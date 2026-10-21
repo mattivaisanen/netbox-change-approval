@@ -263,7 +263,8 @@ class ChangeRequestListView(_AnyLoggedInUserCanView, generic.ObjectListView):
     table = tables.ChangeRequestTable
 
     def get_queryset(self, request):
-        # Every logged-in user sees every request. See permissions.visible_change_requests.
+        # Requests about object types you can view, plus your own and your
+        # approver groups'. See permissions.visible_change_requests.
         return permissions.visible_change_requests(request.user, super().get_queryset(request))
 
 
@@ -347,11 +348,19 @@ class ApprovalsQueueView(_AnyLoggedInUserCanView, generic.ObjectListView):
 class ChangeRequestView(_AnyLoggedInUserCanView, generic.ObjectView):
     queryset = ChangeRequest.objects.all()
 
-    # No per-user scoping here: any logged-in user can open a single request
-    # (e.g. from the banner on the object) and read its diff. Lists stay scoped:
-    # My Requests is only your own, Approvals only what's routed to you, and
-    # All Change Requests shows everything. Approve/reject/retract keep their own
-    # checks.
+    # A request shows the object's field values, so you can open it if you
+    # can view that object in NetBox (or submitted it / are its approver).
+    # See permissions.can_view_change_request.
+
+    def get(self, request, **kwargs):
+        change_request = ChangeRequest.objects.filter(pk=kwargs.get('pk')).first()
+        if change_request is not None and not permissions.can_view_change_request(request.user, change_request):
+            messages.warning(
+                request,
+                _("You don't have access to this change request, because you can't view the object it changes."),
+            )
+            return redirect(reverse('plugins:netbox_change_approval:changerequest_mine'))
+        return super().get(request, **kwargs)
 
     def get_extra_context(self, request, instance):
         batch_siblings = ChangeRequest.objects.none()

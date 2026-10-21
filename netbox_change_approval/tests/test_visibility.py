@@ -39,10 +39,20 @@ class VisibleChangeRequestsTests(TestCase):
         visible = permissions.visible_change_requests(self.approver, ChangeRequest.objects.all())
         self.assertIn(self.change_request, visible)
 
-    def test_unrelated_user_sees_it_too(self):
-        # All Change Requests is read-only for everyone logged in.
+    def test_user_without_view_permission_does_not_see_it(self):
         visible = permissions.visible_change_requests(self.outsider, ChangeRequest.objects.all())
+        self.assertNotIn(self.change_request, visible)
+        self.assertFalse(permissions.can_view_change_request(self.outsider, self.change_request))
+
+    def test_user_who_can_view_the_object_type_sees_it(self):
+        viewer = User.objects.create(username='viewer')
+        perm = ObjectPermission.objects.create(name='view-manufacturers', enabled=True, actions=['view'])
+        perm.object_types.set([ObjectType.objects.get_for_model(Manufacturer)])
+        perm.users.set([viewer])
+
+        visible = permissions.visible_change_requests(viewer, ChangeRequest.objects.all())
         self.assertIn(self.change_request, visible)
+        self.assertTrue(permissions.can_view_change_request(viewer, self.change_request))
 
     def test_approver_queue_only_has_own_groups_requests(self):
         self.assertIn(self.change_request, permissions.approver_queue(self.approver, ChangeRequest.objects.all()))

@@ -112,12 +112,60 @@ def has_bypass(user, instance, check_new_state=False):
     return _matches_bypass_in_memory(user, instance, constraints)
 
 
+def _viewable_content_type_ids(user, queryset):
+    """IDs of the object types in `queryset` this user may view in NetBox
+    (model-level "view" permission, or exempt via EXEMPT_VIEW_PERMISSIONS)."""
+    from django.contrib.contenttypes.models import ContentType
+
+    ct_ids = queryset.order_by().values_list('content_type_id', flat=True).distinct()
+    return [
+        ct.pk for ct in ContentType.objects.filter(pk__in=list(ct_ids))
+        if user.has_perm(f'{ct.app_label}.view_{ct.model}')
+    ]
+
+
 def visible_change_requests(user, queryset):
-    """Every logged-in user can see every change request (read-only). Who can
-    approve, reject or retract is checked separately in the views."""
+    """
+    Change requests a user may read: those about object types they're allowed
+    to view in NetBox, plus their own submissions and anything routed to their
+    approver groups (superusers see everything). A request's diff shows the
+    object's field values, so it follows the same view permission as the object.
+    Approve/reject/retract are checked separately in the views.
+    """
+    from django.db.models import Q
+
     if not user.is_authenticated:
         return queryset.none()
-    return queryset
+    if user.is_superuser:
+        return queryset
+    return queryset.filter(
+        Q(content_type_id__in=_viewable_content_type_ids(user, queryset))
+        | Q(submitted_by=user)
+        | Q(approver_group__in=user.groups.all())
+    ).distinct()
+
+
+def can_view_change_request(user, change_request):
+    """Single-request check, including object-level permission constraints
+    (e.g. "view VPN tunnels of tenant X only") when the object still exists."""
+    if not user.is_authenticated:
+        return False
+    if user.is_superuser or change_request.submitted_by_id == user.pk:
+        return True
+    if change_request.approver_group_id and user.groups.filter(pk=change_request.approver_group_id).exists():
+        return True
+    ct = change_request.content_type
+    if not user.has_perm(f'{ct.app_label}.view_{ct.model}'):
+        return False
+    model = ct.model_class()
+    if model is None or change_request.object_id is None:
+        return True
+    if not model.objects.filter(pk=change_request.object_id).exists():
+        return True  # object deleted since; model-level permission decides
+    restrict = getattr(model.objects, 'restrict', None)
+    if restrict is None:
+        return True
+    return restrict(user, 'view').filter(pk=change_request.object_id).exists()
 
 
 def approver_queue(user, queryset):

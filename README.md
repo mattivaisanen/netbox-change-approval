@@ -146,12 +146,15 @@ conflict or validation error means none of the batch is applied.
 You can only approve/reject requests routed to a group you belong to (or any
 request, if you're a superuser).
 
-**Who can see which requests:** every logged-in user can open **My
-Requests** (only your own submissions) and **All Change Requests** (every
-request, read-only), and can open any single request to read its changes.
-**Approvals** only shows requests routed to a group you're in. Only the
-approver group (or a superuser) can approve or reject, and only the submitter
-can retract.
+**Who can see which requests:** every logged-in user has **My Requests**
+(your own submissions) and **All Change Requests**. A request shows the
+object's field values, so it follows NetBox's own view permissions: you see
+requests about object types you're allowed to view (e.g. no VPN permission,
+no VPN requests), plus your own submissions and anything routed to your
+approver groups. Opening a single request also respects object-level
+permission constraints. **Approvals** only shows requests routed to a group
+you're in. Only the approver group (or a superuser) can approve or reject,
+and only the submitter can retract.
 
 ### Letting specific users skip approval entirely
 
