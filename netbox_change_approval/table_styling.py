@@ -1,10 +1,7 @@
 """
 Row highlighting for anything with a pending ChangeRequest, on *any* model's own
-list view — no per-model table code. The "Pending Approval" tag (tags.py) already
-exists on the object, but most of NetBox's own tables don't include a Tags column
-in default_columns (confirmed for ManufacturerTable — the norm across core
-tables, not the exception), so a pending row looks identical to an approved one
-unless someone has manually customized their columns. See DEVELOPER.md
+list view — no per-model table code, so a pending row stands out without any
+column setup. See DEVELOPER.md
 "Row highlighting via a monkeypatched NetBoxTable.configure()" for the full
 reasoning and the risk this carries — there is no PluginTemplateExtension hook
 for per-row list content (list_buttons() only adds buttons near the Add/Import

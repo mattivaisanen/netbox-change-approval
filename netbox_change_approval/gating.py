@@ -79,7 +79,7 @@ def gate(instance, action, request):
     persist either way).
 
     CREATE is different: the point is for the new object to show up immediately
-    as a real Rack/Device/IP address/etc., tagged "Pending Approval", so a
+    as a real Rack/Device/IP address/etc., marked pending, so a
     second person doesn't submit a duplicate while the first is still waiting —
     see README "Pending creates are visible immediately". So for CREATE, "needs
     approval" is *also* a "proceed" case: gate() stashes the not-yet-saved

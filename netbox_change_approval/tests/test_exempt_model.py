@@ -6,7 +6,6 @@ from users.models import User
 
 from .. import gating
 from ..models import ActionChoices, ChangeRequest, ExemptModel
-from ..tags import PENDING_TAG_SLUG
 from .utils import fake_request
 
 
@@ -31,7 +30,7 @@ class ExemptModelGatingTests(TestCase):
         self.assertIsNone(result)
         self.assertFalse(hasattr(unsaved, '_nbca_pending_create'))
         unsaved.save()
-        self.assertFalse(unsaved.tags.filter(slug=PENDING_TAG_SLUG).exists())
+        self.assertFalse(ChangeRequest.objects.filter(object_id=unsaved.pk, status='pending').exists())
         self.assertFalse(ChangeRequest.objects.filter(object_id=unsaved.pk).exists())
 
     def test_disabled_exemption_does_not_skip_gating(self):
@@ -43,7 +42,7 @@ class ExemptModelGatingTests(TestCase):
         self.assertIsNone(result)  # CREATE always returns None — see gating.gate()'s docstring
         self.assertTrue(hasattr(unsaved, '_nbca_pending_create'))  # ...but it IS still being gated
         unsaved.save()
-        self.assertTrue(unsaved.tags.filter(slug=PENDING_TAG_SLUG).exists())
+        self.assertTrue(ChangeRequest.objects.filter(object_id=unsaved.pk, status='pending').exists())
 
     def test_no_exemption_row_gates_normally(self):
         unsaved = Manufacturer(name='Acme', slug='acme')

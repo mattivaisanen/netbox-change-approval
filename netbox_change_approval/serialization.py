@@ -11,9 +11,7 @@ and save", which is the same thing every NetBox ModelForm already does.
 
 Known limitation (documented in README): tags (django-taggit) are not a plain
 ManyToManyField and are not currently captured in the diff — a *user's own* tag
-changes on a gated object apply immediately, uncaptured by approval. (This is
-unrelated to the plugin's own "Pending Approval" tag, applied directly via
-tags.py/signals.py outside of this diff machinery entirely.) Everything else
+changes on a gated object apply immediately, uncaptured by approval. Everything else
 that is a concrete field or a real ManyToManyField (including
 custom_field_data, which is a plain JSONField) is covered.
 """
@@ -77,7 +75,7 @@ def snapshot_create(instance):
     Field dump for a not-yet-saved instance — the audit record of what was
     requested, stored on ChangeRequest.diff. (Create requests don't need a
     reconstruction blueprint: the object is written immediately and tagged
-    "Pending Approval" rather than queued — see gating.gate()'s docstring —
+    marked pending rather than queued — see gating.gate()'s docstring —
     so there's nothing to "apply" later beyond removing that tag.) Fields left
     at their model default (field.get_default(), Django's own "nothing was set"
     value — '' or None, matching each field's own empty-value convention) are

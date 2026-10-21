@@ -157,7 +157,7 @@ So both auto-approved delete and auto-approved create just log a
 write already in flight proceed as the approved action, instead of calling
 `apply()` at all.
 
-## Create is different: written immediately, tagged, not queued
+## Create is different: written immediately, not queued
 
 Every other action in this plugin follows "capture a diff → abort the write →
 apply it later on approval." **Create does not.** The reason is concrete: if a
@@ -174,22 +174,19 @@ write. Instead it stashes an **unsaved** `ChangeRequest` on
 normally, Django's `post_save` signal fires, and
 `signals.finish_pending_create()` (connected in `signals.connect()` alongside
 the delete gate) is where the second half happens: the marker is popped off
-the instance, the `ChangeRequest` gets the real `object_id` and is saved, and
-— unless an `AutoApprovalRule` already marked it `applied` — the object is
-tagged with the plugin's own `"Pending Approval"` tag
-(`tags.get_pending_tag()`, a normal `django-taggit` tag, auto-created on first
-use). That tag is *not* part of the diff/apply machinery at all — it's a
-separate, directly-applied marker purely for visibility in list views
-(NetBox's existing tag columns render it for free, no template work needed).
+the instance, and the `ChangeRequest` gets the real `object_id` and is saved.
+List views show the object as pending via the row outline (`table_styling.py`).
+(Earlier versions also tagged it "Pending Approval"; migration 0004 removes
+that tag.)
 
 Because the object is already real, `ChangeRequest.apply()` for a CREATE does
-no write at all — it just removes the tag. `ChangeRequest.reject()` for a
+no write at all — it just closes the request. `ChangeRequest.reject()` for a
 CREATE has to do the opposite of every other action: since something *was*
 actually written, rejecting it means deleting that real row, or it would be
 stuck behind a closed, un-actionable request forever.
 
 The object-lock check (`ChangeRequest.is_object_locked()`) runs identically
-for a pending create as for anything else — once tagged, the object can't be
+for a pending create as for anything else — once created, the object can't be
 edited again until the create itself is decided.
 
 One side effect worth calling out, since it answers a question that comes up
@@ -458,11 +455,8 @@ itself:
   never gets applied. The original edit/delete was blocked and stays blocked
   forever (nothing errors — the object just keeps whatever state it already
   had). Reapplying it, if still wanted, is a manual job.
-- Any object that was mid-flight on a pending **create** keeps its
-  `"Pending Approval"` tag forever — tags are a normal NetBox-core feature,
-  not owned by this plugin's migrations, so removing the plugin doesn't clear
-  it. Purely cosmetic (the object is otherwise fully normal and usable), but
-  confusing if nobody remembers why it's tagged that way years later.
+- Any object that was mid-flight on a pending **create** simply stays, as a
+  normal object (nothing marks it as pending once the plugin is gone).
 - The three DB tables (`ChangeRequest`, `ApprovalRoutingRule`,
   `AutoApprovalRule`) are **not** dropped automatically. Without running
   `python manage.py migrate netbox_change_approval zero` first, they're left

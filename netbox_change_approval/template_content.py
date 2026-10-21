@@ -36,13 +36,8 @@ class PendingChangeBanner(PluginTemplateExtension):
 
     def list_buttons(self):
         """
-        The "Pending Approval" tag (tags.py) is visible in a model's list view —
-        but only once a user has manually added the Tags column, since NetBox's
-        own tables rarely include it in default_columns (confirmed for Manufacturer,
-        and that's the norm, not the exception, across core tables). That defeats
-        the whole point of tagging creates immediately (see README "Pending
-        creates are visible immediately") if nobody sees it without digging into
-        column settings first. There's no generic per-row list-view hook in
+        A clickable "N pending approvals" count above a model's list view.
+        There's no generic per-row list-view hook in
         PluginTemplateExtension to fix this properly (list_buttons() is the only
         list-view hook there is — see DEVELOPER.md "Why there's no per-row list
         indicator" for why this is a button-bar badge instead of row styling), so

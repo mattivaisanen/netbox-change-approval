@@ -345,21 +345,19 @@ class ChangeRequest(NetBoxModel):
 
         CREATE is not handled by writing anything here — a pending create's
         object already exists for real (see gating.gate()'s docstring: it's
-        written immediately, tagged "Pending Approval", precisely so it's
-        visible right away and can't be duplicated). Approving one just removes
-        that tag.
+        written immediately (and marked pending in lists), precisely so it's
+        visible right away and can't be duplicated). Approving one just closes
+        the request.
         """
         from . import serialization
         from .context import applying_change_on
-        from .tags import get_pending_tag
 
         # One transaction for the write *and* the status change: if the write
         # fails (e.g. serialization.ChangeConflict because the object changed
         # since submission), nothing is written and the request stays pending.
         with transaction.atomic(), applying_change_on():
             if self.action == ActionChoices.CREATE:
-                model = self.content_type.model_class()
-                model.objects.get(pk=self.object_id).tags.remove(get_pending_tag())
+                pass  # already written when submitted; approving just closes the request
             elif self.action == ActionChoices.UPDATE:
                 serialization.apply_update(self.content_type, self.object_id, self.diff)
             elif self.action == ActionChoices.DELETE:
@@ -376,7 +374,7 @@ class ChangeRequest(NetBoxModel):
         """
         For UPDATE/DELETE, nothing was ever written, so rejecting just closes
         the request out. For CREATE, the object was written immediately (tagged
-        "Pending Approval" — see apply()'s docstring), so rejecting it has to
+        marked pending — see apply()'s docstring), so rejecting it has to
         actually delete that object; otherwise a rejected request would leave a
         permanent, un-removable object behind.
         """

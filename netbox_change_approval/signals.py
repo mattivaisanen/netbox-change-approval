@@ -11,7 +11,6 @@ from .discovery import iter_gated_models
 from .exceptions import ChangeApprovalRequired, ObjectLocked
 from .gating import gate
 from .models import ActionChoices, ApprovalRoutingRule, StatusChoices
-from .tags import get_pending_tag
 
 
 def gate_delete(sender, instance, **kwargs):
@@ -76,7 +75,6 @@ def finish_pending_create(sender, instance, created, **kwargs):
             request._nbca_suppress_default_create_message = True
         return
 
-    instance.tags.add(get_pending_tag())
     if request is not None:
         usernames = change_request.approver_usernames
         if usernames:

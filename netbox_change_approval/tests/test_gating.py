@@ -10,7 +10,6 @@ from .. import gating
 from ..context import applying_change_on, batch_scope
 from ..exceptions import ObjectLocked
 from ..models import ActionChoices, ApprovalRoutingRule, AutoApprovalRule, ChangeRequest, StatusChoices
-from ..tags import PENDING_TAG_SLUG
 from .utils import fake_request, grant_bypass
 
 
@@ -43,7 +42,7 @@ class GatingTests(TestCase):
         obj = _gate_and_save(unsaved, self.alice)
 
         self.assertTrue(Manufacturer.objects.filter(slug='acme').exists())
-        self.assertTrue(obj.tags.filter(slug=PENDING_TAG_SLUG).exists())
+        self.assertTrue(ChangeRequest.objects.filter(object_id=obj.pk, status='pending').exists())
 
         change_request = ChangeRequest.objects.get(object_id=obj.pk, action=ActionChoices.CREATE)
         self.assertEqual(change_request.status, StatusChoices.PENDING)
@@ -58,7 +57,7 @@ class GatingTests(TestCase):
         self.assertIsNone(result)
         self.assertFalse(hasattr(unsaved, '_nbca_pending_create'))
         unsaved.save()
-        self.assertFalse(unsaved.tags.filter(slug=PENDING_TAG_SLUG).exists())
+        self.assertFalse(ChangeRequest.objects.filter(object_id=unsaved.pk, status='pending').exists())
         self.assertFalse(ChangeRequest.objects.filter(object_id=unsaved.pk).exists())
 
     def test_noop_update_is_not_queued(self):
@@ -122,7 +121,7 @@ class GatingTests(TestCase):
         obj = _gate_and_save(unsaved, self.alice)
 
         self.assertTrue(Manufacturer.objects.filter(slug='acme').exists())
-        self.assertFalse(obj.tags.filter(slug=PENDING_TAG_SLUG).exists())  # never tagged — already decided
+        self.assertFalse(ChangeRequest.objects.filter(object_id=obj.pk, status='pending').exists())  # never tagged — already decided
 
         change_request = ChangeRequest.objects.get(object_id=obj.pk, action=ActionChoices.CREATE)
         self.assertEqual(change_request.status, StatusChoices.APPLIED)
@@ -137,7 +136,7 @@ class GatingTests(TestCase):
 
         change_request = ChangeRequest.objects.get(object_id=obj.pk)
         self.assertEqual(change_request.status, StatusChoices.PENDING)
-        self.assertTrue(obj.tags.filter(slug=PENDING_TAG_SLUG).exists())
+        self.assertTrue(ChangeRequest.objects.filter(object_id=obj.pk, status='pending').exists())
 
     def test_batch_scope_groups_change_requests(self):
         batch_id = uuid.uuid4()
@@ -162,7 +161,7 @@ class GatingTests(TestCase):
         self.assertEqual(change_request.status, StatusChoices.APPLIED)
         self.assertEqual(change_request.decided_by, self.bob)
         obj.refresh_from_db()
-        self.assertFalse(obj.tags.filter(slug=PENDING_TAG_SLUG).exists())
+        self.assertFalse(ChangeRequest.objects.filter(object_id=obj.pk, status='pending').exists())
         self.assertTrue(Manufacturer.objects.filter(slug='acme').exists())
 
     def test_change_request_reject_deletes_the_object(self):

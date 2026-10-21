@@ -8,7 +8,6 @@ from users.models import User
 from .. import signals
 from ..exceptions import ChangeApprovalRequired
 from ..models import ChangeRequest, StatusChoices
-from ..tags import PENDING_TAG_SLUG
 from ..validators import ApprovalGateValidator
 from .utils import fake_request, grant_bypass
 
@@ -30,7 +29,7 @@ class ApprovalGateValidatorTests(TestCase):
         unsaved.save()
 
         self.assertTrue(Manufacturer.objects.filter(slug='acme').exists())
-        self.assertTrue(unsaved.tags.filter(slug=PENDING_TAG_SLUG).exists())
+        self.assertTrue(ChangeRequest.objects.filter(object_id=unsaved.pk, status='pending').exists())
         change_request = ChangeRequest.objects.get(object_id=unsaved.pk)
         self.assertEqual(change_request.status, StatusChoices.PENDING)
 

@@ -11,9 +11,9 @@ banner — a member of the right approver group reviews the diff and approves or
 rejects it — only on approval does the write actually happen. **Creates** work
 differently on purpose: the new object is written immediately, so a second
 person browsing the list doesn't submit a duplicate while the first is still
-waiting, but it's tagged **"Pending Approval"** and locked against further
-edits until a member of the approver group reviews it. Approving just removes
-the tag; rejecting deletes the object.
+waiting, but it's marked as pending (yellow outline in lists, banner on the
+object) and locked against further edits until a member of the approver group
+reviews it. Approving keeps it; rejecting deletes the object.
 
 ## Why this exists
 
@@ -92,20 +92,18 @@ that request is approved or rejected.
 
 **Creating** a new gated object: submit as usual — the object is created for
 real right away, so you (and everyone else) see it immediately in its normal
-list view, with a **"Pending Approval"** tag on it. This is deliberate: it's
-there specifically so a second person browsing Racks/Devices/IPs/etc. sees
-yours already exists instead of creating a duplicate. The object is locked
-against further edits until decided. If approved, the tag is simply removed.
-If rejected, the object is deleted. Any list view also outlines a pending
-row in yellow (even without the Tags column visible), and a pending Device
-gets the same outline in its rack's elevation view.
+list view, outlined in yellow as pending. This is deliberate: it's there
+specifically so a second person browsing Racks/Devices/IPs/etc. sees yours
+already exists instead of creating a duplicate. The object is locked against
+further edits until decided. If approved, it simply stays; if rejected, it is
+deleted. A pending Device gets the same outline in its rack's elevation view.
 
 Bulk edit, bulk import, and bulk delete are each gated as a single request
 covering the whole action — approving or rejecting applies to everything in that
 one bulk action together, not object-by-object.
 
 Changed your mind before anyone's decided? Open your request (from **My
-Requests**, or the banner/tag on the object itself) and click **Retract** — no
+Requests**, or the banner on the object itself) and click **Retract** — no
 comment needed, since there's no one else to explain it to. For a create, this
 deletes the object the same way a rejection would; for an update or delete,
 nothing was written yet, so it just closes the request. Only you (the
@@ -290,7 +288,7 @@ See NetBox's own docs on Event Rule conditions for the exact condition syntax.
   approved — stays in the database forever; there's no built-in pruning. Also
   worth knowing before years of use: approver groups become permanently
   undeletable once any historical request references them, and uninstalling
-  the plugin doesn't clean up tags, permissions, or (unless you reverse-
+  the plugin doesn't clean up permissions, or (unless you reverse-
   migrate) its own tables. See DEVELOPER.md "Long-term data lifecycle, and
   what happens if you uninstall this" before committing to this long-term.
 
