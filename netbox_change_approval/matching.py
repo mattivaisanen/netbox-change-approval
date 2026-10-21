@@ -66,6 +66,29 @@ def _expand(value):
     return [value]
 
 
+def _pending_m2m(instance, name):
+    """
+    The many-to-many values (tags, ...) a form or the API is about to save on
+    `instance`, or None if this save doesn't set `name`. NetBox puts them in
+    `instance._m2m_values` before validation; the database still has the old
+    ones. Without this, {"tags__slug": "lab"} would see the old tags, so an
+    edit that removes the "lab" tag would still count as a lab object.
+    """
+    pending = getattr(instance, '_m2m_values', None)
+    if not pending or name not in pending:
+        return None
+    values = list(pending[name])
+    pks = [v for v in values if not hasattr(v, '_meta')]
+    if pks:
+        try:
+            related_model = instance._meta.get_field(name).related_model
+        except Exception:
+            return [v for v in values if hasattr(v, '_meta')]
+        found = {o.pk: o for o in related_model.objects.filter(pk__in=pks)}
+        values = [v if hasattr(v, '_meta') else found.get(v) for v in values]
+    return [v for v in values if v is not None]
+
+
 def _resolve_values(obj, parts):
     """
     All values reachable from `obj` along `parts`. Follows foreign keys like
@@ -74,11 +97,14 @@ def _resolve_values(obj, parts):
     slug of every A-side termination's device.
     """
     values = [obj]
-    for part in parts:
+    for depth, part in enumerate(parts):
         next_values = []
         for value in values:
             if value is None or value is _MISSING:
                 next_values.append(value)
+                continue
+            if depth == 0 and (pending := _pending_m2m(value, part)) is not None:
+                next_values.extend(pending)
                 continue
             try:
                 attr = getattr(value, part)

@@ -56,3 +56,25 @@ class RuleMatchesTests(TestCase):
         rule = FakeRule(constraint={'tenant__isnull': True})
         unsaved = Site(name='No Tenant', slug='no-tenant')
         self.assertTrue(rule_matches(rule, unsaved))
+
+
+class PendingManyToManyTests(TestCase):
+    """New tags (and other many-to-many values) count as the new state."""
+
+    def test_removing_tag_leaves_skip_rule_scope(self):
+        from dcim.models import Manufacturer
+        from extras.models import Tag
+
+        from ..models import ApprovalRule, RuleOutcomeChoices
+
+        lab = Tag.objects.create(name='Lab', slug='lab')
+        obj = Manufacturer.objects.create(name='Acme', slug='acme')
+        obj.tags.add(lab)
+        rule = ApprovalRule(outcome=RuleOutcomeChoices.SKIP, constraint={'tags__slug': 'lab'})
+
+        obj = Manufacturer.objects.get(pk=obj.pk)
+        obj._m2m_values = {'tags': []}
+        self.assertFalse(rule.matches(obj, action='update'))
+
+        obj._m2m_values = {'tags': [lab.pk]}  # pks, as from bulk edit's add/remove
+        self.assertTrue(rule.matches(obj, action='update'))
