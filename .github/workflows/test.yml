@@ -2,11 +2,11 @@ name: Test
 
 on:
   push:
-    branches: [main]
+    branches: [master]
   pull_request:
 
 env:
-  NETBOX_REF: v4.2.0
+  NETBOX_REF: v4.7.3
 
 jobs:
   test:
@@ -59,19 +59,23 @@ jobs:
 
       - name: Configure NetBox
         run: |
-          cp netbox/netbox/netbox/configuration_example.py netbox/netbox/netbox/configuration.py
-          python - << 'PYEOF'
-          import pathlib
-          config_path = pathlib.Path('netbox/netbox/netbox/configuration.py')
-          config = config_path.read_text()
-          config = config.replace(
-              "DATABASE = {",
-              "DATABASE = {\n    'NAME': 'netbox', 'USER': 'netbox', 'PASSWORD': 'netbox', 'HOST': 'localhost', 'PORT': '5432',",
-          )
-          config += "\nPLUGINS = ['netbox_change_approval']\n"
-          config += "PLUGINS_CONFIG = {'netbox_change_approval': {'default_approver_group': 'Change Approvers'}}\n"
-          config += "SECRET_KEY = 'x' * 50\n"
-          config_path.write_text(config)
+          cat > netbox/netbox/netbox/configuration.py << 'PYEOF'
+          ALLOWED_HOSTS = ['*']
+          DATABASES = {
+              'default': {
+                  'ENGINE': 'django.db.backends.postgresql',
+                  'NAME': 'netbox', 'USER': 'netbox', 'PASSWORD': 'netbox',
+                  'HOST': 'localhost', 'PORT': '5432',
+              },
+          }
+          REDIS = {
+              'tasks': {'HOST': 'localhost', 'PORT': 6379, 'DATABASE': 0, 'SSL': False},
+              'caching': {'HOST': 'localhost', 'PORT': 6379, 'DATABASE': 1, 'SSL': False},
+          }
+          SECRET_KEY = 'ci-only-secret-key-' + 'x' * 40
+          API_TOKEN_PEPPERS = {1: 'ci-only-pepper-' + 'y' * 40}
+          PLUGINS = ['netbox_change_approval']
+          PLUGINS_CONFIG = {'netbox_change_approval': {'default_approver_group': 'Change Approvers'}}
           PYEOF
 
       - name: Run migrations

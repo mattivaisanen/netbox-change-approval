@@ -37,4 +37,4 @@ netbox_change_approval = ["templates/**/*.html"]
 # NetBox compatibility is enforced at runtime via NetBoxChangeApprovalConfig.min_version /
 # max_version (see netbox_change_approval/__init__.py), since NetBox plugins are not
 # installed as a normal pip dependency of NetBox but rather the other way around.
-# Minimum supported NetBox version: 4.2.0
+# Minimum supported NetBox version: 4.7.0 (the only version tested).

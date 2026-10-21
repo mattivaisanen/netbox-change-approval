@@ -25,7 +25,8 @@ approval queue.
 
 ## Requirements
 
-- NetBox **4.2** or later.
+- NetBox **4.7** or later. Tested with NetBox 4.7.3 only; NetBox refuses to
+  load the plugin on older versions, which lack hooks it relies on.
 - No other NetBox plugins required. This plugin only uses NetBox core (its
   permission system, Event Rules, custom validators) and Django REST Framework,
   both already part of NetBox itself.

@@ -11,7 +11,9 @@ class NetBoxChangeApprovalConfig(PluginConfig):
     version = '0.1.0'
     author = 'Matti'
     base_url = 'change-approval'
-    min_version = '4.2.0'
+    # Only NetBox 4.7 is tested. Older releases lack hooks this plugin uses
+    # (object actions, BulkEditView.pre_save_operations, delete signal origin).
+    min_version = '4.7.0'
 
     default_settings = {
         # Name of the Django Group used as the fallback approver group when no

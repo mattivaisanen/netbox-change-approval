@@ -13,7 +13,9 @@ without forking/monkey-patching NetBox's core views. Every design decision
 below follows from trying to satisfy all of that at once using only
 **documented, version-stable NetBox plugin extension points**.
 
-Three NetBox facts made this possible, confirmed against NetBox 4.2 source
+Three NetBox facts made this possible, first confirmed against NetBox 4.2
+source and since re-checked against NetBox 4.7, the only version the plugin
+is tested on and the minimum it supports
 (not just docs — see the comments in the modules below for exactly where):
 
 1. **`CustomValidator`** (`extras/validators.py`) runs inside
