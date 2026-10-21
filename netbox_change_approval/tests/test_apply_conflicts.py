@@ -56,7 +56,8 @@ class ApplyConflictTests(TestCase):
 
     def test_missing_object_is_a_conflict(self):
         pk = self.obj.pk
-        Manufacturer.objects.filter(pk=pk).delete()
+        with applying_change_on():  # delete it directly, without queueing approval
+            Manufacturer.objects.filter(pk=pk).delete()
 
         with applying_change_on(), self.assertRaises(ChangeConflict) as ctx:
             serialization.apply_update(self.ct, pk, self.diff)

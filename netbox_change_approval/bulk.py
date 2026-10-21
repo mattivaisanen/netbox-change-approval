@@ -104,7 +104,8 @@ def _wrap_update_objects(original):
         updated = []
         try:
             for item in list(selected):
-                form.cleaned_data['pk'] = [item]
+                # Same type NetBox put there: a queryset (pk__in accepts it).
+                form.cleaned_data['pk'] = model.objects.filter(pk=getattr(item, 'pk', item))
                 ok, result = _run_isolated(
                     collector, model, lambda: original(self, form, request, *args, **kwargs),
                 )
