@@ -1,22 +1,23 @@
 from django.contrib import messages
 from django.core.exceptions import FieldDoesNotExist, ValidationError
-from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.translation import gettext as _
 from django.views.generic import View
 
+from netbox.context import current_request
 from netbox.object_actions import BulkExport
 from netbox.views import generic
 from utilities.forms.forms import ConfirmationForm
 from utilities.views import ConditionalLoginRequiredMixin, register_model_view
 
-from . import filtersets, forms, inbox, permissions, placement, revision, serialization, tables
+from . import approvals, filtersets, forms, inbox, notifications, permissions, placement, revision, serialization, tables
 from .exceptions import ChangeConflict
 from .rule_access import RuleReadMixin, RuleWriteMixin
 from .object_actions import BulkApprove, BulkReject
 from .models import (
-    ActionChoices, ApprovalRoutingRule, ApprovalRule, AutoApprovalRule, ChangeRequest, ExemptModel, StatusChoices,
+    ActionChoices, ApprovalRoutingRule, ApprovalRule, AutoApprovalRule, ChangeRequest, ChangeRequestComment,
+    ExemptModel, StatusChoices,
 )
 
 #
@@ -331,6 +332,10 @@ class ChangeRequestView(_AnyLoggedInUserCanView, generic.ObjectView):
             'placement_rows': placement.placement_rows(instance),
             'batch_siblings': batch_siblings,
             'can_decide': _can_decide(request.user, instance),
+            'has_approved': instance.has_approved(request.user),
+            'approvals_so_far': approvals.approvers_so_far(instance),
+            'comments': instance.comments.select_related('author'),
+            'comment_form': forms.ChangeRequestCommentForm(),
             'can_retract': (
                 instance.status == StatusChoices.PENDING and instance.submitted_by_id == request.user.pk
             ),
@@ -343,10 +348,29 @@ class ChangeRequestView(_AnyLoggedInUserCanView, generic.ObjectView):
         }
 
 
-def _batch_targets(change_request):
+def _batch_targets(change_request, user=None):
+    """
+    The pending requests decided together with `change_request`: the rest of
+    its bulk batch, limited to those `user` may act on. A bulk edit can touch
+    objects routed to different approver groups (one rule per tenant, say);
+    approving the batch must not decide requests meant for another group.
+    The submitter (retracting) gets their own requests in the batch.
+
+    `user` defaults to the user of the current web request.
+    """
     if not change_request.batch_id:
         return [change_request]
-    return list(ChangeRequest.objects.filter(batch_id=change_request.batch_id, status=StatusChoices.PENDING))
+    if user is None:
+        user = getattr(current_request.get(), 'user', None)
+    siblings = ChangeRequest.objects.filter(batch_id=change_request.batch_id, status=StatusChoices.PENDING)
+    if user is None:
+        return list(siblings)
+    if change_request.submitted_by_id == user.pk:
+        return list(siblings.filter(submitted_by=user))
+    return [
+        cr for cr in siblings
+        if cr.pk == change_request.pk or permissions.can_decide(user, cr)
+    ]
 
 
 def _default_return_url():
@@ -376,6 +400,14 @@ class _ChangeRequestDecisionView(ConditionalLoginRequiredMixin, View):
 
 @register_model_view(ChangeRequest, 'approve')
 class ChangeRequestApproveView(_ChangeRequestDecisionView):
+    def check_permission(self, request):
+        if (denied := super().check_permission(request)) is not None:
+            return denied
+        if self.change_request.has_approved(request.user):
+            messages.warning(request, _('You already approved this. It needs another approver.'))
+            return redirect(self.change_request.get_absolute_url())
+        return None
+
     def get(self, request, pk):
         if (denied := self.check_permission(request)) is not None:
             return denied
@@ -399,18 +431,24 @@ class ChangeRequestApproveView(_ChangeRequestDecisionView):
         targets = _batch_targets(self.change_request)
         try:
             # All-or-nothing for a batch: one conflict or validation failure
-            # rolls back every change already applied in this batch, and every
-            # request stays pending.
-            with transaction.atomic():
-                for change_request in targets:
-                    change_request.apply(user=request.user)
+            # rolls back every change already applied in this batch (and the
+            # approvals just recorded), and every request stays pending.
+            result = approvals.approve(targets, request.user)
         except ChangeConflict as e:
             messages.error(request, _('Not applied: %(error)s Reject this request and resubmit it.') % {'error': e})
             return redirect(self.change_request.get_absolute_url())
         except (ValidationError, FieldDoesNotExist) as e:
             messages.error(request, _('Not applied: %(error)s') % {'error': '; '.join(getattr(e, 'messages', [str(e)]))})
             return redirect(self.change_request.get_absolute_url())
-        messages.success(request, _('Approved and applied %(count)d change(s).') % {'count': len(targets)})
+        except approvals.AlreadyDecided as e:
+            messages.warning(request, str(e))
+            return redirect(self.change_request.get_absolute_url())
+        if result.applied:
+            messages.success(request, _('Approved and applied %(count)d change(s).') % {'count': len(targets)})
+        else:
+            messages.success(request, _(
+                'Approval recorded (%(have)d of %(need)d). It is applied once %(left)d more approver(s) approve.'
+            ) % {'have': result.have, 'need': result.need, 'left': result.need - result.have})
         return redirect(form.cleaned_data.get('return_url') or _default_return_url())
 
 
@@ -599,6 +637,30 @@ class ChangeRequestDiscardView(_SentBackView):
         return redirect(reverse('plugins:netbox_change_approval:changerequest_inbox'))
 
 
+@register_model_view(ChangeRequest, 'comment')
+class ChangeRequestCommentView(ConditionalLoginRequiredMixin, View):
+    """Add a comment to a request: ask or answer something without deciding
+    it. Anyone who can open the request can comment. The submitter, the
+    approver group and earlier commenters are notified."""
+    def post(self, request, pk):
+        change_request = get_object_or_404(ChangeRequest, pk=pk)
+        if not request.user.is_authenticated or not permissions.can_view_change_request(request.user, change_request):
+            messages.error(request, _("You don't have access to this change request."))
+            return redirect(reverse('plugins:netbox_change_approval:changerequest_inbox'))
+        form = forms.ChangeRequestCommentForm(request.POST)
+        if form.is_valid():
+            comment = ChangeRequestComment.objects.create(
+                change_request=change_request, author=request.user, text=form.cleaned_data['text'],
+            )
+            notifications.comment_added(comment)
+            messages.success(request, _('Comment added.'))
+        else:
+            messages.error(request, _('Comment not added: %(errors)s') % {
+                'errors': '; '.join(e for errors in form.errors.values() for e in errors),
+            })
+        return redirect(f'{change_request.get_absolute_url()}#comments')
+
+
 @register_model_view(ChangeRequest, 'inbox', path='inbox', detail=False)
 class InboxView(ConditionalLoginRequiredMixin, View):
     """The Approval Inbox (see inbox.py), linked from the navbar button."""
@@ -692,7 +754,7 @@ class _BulkDecisionView(ConditionalLoginRequiredMixin, View):
                 'return_url': return_url,
             })
 
-        done, failed = 0, []
+        done, recorded, failed = 0, 0, []
         for group in self._groups(selected):
             if self.decision == 'reject':
                 for change_request in group:
@@ -700,10 +762,13 @@ class _BulkDecisionView(ConditionalLoginRequiredMixin, View):
                 done += len(group)
                 continue
             try:
-                with transaction.atomic():
-                    for change_request in group:
-                        change_request.apply(user=request.user)
-                done += len(group)
+                result = approvals.approve(group, request.user)
+                if result.applied:
+                    done += len(group)
+                else:
+                    recorded += len(group)
+            except approvals.AlreadyDecided as e:
+                failed.append(f'#{group[0].pk}: {e}')
             except ChangeConflict as e:
                 failed.append(f'#{group[0].pk}: {e}')
             except (ValidationError, FieldDoesNotExist) as e:
@@ -713,6 +778,12 @@ class _BulkDecisionView(ConditionalLoginRequiredMixin, View):
             messages.success(request, _('Rejected %(count)d change(s).') % {'count': done})
         elif done:
             messages.success(request, _('Approved and applied %(count)d change(s).') % {'count': done})
+        if recorded:
+            messages.info(
+                request,
+                _('Approval recorded on %(count)d change(s) that need more approvers before they are applied.')
+                % {'count': recorded},
+            )
         if failed:
             messages.error(
                 request,

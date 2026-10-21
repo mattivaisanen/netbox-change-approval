@@ -7,7 +7,7 @@ Counted (something for you to do):
 - Needs your decision: pending requests routed to a group you're in.
 - Waiting for your revision: your requests sent back by an approver, or
   retracted by you to edit.
-- Rejected: your rejected requests you haven't opened yet.
+- Rejected: your rejected (or expired) requests you haven't opened yet.
 
 Listed for reference, not counted:
 - Waiting on others: your own pending requests.
@@ -37,7 +37,7 @@ def _sent_back(user):
 
 def _rejected(user):
     return ChangeRequest.objects.filter(
-        submitted_by=user, status=StatusChoices.REJECTED, seen_by_submitter=False,
+        submitted_by=user, status__in=(StatusChoices.REJECTED, StatusChoices.EXPIRED), seen_by_submitter=False,
     ).order_by('-decided_at')
 
 
@@ -100,7 +100,7 @@ def inbox_sections(user):
     return [
         ('decide', _('Needs your decision'), _decide(user).select_related(*related), True),
         ('sent_back', _('Waiting for your revision'), _sent_back(user).select_related(*related), True),
-        ('rejected', _('Rejected'), _rejected(user).select_related(*related), True),
+        ('rejected', _('Rejected or expired'), _rejected(user).select_related(*related), True),
         ('waiting', _('Waiting on others'), _waiting(user).select_related(*related), False),
         ('approved', _('Approved'), _approved(user).select_related(*related), False),
     ]
@@ -109,6 +109,6 @@ def inbox_sections(user):
 def mark_rejections_seen(user, queryset=None):
     queryset = queryset if queryset is not None else ChangeRequest.objects.all()
     return queryset.filter(
-        submitted_by=user, status=StatusChoices.REJECTED, seen_by_submitter=False,
+        submitted_by=user, status__in=(StatusChoices.REJECTED, StatusChoices.EXPIRED), seen_by_submitter=False,
     ).update(seen_by_submitter=True)
 

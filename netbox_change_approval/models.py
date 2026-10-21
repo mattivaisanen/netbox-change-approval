@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.contrib.contenttypes.fields import GenericForeignKey
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models, transaction
 from django.urls import reverse
@@ -19,6 +20,8 @@ __all__ = (
     'RuleOutcomeChoices',
     'AutoApprovalRule',
     'ChangeRequest',
+    'ChangeRequestApproval',
+    'ChangeRequestComment',
     'ExemptModel',
 )
 
@@ -50,6 +53,9 @@ class StatusChoices(models.TextChoices):
     # the submitter revises and resubmits (same request, revision + 1) or
     # discards it (RETRACTED). See ChangeRequest.send_back() and revision.py.
     RETURNED = 'returned', _('Sent back')
+    # Nobody decided it within the rule's time limit. Ended like a rejection,
+    # but by the clock, not a person. See expiry.py.
+    EXPIRED = 'expired', _('Expired')
 
 
 class RuleOutcomeChoices(models.TextChoices):
@@ -197,6 +203,25 @@ class ApprovalRule(BaseMatchRule):
         null=True,
         blank=True,
         help_text=_('Only for "Needs approval". Leave blank to use the default approver group.'),
+    )
+    required_approvals = models.PositiveSmallIntegerField(
+        default=1,
+        validators=[MinValueValidator(1), MaxValueValidator(10)],
+        verbose_name=_('approvals needed'),
+        help_text=_(
+            'Only for "Needs approval". How many different people from the approver group must '
+            'approve before the change is applied.'
+        ),
+    )
+    expire_after_days = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        verbose_name=_('expire after (days)'),
+        help_text=_(
+            'Only for "Needs approval". A request nobody decides within this many days expires '
+            'and the object is unlocked. Leave blank to use the plugin setting '
+            '(expire_pending_after_days); 0 means never.'
+        ),
     )
 
     class Meta(BaseMatchRule.Meta):
@@ -382,6 +407,18 @@ class ChangeRequest(NetBoxModel):
     # the inbox count. True for everything else.
     seen_by_submitter = models.BooleanField(default=True)
 
+    # Copied from the matching rule at submission (and again on resubmission),
+    # so editing a rule later doesn't change requests already waiting.
+    required_approvals = models.PositiveSmallIntegerField(
+        default=1,
+        verbose_name=_('approvals needed'),
+    )
+    expires_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text=_('A pending request still undecided at this time expires. Empty: never.'),
+    )
+
     class Meta:
         ordering = ['-submitted_at']
         verbose_name = _('change request')
@@ -421,7 +458,15 @@ class ChangeRequest(NetBoxModel):
             StatusChoices.REJECTED: 'red',
             StatusChoices.RETRACTED: 'gray',
             StatusChoices.RETURNED: 'orange',
+            StatusChoices.EXPIRED: 'gray',
         }.get(self.status, 'secondary')
+
+    @classmethod
+    def from_db(cls, db, field_names, values):
+        instance = super().from_db(db, field_names, values)
+        # Status as loaded, so notifications.py can tell what changed on save.
+        instance._nbca_loaded_status = instance.__dict__.get('status')
+        return instance
 
     def save(self, *args, **kwargs):
         # A new pending request from the submitter of a sent-back one is that
@@ -465,6 +510,8 @@ class ChangeRequest(NetBoxModel):
                 text = f'{text}: {self.decision_comment}'
         elif self.status == StatusChoices.RETRACTED:
             text = _('Withdrawn by submitter ({ref})').format(ref=ref)
+        elif self.status == StatusChoices.EXPIRED:
+            text = _('Expired without a decision ({ref})').format(ref=ref)
         else:
             text = ref
         return str(text)
@@ -636,3 +683,92 @@ class ChangeRequest(NetBoxModel):
         self.decided_by = user
         self.decided_at = timezone.now()
         self.save()
+
+    # ---- Several approvals (ApprovalRule.required_approvals) ----------------
+
+    def current_approvals(self):
+        """Approvals given to this revision. Resubmitting starts over."""
+        return self.approvals.filter(revision=self.revision)
+
+    def has_approved(self, user):
+        if user is None or not user.is_authenticated:
+            return False
+        return self.current_approvals().filter(user=user).exists()
+
+    def expire(self):
+        """
+        Close a pending request nobody decided in time (see expiry.py). Same
+        effect as a rejection, without a person: nothing is applied, and a
+        pending create's object is removed.
+        """
+        if self.action == ActionChoices.CREATE and self.object_id:
+            from .context import applying_change_on
+
+            with applying_change_on():
+                self.content_type.model_class().objects.filter(pk=self.object_id).delete()
+
+        self.status = StatusChoices.EXPIRED
+        self.decided_by = None
+        self.decided_at = timezone.now()
+        self.decision_comment = str(_('Expired: not decided in time.'))
+        self.seen_by_submitter = False
+        self.save()
+
+
+class ChangeRequestApproval(models.Model):
+    """One person's approval of one revision of a request, for rules that need
+    more than one approver. The request is applied when the last one needed
+    comes in (see approvals.approve)."""
+    change_request = models.ForeignKey(
+        to=ChangeRequest,
+        on_delete=models.CASCADE,
+        related_name='approvals',
+    )
+    user = models.ForeignKey(
+        to=settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='+',
+    )
+    revision = models.PositiveSmallIntegerField(default=1)
+    created = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['created', 'pk']
+        verbose_name = _('approval')
+        verbose_name_plural = _('approvals')
+        constraints = [
+            models.UniqueConstraint(
+                fields=['change_request', 'user', 'revision'],
+                name='nbca_one_approval_per_user_and_revision',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.user} approved #{self.change_request_id} (revision {self.revision})'
+
+
+class ChangeRequestComment(models.Model):
+    """A note on a request: a question or an answer that doesn't decide
+    anything. See views.ChangeRequestCommentView."""
+    change_request = models.ForeignKey(
+        to=ChangeRequest,
+        on_delete=models.CASCADE,
+        related_name='comments',
+    )
+    author = models.ForeignKey(
+        to=settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='+',
+    )
+    created = models.DateTimeField(auto_now_add=True)
+    text = models.TextField(max_length=2000)
+
+    class Meta:
+        ordering = ['created', 'pk']
+        verbose_name = _('comment')
+        verbose_name_plural = _('comments')
+
+    def __str__(self):
+        return f'{self.author}: {self.text[:50]}'

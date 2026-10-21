@@ -23,6 +23,9 @@ class NetBoxChangeApprovalConfig(PluginConfig):
         # of this plugin's own models (which are always excluded). Useful for noisy,
         # low-stakes, or infrastructure-internal models you never want to gate.
         'exempt_models': [],
+        # Days after which a pending request nobody decided expires, for rules
+        # that don't set their own. None (or 0) means never.
+        'expire_pending_after_days': None,
     }
 
     middleware = [
@@ -41,12 +44,15 @@ class NetBoxChangeApprovalConfig(PluginConfig):
 
         from . import backstop, permissions, signals  # noqa: F401  (connects pre_delete/post_save receivers)
         from . import widgets  # noqa: F401  (runs @register_widget)
+        from . import expiry  # noqa: F401  (registers the hourly expiry job)
+        from . import notifications
         from .bulk import patch_bulk_views
         from .discovery import wire_up_gated_models
         from .rack_styling import patch_rack_elevation_svg
         from .table_styling import patch_netbox_table
 
         wire_up_gated_models()
+        notifications.connect()
         backstop.connect()
         patch_bulk_views()
         patch_netbox_table()

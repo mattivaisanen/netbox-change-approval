@@ -84,6 +84,9 @@ PLUGINS_CONFIG = {
         'default_approver_group': 'Change Approvers',
         # Optional: models to exclude from gating entirely, as 'app_label.model' strings.
         'exempt_models': [],
+        # Optional: days after which a pending request nobody decided expires,
+        # for rules that don't set their own. None means never.
+        'expire_pending_after_days': None,
     },
 }
 ```
@@ -197,6 +200,32 @@ you're in. Only the approver group (or a superuser) can approve or reject,
 and only the submitter can retract. Nobody can approve, reject or send back
 their own request, superusers included: someone else has to sign it off.
 
+### Several approvers
+
+A rule with **Approvals needed** above 1 keeps the request pending until that
+many different people from the approver group have approved it. Its page shows
+"1 of 2" and who has approved so far. Once you've approved, it leaves your
+Approvals list and inbox; rejecting or sending back still works at any point
+and ends it for everyone. The submitter never counts, so the group needs at
+least one more member than approvals needed (the rule form checks this).
+Resubmitting after a send-back starts the count over.
+
+### Comments
+
+Every request page has a **Comments** box, for questions and answers that
+don't decide anything ("Why this VLAN?"). Anyone who can open the request can
+comment. The submitter, the approver group and earlier commenters get a
+notification.
+
+### Expiry
+
+A request nobody decides within its rule's **Expire after (days)** (or the
+`expire_pending_after_days` setting) expires: nothing is applied, a pending
+new object is removed, and the object is unlocked. The submitter sees it in
+their inbox and gets a notification. NetBox's background worker checks every
+hour (the same worker that runs scripts); `manage.py expire_change_requests`
+does the same on demand.
+
 ### Letting specific users skip approval entirely
 
 This reuses NetBox's own permission system — there's no separate screen for it.
@@ -226,7 +255,11 @@ NetBox's "view" permission on approval rules can read them. Each rule has:
 - **Action**: Create, Update, Delete, or Any.
 - **Outcome**:
   - **Needs approval**: from the chosen **Approver group**, or the default
-    approver group if left blank.
+    approver group if left blank. **Approvals needed** says how many
+    different people from that group must approve (default 1); the change is
+    applied when the last one does. **Expire after (days)** closes requests
+    nobody decided in time (blank: the `expire_pending_after_days` setting;
+    0: never).
   - **Approve automatically**: the change goes through right away and is
     logged as an auto-approved request.
   - **Skip approval**: the change goes through with no record at all.
@@ -283,8 +316,19 @@ typed is kept, with ours added after it.
 
 ### Getting notified of pending changes
 
-No email/Slack code is built into this plugin — it reuses NetBox's own
-**Event Rules**, since `ChangeRequest` is a normal change-logged NetBox object:
+NetBox's own notifications (the bell in the top bar) work out of the box:
+
+- A new or resubmitted request notifies every member of its approver group
+  (except the submitter).
+- Approving, rejecting, sending back or expiry notifies the submitter.
+- A new comment notifies the submitter, the approver group and earlier
+  commenters.
+
+Once a request is decided, approvers' unread "needs approval" notifications
+for it disappear. A bulk action is one notification.
+
+For email, Slack or webhooks, use NetBox's own **Event Rules**, since
+`ChangeRequest` is a normal change-logged NetBox object:
 
 1. Go to **Operations → Event Rules → Add**.
 2. **Object types**: Change Approval > Change Request.

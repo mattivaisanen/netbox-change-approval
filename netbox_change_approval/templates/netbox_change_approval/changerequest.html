@@ -5,7 +5,7 @@
 
 {% block extra_controls %}
   {% if can_decide and object.status == 'pending' %}
-    {% if not conflict_labels and not object_missing %}
+    {% if not conflict_labels and not object_missing and not has_approved %}
     <a href="{% url 'plugins:netbox_change_approval:changerequest_approve' pk=object.pk %}" class="btn btn-success">
       <i class="mdi mdi-check"></i> {% trans "Approve" %}
     </a>
@@ -112,6 +112,22 @@
           <th scope="row">{% trans "Approver group" %}</th>
           <td>{{ object.approver_group|linkify|placeholder }}</td>
         </tr>
+        {% if object.required_approvals > 1 or approvals_so_far %}
+        <tr>
+          <th scope="row">{% trans "Approvals" %}</th>
+          <td>
+            {% blocktrans with have=approvals_so_far|length need=object.required_approvals %}{{ have }} of {{ need }}{% endblocktrans %}
+            {% if approvals_so_far %}<span class="text-muted">&middot; {{ approvals_so_far|join:", " }}</span>{% endif %}
+            {% if has_approved and object.status == 'pending' %}<div class="text-muted small">{% trans "You approved this. Waiting for another approver." %}</div>{% endif %}
+          </td>
+        </tr>
+        {% endif %}
+        {% if object.status == 'pending' and object.expires_at %}
+        <tr>
+          <th scope="row">{% trans "Expires" %}</th>
+          <td>{{ object.expires_at }} <span class="text-muted">({% blocktrans with t=object.expires_at|timeuntil %}in {{ t }}{% endblocktrans %})</span></td>
+        </tr>
+        {% endif %}
         {% if object.decided_by or object.decided_at %}
         <tr>
           <th scope="row">{% trans "Decided by" %}</th>
@@ -154,6 +170,33 @@
         </tr>
         {% endif %}
       </table>
+    </div>
+    <div class="card" id="comments">
+      <h2 class="card-header">{% trans "Comments" %}{% if comments %} <span class="badge text-bg-secondary">{{ comments|length }}</span>{% endif %}</h2>
+      {% if comments %}
+      <ul class="list-group list-group-flush">
+        {% for comment in comments %}
+        <li class="list-group-item">
+          <div class="small text-muted mb-1">
+            <strong class="text-body">{{ comment.author|default:_("deleted user") }}</strong>
+            {% if comment.author_id == object.submitted_by_id %}<span class="badge text-bg-secondary">{% trans "submitter" %}</span>{% endif %}
+            &middot; <span title="{{ comment.created }}">{{ comment.created|timesince }} {% trans "ago" %}</span>
+          </div>
+          <div style="white-space: pre-wrap">{{ comment.text }}</div>
+        </li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+      <div class="card-body">
+        <form method="post" action="{% url 'plugins:netbox_change_approval:changerequest_comment' pk=object.pk %}">
+          {% csrf_token %}
+          {{ comment_form.text }}
+          <div class="d-flex justify-content-between align-items-center mt-2">
+            <span class="text-muted small">{% trans "Doesn't approve, reject or send back. The submitter and approvers are notified." %}</span>
+            <button type="submit" class="btn btn-sm btn-primary"><i class="mdi mdi-comment-outline"></i> {% trans "Comment" %}</button>
+          </div>
+        </form>
+      </div>
     </div>
     {% plugin_left_page object %}
   </div>

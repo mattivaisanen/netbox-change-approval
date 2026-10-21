@@ -191,10 +191,19 @@ def can_decide(user, change_request):
 def approver_queue(user, queryset):
     """The "Approvals" tab: pending work routed to a group this user is in
     (everything, for a superuser), minus the user's own requests (see
-    can_decide)."""
+    can_decide) and requests they already approved that need more approvers."""
+    from django.db.models import Exists, OuterRef
+
+    from .models import ChangeRequestApproval
+
     if not user.is_authenticated:
         return queryset.none()
     queryset = queryset.exclude(submitted_by=user)
+    # Already approved by this user, waiting for another approver: nothing
+    # left for them to do.
+    queryset = queryset.exclude(Exists(ChangeRequestApproval.objects.filter(
+        change_request=OuterRef('pk'), user=user, revision=OuterRef('revision'),
+    )))
     if user.is_superuser:
         return queryset
     return queryset.filter(approver_group__in=user.groups.all()).distinct()

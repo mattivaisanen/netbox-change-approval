@@ -57,15 +57,34 @@ class ApprovalRuleForm(BaseRuleForm):
     fieldsets = (
         FieldSet('description', 'priority', 'enabled', name=_('Rule')),
         FieldSet('content_type', 'constraint', 'action', name=_('Applies to')),
-        FieldSet('outcome', 'approver_group', name=_('Outcome')),
+        FieldSet('outcome', 'approver_group', 'required_approvals', 'expire_after_days', name=_('Outcome')),
     )
 
     class Meta:
         model = ApprovalRule
         fields = (
             'priority', 'content_type', 'constraint', 'action', 'outcome', 'approver_group',
-            'enabled', 'description', 'tags',
+            'required_approvals', 'expire_after_days', 'enabled', 'description', 'tags',
         )
+
+    def clean(self):
+        super().clean()
+        group = self.cleaned_data.get('approver_group')
+        needed = self.cleaned_data.get('required_approvals') or 1
+        if self.cleaned_data.get('outcome') == RuleOutcomeChoices.REQUIRE and needed > 1:
+            if group is None:
+                from .gating import _default_approver_group
+                group = _default_approver_group()
+            members = group.users.filter(is_active=True).count() if group is not None else 0
+            # The submitter can't approve their own request, so one more member
+            # than approvals needed is required for everyone to be able to submit.
+            if members < needed:
+                raise forms.ValidationError({
+                    'required_approvals': _(
+                        'The approver group has only %(members)d active member(s), so %(needed)d '
+                        'approvals could never be reached.'
+                    ) % {'members': members, 'needed': needed},
+                })
 
 
 class ApprovalRuleFilterForm(NetBoxModelFilterSetForm):
@@ -205,4 +224,12 @@ class ChangeRequestBulkRejectForm(forms.Form):
         label=_('Reason'),
         widget=forms.Textarea(attrs={'rows': 3}),
         help_text=_('Required. Shown to every submitter of the selected requests.'),
+    )
+
+
+class ChangeRequestCommentForm(forms.Form):
+    text = forms.CharField(
+        label=_('Comment'),
+        max_length=2000,
+        widget=forms.Textarea(attrs={'rows': 2, 'class': 'form-control', 'placeholder': _('Ask or answer something. This does not approve, reject or send back the request.')}),
     )

@@ -176,6 +176,8 @@ def _gate(instance, action, request):
             else _default_approver_group()
         ),
     )
+    from .approvals import apply_rule_settings
+    apply_rule_settings(change_request, rule)
 
     if rule is not None and rule.outcome == RuleOutcomeChoices.AUTO:
         change_request.auto_approved = True

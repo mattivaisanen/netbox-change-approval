@@ -69,7 +69,7 @@
               {% elif section.key == 'approved' %}
                 {% if cr.decided_by %}{% trans "approved by" %} {{ cr.decided_by }} &middot; {% endif %}{{ cr.applied_at|timesince }} {% trans "ago" %}
               {% else %}
-                {% if cr.decided_by_id and cr.decided_by_id == cr.submitted_by_id %}{% trans "You retracted this to edit it" %}{% else %}{{ cr.decided_by|default:_("An approver") }}{% if cr.decision_comment %}: &ldquo;{{ cr.decision_comment|truncatechars:200 }}&rdquo;{% endif %}{% endif %}
+                {% if cr.status == 'expired' %}{% trans "Expired: nobody decided it in time" %}{% elif cr.decided_by_id and cr.decided_by_id == cr.submitted_by_id %}{% trans "You retracted this to edit it" %}{% else %}{{ cr.decided_by|default:_("An approver") }}{% if cr.decision_comment %}: &ldquo;{{ cr.decision_comment|truncatechars:200 }}&rdquo;{% endif %}{% endif %}
                 &middot; {{ cr.decided_at|timesince }} {% trans "ago" %}
               {% endif %}
             </div>

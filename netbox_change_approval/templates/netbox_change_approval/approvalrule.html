@@ -38,6 +38,18 @@
           <th scope="row">{% trans "Approver group" %}</th>
           <td>{% if object.approver_group %}{{ object.approver_group|linkify }}{% else %}<span class="text-muted">{% trans "Default approver group" %}</span>{% endif %}</td>
         </tr>
+        <tr>
+          <th scope="row">{% trans "Approvals needed" %}</th>
+          <td>{{ object.required_approvals }}</td>
+        </tr>
+        <tr>
+          <th scope="row">{% trans "Expire after" %}</th>
+          <td>
+            {% if object.expire_after_days is None %}<span class="text-muted">{% trans "Plugin setting" %}</span>
+            {% elif object.expire_after_days == 0 %}{% trans "Never" %}
+            {% else %}{% blocktrans count days=object.expire_after_days %}{{ days }} day{% plural %}{{ days }} days{% endblocktrans %}{% endif %}
+          </td>
+        </tr>
         {% endif %}
         <tr>
           <th scope="row">{% trans "Enabled" %}</th>

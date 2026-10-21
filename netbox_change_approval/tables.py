@@ -21,7 +21,8 @@ class ApprovalRuleTable(NetBoxTable):
         model = ApprovalRule
         fields = (
             'pk', 'id', 'priority', 'description', 'content_type', 'constraint', 'action',
-            'outcome', 'approver_group', 'enabled', 'created', 'last_updated',
+            'outcome', 'approver_group', 'required_approvals', 'expire_after_days', 'enabled',
+            'created', 'last_updated',
         )
         default_columns = (
             'pk', 'priority', 'description', 'content_type', 'constraint', 'action',
@@ -122,7 +123,7 @@ class ChangeRequestTable(NetBoxTable):
         fields = (
             'pk', 'id', 'content_type', 'object_repr', 'action', 'status', 'auto_approved',
             'submitted_by', 'submitted_at', 'approver_group', 'decided_by', 'decided_at',
-            'decision_comment', 'applied_at', 'batch_id', 'revision',
+            'decision_comment', 'applied_at', 'batch_id', 'revision', 'required_approvals', 'expires_at',
         )
         default_columns = (
             'id', 'content_type', 'object_repr', 'action', 'status', 'submitted_by',
