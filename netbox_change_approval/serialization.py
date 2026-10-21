@@ -95,10 +95,48 @@ def snapshot_create(instance):
     return data
 
 
+#: Cable ends aren't model fields (they live in CableTermination rows), so the
+#: edit form setting them would give an empty diff and skip approval. They are
+#: diffed under these keys as lists of ["app_label.model", pk] pairs instead.
+CABLE_TERMINATION_KEYS = ('a_terminations', 'b_terminations')
+
+
+def _is_cable(model):
+    return model._meta.label_lower == 'dcim.cable'
+
+
+def _termination_refs(objects):
+    return sorted([obj._meta.label_lower, obj.pk] for obj in objects)
+
+
+def _resolve_termination_refs(refs):
+    from django.apps import apps
+
+    objects = []
+    for label, pk in refs or []:
+        model = apps.get_model(label)
+        objects.append(model.objects.get(pk=pk))
+    return objects
+
+
+def _cable_terminations_diff(old_instance, new_instance):
+    if not getattr(new_instance, '_terminations_modified', False):
+        return {}
+    diff = {}
+    for key in CABLE_TERMINATION_KEYS:
+        old_refs = _termination_refs(getattr(old_instance, key))
+        new_refs = _termination_refs(getattr(new_instance, key))
+        if old_refs != new_refs:
+            diff[key] = {'old': old_refs, 'new': new_refs}
+    return diff
+
+
 def snapshot_update(old_instance, new_instance):
     """{field: {"old": ..., "new": ...}} for fields that actually changed."""
     model = type(new_instance)
     diff = {}
+    if _is_cable(model):
+        diff.update(_cable_terminations_diff(old_instance, new_instance))
     for field in _concrete_fields(model):
         old_value = getattr(old_instance, field.attname)
         new_value = getattr(new_instance, field.attname)
@@ -151,8 +189,12 @@ def find_conflicts(instance, diff):
     field_map = _field_map(model)
     conflicts = []
     for key, change in diff.items():
-        field = _field_for_key(model, field_map, key)
         old = change.get('old')
+        if _is_cable(model) and key in CABLE_TERMINATION_KEYS:
+            if _termination_refs(getattr(instance, key)) != sorted(old or []):
+                conflicts.append(key)
+            continue
+        field = _field_for_key(model, field_map, key)
         if field.many_to_many:
             current = list(getattr(instance, field.name).values_list('pk', flat=True))
             if sorted(_stored_form(current)) != sorted(_stored_form(old or [])):
@@ -201,6 +243,9 @@ def apply_update(content_type, object_id, diff):
 
     m2m_updates = {}
     for key, change in diff.items():
+        if _is_cable(model) and key in CABLE_TERMINATION_KEYS:
+            setattr(instance, key, _resolve_termination_refs(change['new']))
+            continue
         field = _field_for_key(model, field_map, key)
         if field.many_to_many:
             m2m_updates[field.name] = change['new']
