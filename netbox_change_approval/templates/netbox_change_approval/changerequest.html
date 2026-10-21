@@ -135,7 +135,7 @@
       <h2 class="card-header">{% trans "Other objects in this batch" %}</h2>
       <table class="table table-hover">
         {% for sibling in batch_siblings %}
-        <tr><td>{{ sibling|linkify }}</td><td>{{ sibling.get_status_display }}</td></tr>
+        <tr><td>{{ sibling|linkify }}</td><td>{% badge sibling.get_status_display bg_color=sibling.get_status_color %}</td></tr>
         {% endfor %}
       </table>
     </div>
