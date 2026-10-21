@@ -1,0 +1,26 @@
+{% load i18n %}
+{% load render_table from django_tables2 %}
+{# Both "My Requests" tables. Rendered on page load and again for every quick search / paging request. #}
+<div class="nbca-my-requests">
+  <h2 class="h3 nbca-section-title">
+    {% trans "Waiting for decision" %}
+    <span class="badge text-bg-secondary">{{ pending_table.rows|length }}</span>
+  </h2>
+  <div class="card mb-4">
+    <div class="table-responsive">
+      {% if pending_table.rows|length %}
+        {% render_table pending_table 'inc/table_htmx.html' %}
+      {% else %}
+        <div class="card-body text-muted">{% trans "Nothing waiting for a decision." %}</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <h2 class="h3 nbca-section-title">
+    {% trans "Decided" %}
+    <span class="badge text-bg-secondary">{{ table.page.paginator.count|default:"0" }}</span>
+  </h2>
+  <div class="card">
+    {% include 'htmx/table.html' %}
+  </div>
+</div>

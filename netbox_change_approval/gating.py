@@ -9,7 +9,7 @@ from django.utils import timezone
 from core.models import ObjectType
 
 from . import permissions, serialization
-from .context import applying_change, current_batch
+from .context import applying_change, batch_collector, current_batch
 from .exceptions import ObjectLocked
 from .models import (
     ActionChoices, ApprovalRoutingRule, AutoApprovalRule, ChangeRequest, ExemptModel, StatusChoices,
@@ -63,7 +63,9 @@ def gate(instance, action, request):
 
     Otherwise returns a ChangeRequest the caller must abort the write for:
     - UPDATE: returned *saved* (safe — this runs before any
-      transaction.atomic() the view opens; see DEVELOPER.md).
+      transaction.atomic() the view opens; see DEVELOPER.md). Inside a bulk
+      action (context.batch_collector set) it's returned *unsaved* instead —
+      see bulk.py.
     - DELETE, not auto-approved: returned *unsaved*. This runs inside NetBox's
       delete-collector's own transaction.atomic() (netbox/models/deletion.py),
       which the caller is about to roll back by raising — anything saved here
@@ -160,6 +162,11 @@ def gate(instance, action, request):
 
     if action == ActionChoices.DELETE:
         return change_request  # unsaved — see docstring above
+
+    if batch_collector.get() is not None:
+        # Bulk edit/import: the object's savepoint is about to be rolled back;
+        # bulk.BatchCollector saves the request after that. See bulk.py.
+        return change_request
 
     change_request.save()
     return change_request

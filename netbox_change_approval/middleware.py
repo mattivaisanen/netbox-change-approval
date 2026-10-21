@@ -9,6 +9,7 @@ from django.utils.http import url_has_allowed_host_and_scheme
 
 from netbox.views.generic import BulkDeleteView, BulkEditView, BulkImportView, ObjectEditView
 
+from .bulk import BatchCollector, collecting
 from .context import batch_scope
 from .discovery import is_gated_model
 from .exceptions import ChangeApprovalRequired
@@ -48,8 +49,11 @@ class ChangeApprovalMiddleware:
         view_class = getattr(match.func, 'view_class', None) if match else None
 
         if view_class and issubclass(view_class, BULK_VIEW_CLASSES):
-            with batch_scope(uuid4()):
-                return self.get_response(request)
+            mode = BatchCollector.HOLD if issubclass(view_class, BulkImportView) else BatchCollector.RAISE
+            with batch_scope(uuid4()), collecting(mode) as collector:
+                response = self.get_response(request)
+            self._report_batch(request, collector)
+            return response
 
         if view_class and issubclass(view_class, ObjectEditView):
             redirected = self._redirect_add_with_return_url(request, view_class, match)
@@ -98,6 +102,52 @@ class ChangeApprovalMiddleware:
         ]
         for m in own_messages:
             messages.add_message(request, m.level, m.message, extra_tags=m.extra_tags)
+
+    @staticmethod
+    def _report_batch(request, collector):
+        """
+        One summary for a bulk action that skipped objects needing approval
+        (see bulk.py). NetBox's own "Updated/Deleted/Imported N objects" message
+        counts the queued objects as done, so it is replaced. When objects were
+        only skipped as locked, NetBox's message stays and a warning is added.
+        """
+        from .models import ChangeRequest
+
+        if not collector.queued and not collector.locked:
+            return
+        if getattr(request, '_messages', None) is None:
+            return
+
+        queued = list(
+            ChangeRequest.objects.filter(pk__in=[cr.pk for cr in collector.queued]).order_by('pk')
+        )
+        if collector.queued and not queued:
+            return  # the bulk action failed and rolled back; NetBox already showed why
+
+        if queued:
+            kept = [m for m in messages.get_messages(request) if m.level != messages.SUCCESS]
+            for m in kept:
+                messages.add_message(request, m.level, m.message, extra_tags=m.extra_tags)
+
+            approvers = ', '.join(dict.fromkeys(str(cr.approver_names) for cr in queued))
+            ids = ', '.join(f'#{cr.pk}' for cr in queued)
+            messages.success(
+                request,
+                f'{len(queued)} change(s) submitted for approval (requests {ids}). '
+                f'Approval sent to: {approvers}.',
+            )
+            if collector.applied:
+                messages.info(
+                    request,
+                    f'{collector.applied} other object(s) needed no approval and were saved.',
+                )
+        if collector.locked:
+            ids = ', '.join(f'#{cr.pk}' for cr in collector.locked)
+            messages.warning(
+                request,
+                f'{len(collector.locked)} object(s) skipped: they already have a pending change '
+                f'(requests {ids}). Resolve those first.',
+            )
 
     @staticmethod
     def _resolve_match(request):

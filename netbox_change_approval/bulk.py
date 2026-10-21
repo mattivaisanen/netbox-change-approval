@@ -1,0 +1,178 @@
+"""
+Bulk edit, bulk import and bulk delete: one request per object.
+
+NetBox's bulk views process every selected object inside one
+transaction.atomic(). Before this module, the first object that needed
+approval raised out of that loop: NetBox rolled the whole transaction back
+(taking our just-saved ChangeRequest with it) and never looked at the other
+objects. The user was told "submitted for approval", but nothing was queued.
+
+While ChangeApprovalMiddleware has a BatchCollector open (see
+context.batch_collector), each object's write runs in its own savepoint:
+
+- Bulk edit: BulkEditView._update_objects() is called once per object. The
+  validator raises ChangeApprovalRequired for an object that needs approval;
+  we roll back that object's savepoint, record its request, and move on.
+- Bulk delete: each gated model's delete() runs in a savepoint the same way
+  (signals.gate_delete raises ChangeApprovalRequired from pre_delete).
+- Bulk import: validation happens in model_form.is_valid(), which we can't
+  wrap per record. The validator instead parks the exception on the instance
+  (BatchCollector.HOLD mode) and BulkImportView._save_object() skips saving it.
+
+Objects that need no approval (bypass, auto-approval, no-op) are saved as
+usual. Requests are saved inside NetBox's own transaction, after the object's
+savepoint rolled back, so they persist exactly when the bulk action succeeds.
+Events queued for a rolled-back object (webhooks, event rules) are dropped too.
+The middleware replaces NetBox's "Updated N objects" message with a summary.
+"""
+from contextlib import contextmanager
+from contextvars import ContextVar
+from functools import wraps
+
+from django.db import router, transaction
+
+from netbox.context import events_queue
+
+from .context import batch_collector
+from .discovery import is_gated_model
+from .exceptions import ChangeApprovalRequired
+
+
+#: True while an outer delete() is already isolated: a delete it triggers itself
+#: must not be isolated again, or the outer delete would carry on without it.
+_in_isolated_delete = ContextVar('netbox_change_approval.in_isolated_delete', default=False)
+
+
+class BatchCollector:
+    #: The validator raises ChangeApprovalRequired (bulk edit, bulk delete).
+    RAISE = 'raise'
+    #: The validator parks the exception on the instance instead (bulk import).
+    HOLD = 'hold'
+
+    def __init__(self, mode=RAISE):
+        self.mode = mode
+        self.queued = []   # new ChangeRequests, saved
+        self.locked = []   # existing pending requests that blocked an object
+        self.applied = 0   # objects written directly (no approval needed)
+
+    def record(self, exc):
+        change_request = exc.change_request
+        if exc.locked:
+            self.locked.append(change_request)
+            return
+        if change_request.pk is None:
+            change_request.save()
+        self.queued.append(change_request)
+
+
+@contextmanager
+def collecting(mode=BatchCollector.RAISE):
+    collector = BatchCollector(mode)
+    token = batch_collector.set(collector)
+    try:
+        yield collector
+    finally:
+        batch_collector.reset(token)
+
+
+def _run_isolated(collector, model, func):
+    """
+    Run func() in a savepoint. If it raises ChangeApprovalRequired, undo it,
+    drop any events it queued, record the request and return (False, None).
+    """
+    queue = events_queue.get()
+    before = dict(queue)
+    try:
+        with transaction.atomic(using=router.db_for_write(model)):
+            return True, func()
+    except ChangeApprovalRequired as exc:
+        queue.clear()
+        queue.update(before)
+        collector.record(exc)
+        return False, None
+
+
+def _wrap_update_objects(original):
+    @wraps(original)
+    def _update_objects(self, form, request, *args, **kwargs):
+        collector = batch_collector.get()
+        model = self.queryset.model
+        if collector is None or not is_gated_model(model):
+            return original(self, form, request, *args, **kwargs)
+
+        selected = form.cleaned_data['pk']
+        updated = []
+        try:
+            for item in list(selected):
+                form.cleaned_data['pk'] = [item]
+                ok, result = _run_isolated(
+                    collector, model, lambda: original(self, form, request, *args, **kwargs),
+                )
+                if ok:
+                    updated.extend(result)
+                    collector.applied += len(result)
+        finally:
+            form.cleaned_data['pk'] = selected
+        return updated
+
+    _update_objects._nbca_wrapped = True
+    return _update_objects
+
+
+def _wrap_save_object(original):
+    @wraps(original)
+    def _save_object(self, *args, **kwargs):
+        collector = batch_collector.get()
+        if collector is None:
+            return original(self, *args, **kwargs)
+
+        # NetBox 4.2: (import_form, model_form, request); later: (model_form, request, idx)
+        model_form = next(
+            (arg for arg in args if hasattr(arg, 'instance') and hasattr(arg, 'save')), None,
+        )
+        held = getattr(getattr(model_form, 'instance', None), '_nbca_held', None)
+        if held is not None:
+            del model_form.instance._nbca_held
+            collector.record(held)
+            return model_form.instance
+
+        result = original(self, *args, **kwargs)
+        collector.applied += 1
+        return result
+
+    _save_object._nbca_wrapped = True
+    return _save_object
+
+
+def wrap_model_delete(model):
+    """Make `model.delete()` run in its own savepoint while a batch is collecting."""
+    original = model.delete
+    if getattr(original, '_nbca_wrapped', False):
+        return
+
+    @wraps(original)
+    def delete(self, *args, **kwargs):
+        collector = batch_collector.get()
+        if collector is None or _in_isolated_delete.get():
+            return original(self, *args, **kwargs)
+        token = _in_isolated_delete.set(True)
+        try:
+            ok, result = _run_isolated(collector, type(self), lambda: original(self, *args, **kwargs))
+        finally:
+            _in_isolated_delete.reset(token)
+        if ok:
+            collector.applied += 1
+            return result
+        return 0, {}
+
+    delete._nbca_wrapped = True
+    model.delete = delete
+
+
+def patch_bulk_views():
+    from netbox.views.generic import BulkEditView, BulkImportView
+
+    if not getattr(BulkEditView._update_objects, '_nbca_wrapped', False):
+        BulkEditView._update_objects = _wrap_update_objects(BulkEditView._update_objects)
+    if not getattr(BulkImportView._save_object, '_nbca_wrapped', False):
+        BulkImportView._save_object = _wrap_save_object(BulkImportView._save_object)

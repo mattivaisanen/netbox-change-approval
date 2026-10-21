@@ -36,3 +36,9 @@ def batch_scope(batch_id):
         yield
     finally:
         current_batch.reset(token)
+
+#: Set (to a bulk.BatchCollector) by ChangeApprovalMiddleware for the duration of a
+#: bulk edit/import/delete request, next to current_batch. While set, an object
+#: that needs approval is skipped and its request collected, instead of the first
+#: such object aborting the whole bulk action. See bulk.py.
+batch_collector = ContextVar('netbox_change_approval.batch_collector', default=None)

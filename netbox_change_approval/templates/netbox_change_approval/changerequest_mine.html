@@ -1,6 +1,5 @@
 {% extends 'generic/object_list.html' %}
 {% load helpers %}
-{% load render_table from django_tables2 %}
 {% load i18n %}
 
 {% block title %}{% trans "My Requests" %}{% endblock %}
@@ -39,25 +38,21 @@
 {% endblock tabs %}
 
 {% block content %}
-<div class="nbca-my-requests">
-  <h2 class="h3 nbca-section-title">
-    {% trans "Waiting for decision" %}
-    <span class="badge text-bg-secondary">{{ pending_total }}</span>
-  </h2>
-  <div class="card mb-4">
-    <div class="table-responsive">
-      {% if pending_total %}
-        {% render_table pending_table 'inc/table.html' %}
-      {% else %}
-        <div class="card-body text-muted">{% trans "Nothing waiting for a decision." %}</div>
-      {% endif %}
+  {# Requests tab: one set of controls on top, applying to both tables #}
+  <div class="tab-pane show active" id="object-list" role="tabpanel" aria-labelledby="object-list-tab">
+    {% if filter_form %}
+      {% applied_filters model filter_form request.GET %}
+    {% endif %}
+    {% include 'inc/table_controls_htmx.html' with table_modal="ObjectTable_config" %}
+    <div id="object_list">
+      {% include 'netbox_change_approval/inc/my_requests_tables.html' %}
     </div>
   </div>
 
-  <h2 class="h3 nbca-section-title">
-    {% trans "Decided" %}
-    <span class="badge text-bg-secondary total-object-count">{% if table.page.paginator.count %}{{ table.page.paginator.count }}{% else %}{{ total_count|default:"0" }}{% endif %}</span>
-  </h2>
-  {{ block.super }}
-</div>
+  {# Filters tab #}
+  {% if filter_form %}
+    <div class="tab-pane show" id="filters-form" role="tabpanel" aria-labelledby="filters-form-tab">
+      {% include 'inc/filter_list.html' %}
+    </div>
+  {% endif %}
 {% endblock content %}

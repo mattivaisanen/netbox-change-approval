@@ -6,6 +6,7 @@ from django.utils.translation import gettext as _
 from netbox.context import current_request
 
 from . import permissions
+from .bulk import wrap_model_delete
 from .discovery import iter_gated_models
 from .exceptions import ChangeApprovalRequired, ObjectLocked
 from .gating import gate
@@ -101,6 +102,8 @@ def connect():
         dispatch_uid = f'netbox_change_approval:{model._meta.label}'
         pre_delete.connect(gate_delete, sender=model, dispatch_uid=f'{dispatch_uid}:delete')
         post_save.connect(finish_pending_create, sender=model, dispatch_uid=f'{dispatch_uid}:create')
+        # Lets bulk delete queue every selected object, not just the first one.
+        wrap_model_delete(model)
 
     # Keeps the "Approvals" nav item's backing permission (permissions.
     # IS_APPROVER_ACTION) in sync with whichever groups are approvers right

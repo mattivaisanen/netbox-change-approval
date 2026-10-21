@@ -9,6 +9,7 @@ from django.views.generic import View
 from netbox.object_actions import BulkExport
 from netbox.views import generic
 from utilities.forms.forms import ConfirmationForm
+from utilities.htmx import htmx_partial
 from utilities.views import ConditionalLoginRequiredMixin, register_model_view
 
 from . import filtersets, forms, permissions, placement, serialization, tables
@@ -215,40 +216,57 @@ class ChangeRequestListView(generic.ObjectListView):
 
 @register_model_view(ChangeRequest, 'mine', path='mine', detail=False)
 class MyChangeRequestsView(generic.ObjectListView):
-    """"My Requests" nav tab: always exactly what this user submitted, regardless
-    of view_all — unlike the main list, this one never shows anyone else's."""
+    """
+    "My Requests" nav tab: always exactly what this user submitted, regardless
+    of view_all — unlike the main list, this one never shows anyone else's.
+
+    Shown as two tables, "Waiting for decision" and "Decided", under one shared
+    set of controls: the quick search, filters and column settings at the top
+    apply to both tables. Quick search/paging are HTMX requests that normally
+    re-render one table; get() returns both instead.
+    """
     queryset = ChangeRequest.objects.all()
     filterset = filtersets.ChangeRequestFilterSet
     filterset_form = forms.ChangeRequestFilterForm
     table = tables.ChangeRequestTable
     template_name = 'netbox_change_approval/changerequest_mine.html'
     # Export only: no Add/Import (requests come from edits elsewhere) and no
-    # bulk edit/delete, which also drops the selection checkboxes so both
-    # tables have the same columns.
+    # bulk edit/delete, which also drops the selection checkboxes.
     actions = (BulkExport,)
 
-    # Two tables on one page: "Waiting for decision" (this user's pending
-    # requests, small, unpaginated) on top, and the normal NetBox list below for
-    # everything already decided — that one keeps search, filters, paging and
-    # export, which only work for one table per page.
-
     def get_queryset(self, request):
-        return (
-            super().get_queryset(request)
-            .filter(submitted_by=request.user)
-            .exclude(status=StatusChoices.PENDING)
-        )
+        return super().get_queryset(request).filter(submitted_by=request.user)
+
+    def get_table(self, data, request, bulk_actions=True):
+        # The main (paginated) table is the "Decided" one. `data` is already
+        # filtered by search/filters at this point.
+        return super().get_table(data.exclude(status=StatusChoices.PENDING), request, bulk_actions)
+
+    def _pending_table(self, request):
+        # self.queryset has been filtered by ObjectListView.get() by now.
+        pending = self.queryset.filter(status=StatusChoices.PENDING).order_by('-submitted_at')
+        # Own prefix so its paging/sort parameters don't clash with the main table's.
+        table = tables.ChangeRequestTable(pending, prefix='pending_', orderable=False)
+        table.configure(request)  # same column choices as the main table
+        return table
 
     def get_extra_context(self, request):
-        pending = ChangeRequest.objects.filter(
-            submitted_by=request.user, status=StatusChoices.PENDING,
-        ).order_by('-submitted_at')
-        # Own prefix so its paging/sort parameters don't clash with the main table's.
-        pending_table = tables.ChangeRequestTable(pending, prefix='pending_', orderable=False)
-        pending_table.configure(request)  # applies the user's column choices
-        if 'pk' in pending_table.columns.names():
-            pending_table.columns.hide('pk')
-        return {'pending_table': pending_table, 'pending_total': pending.count()}
+        return {'pending_table': self._pending_table(request)}
+
+    def get(self, request):
+        response = super().get(request)
+        # Quick search / saved filter target the whole #object_list (both
+        # tables). Sorting and paging target just the Decided table's own
+        # container, so the default single-table response is right for those.
+        if htmx_partial(request) and request.headers.get('HX-Target') == 'object_list':
+            actions = self.get_permitted_actions(request.user)
+            return render(request, 'netbox_change_approval/inc/my_requests_tables.html', {
+                'table': self.get_table(self.queryset, request, False),
+                'pending_table': self._pending_table(request),
+                'model': ChangeRequest,
+                'actions': actions,
+            })
+        return response
 
 
 @register_model_view(ChangeRequest, 'approvals', path='approvals', detail=False)

@@ -39,11 +39,13 @@ class NetBoxChangeApprovalConfig(PluginConfig):
 
         from . import permissions, signals  # noqa: F401  (connects pre_delete/post_save receivers)
         from . import widgets  # noqa: F401  (runs @register_widget)
+        from .bulk import patch_bulk_views
         from .discovery import wire_up_gated_models
         from .rack_styling import patch_rack_elevation_svg
         from .table_styling import patch_netbox_table
 
         wire_up_gated_models()
+        patch_bulk_views()
         patch_netbox_table()
         patch_rack_elevation_svg()
 
