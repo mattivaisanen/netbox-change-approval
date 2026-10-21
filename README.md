@@ -285,6 +285,10 @@ See NetBox's own docs on Event Rule conditions for the exact condition syntax.
   migrate) its own tables. See DEVELOPER.md "Long-term data lifecycle, and
   what happens if you uninstall this" before committing to this long-term.
 
+---
+
+✨ *Vibecoded with pride.* ✨
+
 ## License
 
 Apache License 2.0 — see [LICENSE](LICENSE).
