@@ -20,13 +20,6 @@ class VisibleChangeRequestsTests(TestCase):
         cls.outsider = User.objects.create(username='outsider')
         cls.admin = User.objects.create(username='admin')
 
-        ct = ObjectType.objects.get_for_model(Manufacturer)
-        perm = ObjectPermission.objects.create(
-            name='admin-view-all', enabled=True, actions=['view_all'],
-        )
-        perm.object_types.set([ct_for_changerequest()])
-        perm.users.set([cls.admin])
-
         # CREATE no longer aborts through gate()'s return value (see gating.gate()'s
         # docstring) — it stashes the ChangeRequest on the instance and lets save()
         # proceed, same as the real validator -> form.save() flow.
@@ -46,13 +39,14 @@ class VisibleChangeRequestsTests(TestCase):
         visible = permissions.visible_change_requests(self.approver, ChangeRequest.objects.all())
         self.assertIn(self.change_request, visible)
 
-    def test_unrelated_user_does_not_see_it(self):
+    def test_unrelated_user_sees_it_too(self):
+        # All Change Requests is read-only for everyone logged in.
         visible = permissions.visible_change_requests(self.outsider, ChangeRequest.objects.all())
-        self.assertNotIn(self.change_request, visible)
-
-    def test_view_all_permission_sees_everything(self):
-        visible = permissions.visible_change_requests(self.admin, ChangeRequest.objects.all())
         self.assertIn(self.change_request, visible)
+
+    def test_approver_queue_only_has_own_groups_requests(self):
+        self.assertIn(self.change_request, permissions.approver_queue(self.approver, ChangeRequest.objects.all()))
+        self.assertNotIn(self.change_request, permissions.approver_queue(self.outsider, ChangeRequest.objects.all()))
 
     def test_superuser_sees_everything_without_any_grant(self):
         root = User.objects.create(username='root', is_superuser=True)

@@ -473,7 +473,7 @@ itself:
   approval history existed. Export anything worth keeping before reverse-
   migrating, not after.
 - The auto-managed `is_approver_sync` `ObjectPermission` row, plus any
-  `bypass_approval`/`view_all` grants an admin made by hand, aren't tied to
+  `bypass_approval` grants an admin made by hand, aren't tied to
   this plugin's migrations either — they're ordinary NetBox permission rows
   and stay in **Admin → Permissions** until someone deletes them manually.
 

@@ -38,10 +38,6 @@ menu = PluginMenu(
             PluginMenuItem(
                 link='plugins:netbox_change_approval:changerequest_list',
                 link_text='All Change Requests',
-                # Same custom action used to scope the list itself (see
-                # permissions.VIEW_ALL_ACTION) — passes for a superuser too,
-                # since has_perms() always does.
-                permissions=['netbox_change_approval.view_all_changerequest'],
             ),
             PluginMenuItem(
                 link='plugins:netbox_change_approval:approvalroutingrule_list',

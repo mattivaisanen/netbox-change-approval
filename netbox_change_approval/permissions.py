@@ -14,15 +14,7 @@ an update too — see has_bypass().
 """
 BYPASS_ACTION = 'bypass_approval'
 
-#: Same mechanism as bypass_approval, applied to ChangeRequest itself: grant via
-#: Admin -> Permissions -> object type "Change Approval | Change Request" ->
-#: additional action "view_all" -> assign to whichever users/groups should see
-#: every request (e.g. a change-management admin team). Without it, a user only
-#: sees requests they submitted themselves or that are routed to a group they're
-#: in — see visible_change_requests().
-VIEW_ALL_ACTION = 'view_all'
-
-#: Unlike BYPASS_ACTION/VIEW_ALL_ACTION, admins never grant this one by hand —
+#: Unlike BYPASS_ACTION, admins never grant this one by hand —
 #: see sync_is_approver_permission() below. It only exists so the "Approvals"
 #: nav item (navigation.py) can be hidden from non-approvers via the normal
 #: `permissions=[...]` check, which NetBox's nav only evaluates against real,
@@ -121,41 +113,20 @@ def has_bypass(user, instance, check_new_state=False):
 
 
 def visible_change_requests(user, queryset):
-    """
-    Scope a ChangeRequest queryset to what `user` is allowed to see: everything,
-    for a superuser or anyone granted the view_all custom action (see
-    VIEW_ALL_ACTION above); otherwise only requests they submitted themselves, or
-    that are routed to an approver group they belong to.
-    """
-    from django.db.models import Q
-
-    from .models import ChangeRequest
-
+    """Every logged-in user can see every change request (read-only). Who can
+    approve, reject or retract is checked separately in the views."""
     if not user.is_authenticated:
         return queryset.none()
-
-    if user.has_perm(_perm_name(ChangeRequest, VIEW_ALL_ACTION)):
-        return queryset
-
-    return queryset.filter(
-        Q(submitted_by=user) | Q(approver_group__in=user.groups.all())
-    ).distinct()
+    return queryset
 
 
 def approver_queue(user, queryset):
-    """
-    Like visible_change_requests, but for the "Approvals" tab specifically:
-    things routed to a group this user is in — not also their own submissions,
-    which belong on the separate "My Requests" tab instead.
-    """
-    from .models import ChangeRequest
-
+    """The "Approvals" tab: pending work routed to a group this user is in
+    (everything, for a superuser)."""
     if not user.is_authenticated:
         return queryset.none()
-
-    if user.has_perm(_perm_name(ChangeRequest, VIEW_ALL_ACTION)):
+    if user.is_superuser:
         return queryset
-
     return queryset.filter(approver_group__in=user.groups.all()).distinct()
 
 
@@ -169,7 +140,7 @@ def sync_is_approver_permission():
     ApprovalRoutingRule save/delete, so "Approvals" nav visibility
     (navigation.py, permissions=[f'...{IS_APPROVER_ACTION}_changerequest']) stays
     correct without anyone needing to grant this by hand — unlike
-    BYPASS_ACTION/VIEW_ALL_ACTION, this one is entirely our own bookkeeping, not
+    BYPASS_ACTION, this one is entirely our own bookkeeping, not
     an admin-facing permission.
     """
     from core.models import ObjectType

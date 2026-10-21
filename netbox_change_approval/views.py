@@ -114,6 +114,14 @@ class AutoApprovalRuleDeleteView(generic.ObjectDeleteView):
 #
 
 
+class _AnyLoggedInUserCanView:
+    """Change requests are readable by every logged-in user, without an admin
+    having to grant NetBox's "view change request" permission first. Who can
+    approve, reject or retract is still checked in those views."""
+    def has_permission(self):
+        return self.request.user.is_authenticated
+
+
 def _can_decide(user, change_request):
     if not user.is_authenticated:
         return False
@@ -202,20 +210,19 @@ def _diff_rows(change_request, conflict_fields=()):
 
 
 @register_model_view(ChangeRequest, 'list', path='', detail=False)
-class ChangeRequestListView(generic.ObjectListView):
+class ChangeRequestListView(_AnyLoggedInUserCanView, generic.ObjectListView):
     queryset = ChangeRequest.objects.all()
     filterset = filtersets.ChangeRequestFilterSet
     filterset_form = forms.ChangeRequestFilterForm
     table = tables.ChangeRequestTable
 
     def get_queryset(self, request):
-        # Everyone sees everything unless scoped: own submissions, or requests
-        # routed to a group they're in. See permissions.visible_change_requests.
+        # Every logged-in user sees every request. See permissions.visible_change_requests.
         return permissions.visible_change_requests(request.user, super().get_queryset(request))
 
 
 @register_model_view(ChangeRequest, 'mine', path='mine', detail=False)
-class MyChangeRequestsView(generic.ObjectListView):
+class MyChangeRequestsView(_AnyLoggedInUserCanView, generic.ObjectListView):
     """
     "My Requests" nav tab: always exactly what this user submitted, regardless
     of view_all — unlike the main list, this one never shows anyone else's.
@@ -270,9 +277,9 @@ class MyChangeRequestsView(generic.ObjectListView):
 
 
 @register_model_view(ChangeRequest, 'approvals', path='approvals', detail=False)
-class ApprovalsQueueView(generic.ObjectListView):
+class ApprovalsQueueView(_AnyLoggedInUserCanView, generic.ObjectListView):
     """"Approvals" nav tab: the actionable queue — pending requests routed to a
-    group this user is in (or every pending request, with view_all)."""
+    group this user is in (every pending request, for a superuser)."""
     queryset = ChangeRequest.objects.filter(status=StatusChoices.PENDING)
     filterset = filtersets.ChangeRequestFilterSet
     filterset_form = forms.ChangeRequestFilterForm
@@ -291,13 +298,13 @@ class ApprovalsQueueView(generic.ObjectListView):
 
 
 @register_model_view(ChangeRequest)
-class ChangeRequestView(generic.ObjectView):
+class ChangeRequestView(_AnyLoggedInUserCanView, generic.ObjectView):
     queryset = ChangeRequest.objects.all()
 
     # No per-user scoping here: any logged-in user can open a single request
     # (e.g. from the banner on the object) and read its diff. Lists stay scoped:
     # My Requests is only your own, Approvals only what's routed to you, and
-    # All Change Requests needs view_all. Approve/reject/retract keep their own
+    # All Change Requests shows everything. Approve/reject/retract keep their own
     # checks.
 
     def get_extra_context(self, request, instance):
