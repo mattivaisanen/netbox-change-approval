@@ -39,9 +39,25 @@ as they use the standard NetBox model base. You don't maintain a list of models
 by hand. See "Approval rules" below to skip or auto-approve specific models
 or objects.
 
-**Not yet gated (see Limitations):** the plugin's own models (an approval rule
-doesn't require its own approval), and anything done through the
-REST/GraphQL API rather than the web UI.
+**Not gated:** the plugin's own models (an approval rule doesn't require its
+own approval).
+
+**The REST API is gated too.** NetBox validates API writes with the same
+model checks as the web UI, so the same rules apply:
+
+| Request | Needs approval | Response |
+| --- | --- | --- |
+| Create (`POST`) | yes | `201 Created`, the object exists and is marked pending, like a UI create |
+| Update (`PATCH`/`PUT` on an object) | yes | `202 Accepted` with the change request; nothing changed yet |
+| Delete (`DELETE` on an object) | yes | `202 Accepted` with the change request; nothing deleted yet |
+| Any write | object already has a pending change | `409 Conflict` naming that request |
+| Bulk update/delete (list endpoint) | any object needs approval | `400` with a per-object error; nothing changed or queued |
+
+The `202`/`409` body looks like
+`{"detail": "...", "change_request": {"id": 12, "action": "update", "status": "pending", "object_id": 34, "display_url": "...", "approver_group": "Change Approvers"}}`.
+Bulk API requests are all-or-nothing in NetBox, so objects that need approval
+must be sent one at a time. Users with the bypass permission get NetBox's
+normal responses. GraphQL is read-only.
 
 Tags and other many-to-many fields are part of the change like any other
 field, including bulk edit's "Add tags" / "Remove tags" (and the other
@@ -280,8 +296,9 @@ See NetBox's own docs on Event Rule conditions for the exact condition syntax.
 
 ## Limitations (current version)
 
-- **UI only.** Changes made via the REST or GraphQL API are not gated. This is
-  the top roadmap item — see `DEVELOPER.md`.
+- **No bulk approval requests through the API.** A bulk API update or delete
+  that touches an object needing approval is refused for that object (see
+  the table above), rather than queued.
 - **Constraints on brand-new objects are best-effort.** A routing/auto-approval
   rule's constraint can only be checked against the database for objects that
   already exist. For a pending *create*, there's no database row yet, so

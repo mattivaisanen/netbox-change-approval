@@ -10,7 +10,7 @@ from . import permissions
 from .bulk import wrap_model_delete
 from .discovery import is_gated_model, iter_gated_models
 from .exceptions import ChangeApprovalRequired, ObjectLocked
-from .gating import gate
+from .gating import gate, take_pending_create
 from .models import ActionChoices, ApprovalRule, StatusChoices
 
 
@@ -50,6 +50,7 @@ def gate_delete(sender, instance, **kwargs):
     try:
         change_request = gate(target, ActionChoices.DELETE, request)
     except ObjectLocked as exc:
+        _refuse_if_api_bulk(ChangeApprovalRequired(exc.change_request, locked=True))
         raise ChangeApprovalRequired(exc.change_request, locked=True)
 
     if change_request is None:
@@ -59,7 +60,22 @@ def gate_delete(sender, instance, **kwargs):
         setattr(target, _DELETE_DECIDED_ATTR, True)
         return
 
+    _refuse_if_api_bulk(ChangeApprovalRequired(change_request))
     raise ChangeApprovalRequired(change_request)
+
+
+def _refuse_if_api_bulk(exc):
+    """REST API bulk delete: fail this object with NetBox's own per-object
+    error instead of queuing (see bulk.BatchCollector.REFUSE)."""
+    from utilities.exceptions import AbortRequest
+
+    from .bulk import BatchCollector
+    from .context import batch_collector
+    from .validators import refusal_message
+
+    collector = batch_collector.get()
+    if collector is not None and collector.mode == BatchCollector.REFUSE:
+        raise AbortRequest(refusal_message(exc))
 
 
 #: Set on an object once its delete has been let through (see gate_delete).
@@ -82,17 +98,16 @@ def finish_pending_create(sender, instance, created, **kwargs):
     when this is needed; this is where it gets a real object_id and gets saved,
     and — if it's still pending (not auto-approved) — the object gets tagged.
     """
-    change_request = getattr(instance, '_nbca_pending_create', None)
+    if not created:
+        return  # the marker is only set for genuine creates
+    request = current_request.get()
+    change_request = take_pending_create(instance, request)
     if change_request is None:
         return
-    del instance._nbca_pending_create
-    if not created:
-        return  # shouldn't happen (the marker is only set for genuine creates)
 
     change_request.object_id = instance.pk
+    change_request.object_repr = str(instance)[:300]
     change_request.save()
-
-    request = current_request.get()
 
     if change_request.status == StatusChoices.APPLIED:
         if request is not None:

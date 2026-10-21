@@ -2,12 +2,13 @@ from urllib.parse import urlparse
 from uuid import uuid4
 
 from django.contrib import messages
-from django.http import HttpResponseRedirect
+from django.http import HttpResponseRedirect, JsonResponse
 from django.shortcuts import redirect
 from django.urls import Resolver404, resolve
 from django.utils.http import url_has_allowed_host_and_scheme
 
 from netbox.views.generic import BulkDeleteView, BulkEditView, BulkImportView, BulkRenameView, ObjectEditView
+from utilities.api import is_api_request
 
 from .bulk import BatchCollector, collecting
 from .context import batch_scope
@@ -47,6 +48,11 @@ class ChangeApprovalMiddleware:
     def __call__(self, request):
         match = self._resolve_match(request)
         view_class = getattr(match.func, 'view_class', None) if match else None
+
+        if self._is_api_bulk_write(request, match):
+            # See BatchCollector.REFUSE.
+            with collecting(BatchCollector.REFUSE):
+                return self.get_response(request)
 
         if view_class and issubclass(view_class, BULK_VIEW_CLASSES):
             mode = BatchCollector.HOLD if issubclass(view_class, BulkImportView) else BatchCollector.RAISE
@@ -150,6 +156,18 @@ class ChangeApprovalMiddleware:
             )
 
     @staticmethod
+    def _is_api_bulk_write(request, match):
+        """A REST API update or delete sent to a list endpoint (many objects)."""
+        if match is None or request.method not in ('PUT', 'PATCH', 'DELETE'):
+            return False
+        if 'pk' in match.kwargs:
+            return False
+        try:
+            return is_api_request(request)
+        except Exception:  # no API URLs configured
+            return False
+
+    @staticmethod
     def _resolve_match(request):
         try:
             return resolve(request.path_info)
@@ -214,6 +232,9 @@ class ChangeApprovalMiddleware:
         if change_request.pk is None:
             change_request.save()
 
+        if is_api_request(request):
+            return self._api_response(change_request, exception.locked)
+
         if exception.locked:
             messages.error(
                 request,
@@ -243,3 +264,31 @@ class ChangeApprovalMiddleware:
             return redirect(obj.get_absolute_url())
         except model.DoesNotExist:
             return redirect(change_request.get_absolute_url())
+
+    @staticmethod
+    def _api_response(change_request, locked):
+        """
+        REST API clients get JSON, not a redirect to an HTML page: 202 Accepted
+        when the change was submitted for approval (nothing changed yet), 409
+        Conflict when the object already has a pending change.
+        """
+        body = {
+            'detail': (
+                f'This object has a pending change (request #{change_request.pk}) awaiting '
+                f'approval. Resolve it before making another change.'
+                if locked else
+                f'Change submitted for approval as request #{change_request.pk}. '
+                f'Nothing is changed until it is approved.'
+            ),
+            'change_request': {
+                'id': change_request.pk,
+                'action': change_request.action,
+                'status': change_request.status,
+                'object_id': change_request.object_id,
+                'display_url': change_request.get_absolute_url(),
+                'approver_group': (
+                    change_request.approver_group.name if change_request.approver_group_id else None
+                ),
+            },
+        }
+        return JsonResponse(body, status=409 if locked else 202)

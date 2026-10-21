@@ -48,6 +48,10 @@ class BatchCollector:
     RAISE = 'raise'
     #: The validator parks the exception on the instance instead (bulk import).
     HOLD = 'hold'
+    #: REST API bulk update/delete: an object that needs approval fails with a
+    #: per-object error and nothing is queued. NetBox rolls the whole batch back
+    #: when any object fails, which would take queued requests with it.
+    REFUSE = 'refuse'
 
     def __init__(self, mode=RAISE):
         self.mode = mode
@@ -154,7 +158,7 @@ def wrap_model_delete(model):
     @wraps(original)
     def delete(self, *args, **kwargs):
         collector = batch_collector.get()
-        if collector is None or _in_isolated_delete.get():
+        if collector is None or collector.mode == BatchCollector.REFUSE or _in_isolated_delete.get():
             return original(self, *args, **kwargs)
         token = _in_isolated_delete.set(True)
         try:

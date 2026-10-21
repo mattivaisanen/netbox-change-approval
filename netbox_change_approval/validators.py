@@ -26,6 +26,9 @@ class ApprovalGateValidator(CustomValidator):
             change_request = gate(instance, action, request)
         except ObjectLocked as exc:
             if collector is None:
+                if _is_api(request):
+                    # The middleware answers 409 Conflict with the blocking request.
+                    raise ChangeApprovalRequired(exc.change_request, locked=True)
                 self.fail(str(exc))
             self._defer(instance, collector, ChangeApprovalRequired(exc.change_request, locked=True))
             return
@@ -71,8 +74,31 @@ class ApprovalGateValidator(CustomValidator):
         """Bulk edit raises so bulk.py can roll back this object's savepoint.
         Bulk import can't be wrapped per record before validation, so the
         exception is parked on the instance and BulkImportView._save_object()
-        skips the save instead (see bulk.py)."""
+        skips the save instead (see bulk.py). A REST API bulk update fails the
+        object with a validation error (see BatchCollector.REFUSE)."""
+        if collector.mode == BatchCollector.REFUSE:
+            raise ValidationError(refusal_message(exc))
         if collector.mode == BatchCollector.HOLD:
             instance._nbca_held = exc
             return
         raise exc
+
+
+def _is_api(request):
+    from utilities.api import is_api_request
+
+    try:
+        return request is not None and is_api_request(request)
+    except Exception:
+        return False
+
+
+def refusal_message(exc):
+    """Per-object error for a REST API bulk update/delete (BatchCollector.REFUSE)."""
+    if exc.locked:
+        return str(ObjectLocked(exc.change_request))
+    return _(
+        'This change needs approval. Bulk API requests are all-or-nothing, so it '
+        'was not submitted: send it on its own (to this object\'s own URL) to '
+        'submit it for approval.'
+    )

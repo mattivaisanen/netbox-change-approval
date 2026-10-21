@@ -36,6 +36,53 @@ def _first_matching_rule(instance, action):
     return None
 
 
+#: Request attribute: {model label: [unsaved ChangeRequest, ...]} for REST API creates.
+PENDING_CREATES_ATTR = '_nbca_pending_creates'
+
+
+def stash_pending_create(instance, change_request, request):
+    """
+    Hand a create's request to signals.finish_pending_create, which saves it
+    once the object has a pk. The web UI saves the instance it validated, so
+    the instance carries it. The REST API validates a throwaway copy and saves
+    a new instance built from the same data, so for API requests it's also
+    kept on the request, in order, per model.
+    """
+    instance._nbca_pending_create = change_request
+    if request is None:
+        return
+    from utilities.api import is_api_request
+
+    try:
+        if not is_api_request(request):
+            return
+    except Exception:
+        return
+    pending = getattr(request, PENDING_CREATES_ATTR, None)
+    if pending is None:
+        pending = {}
+        try:
+            setattr(request, PENDING_CREATES_ATTR, pending)
+        except AttributeError:
+            return
+    pending.setdefault(instance._meta.label_lower, []).append(change_request)
+
+
+def take_pending_create(instance, request):
+    """The request stash_pending_create() kept for this newly saved object, or None."""
+    change_request = getattr(instance, '_nbca_pending_create', None)
+    queue = (getattr(request, PENDING_CREATES_ATTR, None) or {}).get(instance._meta.label_lower) \
+        if request is not None else None
+    if change_request is not None:
+        del instance._nbca_pending_create
+        if queue and change_request in queue:
+            queue.remove(change_request)
+        return change_request
+    if queue:
+        return queue.pop(0)
+    return None
+
+
 def gate(instance, action, request):
     """See _gate() below. An UPDATE that may proceed is marked, so the save()
     that follows isn't gated a second time by backstop.py."""
@@ -145,7 +192,7 @@ def _gate(instance, action, request):
         if action == ActionChoices.CREATE:
             # Let the original save proceed normally (this *is* the approved
             # write) and pick up the real pk in post_save — see docstring above.
-            instance._nbca_pending_create = change_request
+            stash_pending_create(instance, change_request, request)
             return None
 
         # UPDATE: same as DELETE/CREATE above, the save already in flight *is*
@@ -162,7 +209,7 @@ def _gate(instance, action, request):
         return None
 
     if action == ActionChoices.CREATE:
-        instance._nbca_pending_create = change_request  # unsaved — see docstring above
+        stash_pending_create(instance, change_request, request)  # unsaved — see docstring above
         return None
 
     if action == ActionChoices.DELETE:

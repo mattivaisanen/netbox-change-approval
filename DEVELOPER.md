@@ -538,12 +538,16 @@ guarantee.
 
 ## Roadmap / known gaps
 
-- **Gating REST/GraphQL writes.** Would need a DRF-level hook (e.g. a shared
-  `perform_create`/`perform_update`/`perform_destroy` mixin applied to NetBox's
-  generic `NetBoxModelViewSet`) rather than the `CustomValidator`/`pre_delete`
-  approach here, since API writes don't go through a `ModelForm`. `clean()` IS
-  still called by DRF's `ModelSerializer.validate()` in some configurations,
-  worth re-checking against current NetBox source before assuming either way.
+- **Queuing REST API bulk writes.** API writes are gated (NetBox's
+  `ValidatedModelSerializer.validate()` calls `full_clean()`, so the validator
+  runs; deletes hit `pre_delete` as usual). The middleware answers API requests
+  with JSON (202/409) instead of a redirect. API creates validate a throwaway
+  copy of the object, so the pending create is handed over on the request
+  (`gating.stash_pending_create`). Bulk API update/delete runs in one
+  transaction that NetBox rolls back when any object fails, which would take
+  queued requests with it, so those objects are refused instead
+  (`BatchCollector.REFUSE`). Queuing them would need per-object savepoints in
+  NetBox's `perform_bulk_update`/`perform_bulk_destroy`.
 - **Resubmit-after-reject.** Currently out of scope (see README limitations).
   If built, it should reuse the existing `ChangeRequest` row (new status,
   e.g. `changes_requested`) rather than adding a parallel concept.
