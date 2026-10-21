@@ -39,7 +39,7 @@ def _matching_auto_approval_rule(instance, action):
     return None
 
 
-def _is_exempt(model, content_type):
+def _is_exempt(instance, content_type, action):
     """
     Live, DB-backed exemption check — see ExemptModel's docstring for how this
     differs from (and complements) the static PLUGINS_CONFIG['exempt_models']
@@ -47,7 +47,9 @@ def _is_exempt(model, content_type):
     start. Checked on every gate() call specifically so toggling a model's
     exemption on or off takes effect immediately, no restart needed.
     """
-    return ExemptModel.objects.filter(content_type=content_type, enabled=True).exists()
+    rows = ExemptModel.objects.filter(content_type=content_type, enabled=True)
+    check_new_state = action == ActionChoices.UPDATE
+    return any(row.matches(instance, check_new_state=check_new_state) for row in rows)
 
 
 def gate(instance, action, request):
@@ -90,7 +92,7 @@ def gate(instance, action, request):
     model = type(instance)
     content_type = ObjectType.objects.get_for_model(model)
 
-    if _is_exempt(model, content_type):
+    if _is_exempt(instance, content_type, action):
         return None
 
     user = getattr(request, 'user', None)

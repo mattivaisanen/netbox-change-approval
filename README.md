@@ -232,6 +232,27 @@ gated" above. There are two ways to turn gating off for a specific type:
 
 Both apply independently; a model exempted either way isn't gated.
 
+**Exempting only some objects of a type.** An Exempt Models row can also have
+a **Constraint**, in the same format as the rule tables, so only matching
+objects skip approval. You can add several rows for the same object type.
+Constraints can follow relations and many-valued properties, not just real
+database fields. For example, to let anyone change cables in the Tampere
+region without approval, add a row for **DCIM > Cable** with:
+
+```json
+[
+  {"a_terminations__device__site__region__slug": "tampere"},
+  {"b_terminations__device__site__region__slug": "tampere"}
+]
+```
+
+(a list means "any of these", so a cable with either end on a device in a
+Tampere site is exempt). For models with a direct site, it's simpler:
+`{"site__region__slug": "tampere"}`. For an update, both the current object
+and the new values must match, so moving a cable out of Tampere still needs
+approval. Exempted changes leave no change request behind; use an
+auto-approval rule instead if you want them logged.
+
 ### Getting notified of pending changes
 
 No email/Slack code is built into this plugin — it reuses NetBox's own

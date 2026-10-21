@@ -19,6 +19,7 @@ that hasn't been assigned on the in-memory instance yet). This is a documented
 limitation — see README.md "Auto-approval and routing rules on new objects".
 """
 from django.core.exceptions import FieldError
+from django.db.models import Manager, QuerySet
 
 from utilities.permissions import qs_filter_from_constraints
 
@@ -46,21 +47,67 @@ def _split_lookup(path):
     return parts, 'exact'
 
 
-def _resolve_attr_chain(obj, parts):
+#: Marks a path that doesn't exist on the object at all (vs. a relation that
+#: is just empty/None). A condition on a missing path never matches.
+_MISSING = object()
+
+
+def _expand(value):
+    """Turn one attribute value into the list of values to keep walking: a
+    related manager or list (e.g. a cable's a_terminations) fans out to its
+    items, anything else stays a single value."""
+    if isinstance(value, Manager):
+        try:
+            return list(value.all())
+        except ValueError:  # related manager on an unsaved instance
+            return []
+    if isinstance(value, (list, tuple, set, QuerySet)):
+        return list(value)
+    return [value]
+
+
+def _resolve_values(obj, parts):
+    """
+    All values reachable from `obj` along `parts`. Follows foreign keys like
+    getattr() does, and fans out over many-valued attributes, so e.g.
+    a_terminations__device__site__region__slug on a cable yields the region
+    slug of every A-side termination's device.
+    """
+    values = [obj]
     for part in parts:
-        if obj is None:
-            return None
-        obj = getattr(obj, part, None)
-    return obj
+        next_values = []
+        for value in values:
+            if value is None or value is _MISSING:
+                next_values.append(value)
+                continue
+            try:
+                attr = getattr(value, part)
+            except AttributeError:
+                next_values.append(_MISSING)
+                continue
+            except Exception:  # e.g. RelatedObjectDoesNotExist
+                next_values.append(None)
+                continue
+            next_values.extend(_expand(attr))
+        values = next_values
+    return values or [None]
+
+
+def _comparable(value, target):
+    """Let {"site": 5} match a Site instance with pk 5."""
+    if hasattr(value, '_meta') and hasattr(value, 'pk') and not hasattr(target, '_meta'):
+        return value.pk
+    return value
 
 
 def _apply_lookup(value, lookup, target):
+    if lookup == 'in':
+        return any(_comparable(value, t) == t for t in target)
+    value = _comparable(value, target)
     if lookup == 'exact':
         return value == target
     if lookup == 'iexact':
         return str(value).lower() == str(target).lower()
-    if lookup == 'in':
-        return value in target
     if lookup == 'isnull':
         return (value is None) == bool(target)
     if lookup in ('gt', 'gte', 'lt', 'lte'):
@@ -91,8 +138,8 @@ def _apply_lookup(value, lookup, target):
 def _matches_in_memory(instance, constraint_dict):
     for path, target in constraint_dict.items():
         parts, lookup = _split_lookup(path)
-        value = _resolve_attr_chain(instance, parts)
-        if not _apply_lookup(value, lookup, target):
+        values = [v for v in _resolve_values(instance, parts) if v is not _MISSING]
+        if not any(_apply_lookup(v, lookup, target) for v in values):
             return False
     return True
 
@@ -112,9 +159,16 @@ def _matches_saved_state(model, instance, constraints):
         qs_filter = qs_filter_from_constraints(constraints)
         return model.objects.filter(qs_filter, pk=instance.pk).exists()
     except (FieldError, ValueError, TypeError):
-        # e.g. a rule with no object type and {"status": ...} evaluated against
-        # a model that has no status field: not a match, not a crash.
+        pass
+    # The database can't evaluate this path: either it goes through a Python
+    # property rather than a real field (e.g. Cable.a_terminations), or the
+    # model simply doesn't have it ({"status": ...} on a Manufacturer). Check
+    # the stored row in memory instead; a path that doesn't exist never matches.
+    try:
+        stored = model.objects.get(pk=instance.pk)
+    except model.DoesNotExist:
         return False
+    return _matches_new_state(stored, constraints)
 
 
 def rule_matches(rule, instance, check_new_state=False):

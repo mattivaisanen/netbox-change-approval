@@ -158,21 +158,40 @@ class ExemptModel(NetBoxModel):
     takes effect immediately for the next request — no restart, unlike the
     config-file list. See README "Choosing which object types are gated".
     """
-    content_type = models.OneToOneField(
+    content_type = models.ForeignKey(
         to='core.ObjectType',
         on_delete=models.CASCADE,
         verbose_name=_('object type'),
+    )
+    constraint = models.JSONField(
+        blank=True,
+        null=True,
+        encoder=DjangoJSONEncoder,
+        help_text=_(
+            'Only exempt objects matching this filter (same format as rule '
+            'constraints), e.g. {"site__region__slug": "tampere"}. Leave blank to '
+            'exempt every object of this type.'
+        ),
     )
     enabled = models.BooleanField(default=True)
     description = models.CharField(max_length=200, blank=True)
 
     class Meta:
-        ordering = ['content_type']
+        ordering = ['content_type', 'pk']
         verbose_name = _('exempt model')
         verbose_name_plural = _('exempt models')
 
     def __str__(self):
         return self.description or str(self.content_type)
+
+    def matches(self, instance, check_new_state=False):
+        """Same matching as the rule tables. For an update, both the stored
+        and the submitted values must match, so moving an object *out* of the
+        exempted scope (e.g. a cable re-terminated outside Tampere) is still
+        gated."""
+        if not self.enabled:
+            return False
+        return rule_matches(self, instance, check_new_state=check_new_state)
 
     def get_absolute_url(self):
         return reverse('plugins:netbox_change_approval:exemptmodel', args=[self.pk])

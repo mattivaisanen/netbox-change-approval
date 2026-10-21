@@ -12,8 +12,8 @@ class ExemptModelTable(NetBoxTable):
 
     class Meta(NetBoxTable.Meta):
         model = ExemptModel
-        fields = ('pk', 'id', 'content_type', 'description', 'enabled', 'created', 'last_updated')
-        default_columns = ('pk', 'content_type', 'description', 'enabled')
+        fields = ('pk', 'id', 'content_type', 'constraint', 'description', 'enabled', 'created', 'last_updated')
+        default_columns = ('pk', 'content_type', 'constraint', 'description', 'enabled')
 
 
 class ApprovalRoutingRuleTable(NetBoxTable):

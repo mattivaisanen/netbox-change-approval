@@ -83,14 +83,25 @@ class ExemptModelForm(NetBoxModelForm):
         label=_('Object type'),
         help_text=_('Changes to this object type will not require approval while this exemption is enabled.'),
     )
+    constraint = JSONField(
+        required=False,
+        label=_('Constraint'),
+        help_text=_(
+            'Only exempt objects matching this filter, or a list of filters (OR\'d together). '
+            'E.g. {"site__region__slug": "tampere"}, or for cables '
+            '[{"a_terminations__device__site__region__slug": "tampere"}, '
+            '{"b_terminations__device__site__region__slug": "tampere"}]. '
+            'Leave blank to exempt every object of this type.'
+        ),
+    )
 
     fieldsets = (
-        FieldSet('content_type', 'enabled', 'description', name=_('Exemption')),
+        FieldSet('content_type', 'constraint', 'enabled', 'description', name=_('Exemption')),
     )
 
     class Meta:
         model = ExemptModel
-        fields = ('content_type', 'enabled', 'description', 'tags')
+        fields = ('content_type', 'constraint', 'enabled', 'description', 'tags')
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

@@ -14,6 +14,10 @@
           <td>{{ object.content_type }}</td>
         </tr>
         <tr>
+          <th scope="row">{% trans "Constraint" %}</th>
+          <td>{% if object.constraint %}<pre class="mb-0">{{ object.constraint }}</pre>{% else %}<span class="text-muted">{% trans "All objects of this type" %}</span>{% endif %}</td>
+        </tr>
+        <tr>
           <th scope="row">{% trans "Description" %}</th>
           <td>{{ object.description|placeholder }}</td>
         </tr>
