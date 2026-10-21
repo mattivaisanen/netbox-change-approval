@@ -10,6 +10,9 @@
       <i class="mdi mdi-check"></i> {% trans "Approve" %}
     </a>
     {% endif %}
+    <a href="{% url 'plugins:netbox_change_approval:changerequest_sendback' pk=object.pk %}" class="btn btn-warning">
+      <i class="mdi mdi-undo-variant"></i> {% trans "Send back" %}
+    </a>
     <a href="{% url 'plugins:netbox_change_approval:changerequest_reject' pk=object.pk %}" class="btn btn-danger">
       <i class="mdi mdi-close"></i> {% trans "Reject" %}
     </a>
@@ -19,9 +22,35 @@
       <i class="mdi mdi-undo"></i> {% trans "Retract" %}
     </a>
   {% endif %}
+  {% if can_revise %}
+    {% if revise_url %}
+    <a href="{% url 'plugins:netbox_change_approval:changerequest_revise' pk=object.pk %}" class="btn btn-primary">
+      <i class="mdi mdi-pencil"></i> {% trans "Revise and resubmit" %}
+    </a>
+    {% endif %}
+    <a href="{% url 'plugins:netbox_change_approval:changerequest_discard' pk=object.pk %}" class="btn btn-secondary">
+      <i class="mdi mdi-delete-outline"></i> {% trans "Discard" %}
+    </a>
+  {% endif %}
 {% endblock %}
 
 {% block content %}
+{% if object.status == 'returned' %}
+<div class="alert alert-warning" role="alert">
+  <i class="mdi mdi-undo-variant"></i>
+  {% blocktrans with who=object.decided_by|default:_("An approver") %}{{ who }} sent this back for revision:{% endblocktrans %}
+  <strong>{{ object.decision_comment }}</strong>
+  {% if can_revise %}
+    <div class="mt-1 small">
+      {% if revise_url %}
+        {% trans "Revise and resubmit opens the form with what you submitted. Saving it resubmits this same request." %}
+      {% else %}
+        {% trans "The object this request changes no longer exists, so it can only be discarded." %}
+      {% endif %}
+    </div>
+  {% endif %}
+</div>
+{% endif %}
 {% if object_missing %}
 <div class="alert alert-danger" role="alert">
   <i class="mdi mdi-alert"></i>
@@ -83,6 +112,20 @@
         <tr>
           <th scope="row">{% trans "Decided by" %}</th>
           <td>{{ object.decided_by|linkify|placeholder }} &middot; {{ object.decided_at|placeholder }}</td>
+        </tr>
+        {% endif %}
+        {% if object.revision > 1 %}
+        <tr>
+          <th scope="row">{% trans "Revision" %}</th>
+          <td>
+            {{ object.revision }}
+            {% if object.sent_back_comment %}
+              <div class="text-muted small">
+                {% blocktrans with who=object.sent_back_by|default:_("An approver") %}Last sent back by {{ who }}:{% endblocktrans %}
+                &ldquo;{{ object.sent_back_comment }}&rdquo;
+              </div>
+            {% endif %}
+          </td>
         </tr>
         {% endif %}
         {% if object.decision_comment %}

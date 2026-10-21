@@ -80,6 +80,8 @@ _DECISION_BUTTONS = """
 {% if request.user.is_superuser or record.approver_group and record.approver_group in request.user.groups.all %}
 <a href="{% url 'plugins:netbox_change_approval:changerequest_approve' pk=record.pk %}?return_url={{ request.get_full_path|urlencode }}"
    class="btn btn-sm btn-success" title="Approve"><i class="mdi mdi-check"></i></a>
+<a href="{% url 'plugins:netbox_change_approval:changerequest_sendback' pk=record.pk %}?return_url={{ request.get_full_path|urlencode }}"
+   class="btn btn-sm btn-warning" title="Send back for revision"><i class="mdi mdi-undo-variant"></i></a>
 <a href="{% url 'plugins:netbox_change_approval:changerequest_reject' pk=record.pk %}?return_url={{ request.get_full_path|urlencode }}"
    class="btn btn-sm btn-danger" title="Reject"><i class="mdi mdi-close"></i></a>
 {% endif %}
@@ -87,6 +89,11 @@ _DECISION_BUTTONS = """
 <a href="{% url 'plugins:netbox_change_approval:changerequest_retract' pk=record.pk %}?return_url={{ request.get_full_path|urlencode }}"
    class="btn btn-sm btn-secondary" title="Retract"><i class="mdi mdi-undo"></i></a>
 {% endif %}
+{% elif record.status == "returned" and record.submitted_by_id == request.user.pk %}
+<a href="{% url 'plugins:netbox_change_approval:changerequest_revise' pk=record.pk %}"
+   class="btn btn-sm btn-primary" title="Revise and resubmit"><i class="mdi mdi-pencil"></i></a>
+<a href="{% url 'plugins:netbox_change_approval:changerequest_discard' pk=record.pk %}?return_url={{ request.get_full_path|urlencode }}"
+   class="btn btn-sm btn-secondary" title="Discard"><i class="mdi mdi-delete-outline"></i></a>
 {% endif %}
 """
 
@@ -109,7 +116,7 @@ class ChangeRequestTable(NetBoxTable):
         fields = (
             'pk', 'id', 'content_type', 'object_repr', 'action', 'status', 'auto_approved',
             'submitted_by', 'submitted_at', 'approver_group', 'decided_by', 'decided_at',
-            'decision_comment', 'applied_at', 'batch_id',
+            'decision_comment', 'applied_at', 'batch_id', 'revision',
         )
         default_columns = (
             'id', 'content_type', 'object_repr', 'action', 'status', 'submitted_by',

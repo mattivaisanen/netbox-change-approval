@@ -48,6 +48,10 @@ class StatusChoices(models.TextChoices):
     # the audit trail — the submitter changed their own mind vs. an approver
     # declining it. See ChangeRequest.retract().
     RETRACTED = 'retracted', _('Retracted')
+    # An approver asked the submitter to fix something. Nothing is applied;
+    # the submitter revises and resubmits (same request, revision + 1) or
+    # discards it (RETRACTED). See ChangeRequest.send_back() and revision.py.
+    RETURNED = 'returned', _('Sent back')
 
 
 class RuleOutcomeChoices(models.TextChoices):
@@ -348,6 +352,26 @@ class ChangeRequest(NetBoxModel):
     decision_comment = models.TextField(blank=True)
     applied_at = models.DateTimeField(null=True, blank=True)
 
+    # Send back for revision (see revision.py).
+    revision = models.PositiveSmallIntegerField(
+        default=1,
+        help_text=_('Goes up by one each time the submitter resubmits after a send-back.'),
+    )
+    sent_back_by = models.ForeignKey(
+        to=settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='+',
+    )
+    sent_back_comment = models.TextField(
+        blank=True,
+        help_text=_('What the approver asked to change the last time this was sent back.'),
+    )
+    # False while a rejection hasn't been opened by its submitter yet; drives
+    # the inbox count. True for everything else.
+    seen_by_submitter = models.BooleanField(default=True)
+
     class Meta:
         ordering = ['-submitted_at']
         verbose_name = _('change request')
@@ -386,7 +410,16 @@ class ChangeRequest(NetBoxModel):
             StatusChoices.APPLIED: 'green',
             StatusChoices.REJECTED: 'red',
             StatusChoices.RETRACTED: 'gray',
+            StatusChoices.RETURNED: 'orange',
         }.get(self.status, 'secondary')
+
+    def save(self, *args, **kwargs):
+        # A new pending request from the submitter of a sent-back one is that
+        # request's next revision: reuse its row instead of adding another.
+        if self._state.adding and self.status == StatusChoices.PENDING and not self.auto_approved:
+            from .revision import adopt_sent_back
+            adopt_sent_back(self)
+        super().save(*args, **kwargs)
 
     @property
     def approver_names(self):
@@ -470,6 +503,25 @@ class ChangeRequest(NetBoxModel):
                 self.content_type.model_class().objects.filter(pk=self.object_id).delete()
 
         self.status = StatusChoices.REJECTED
+        self.decided_by = user
+        self.decided_at = timezone.now()
+        self.decision_comment = comment
+        self.seen_by_submitter = self.submitted_by_id == getattr(user, 'pk', None)
+        self.save()
+
+    def send_back(self, user, comment):
+        """
+        Ask the submitter to revise this request. Nothing is applied. For
+        CREATE the object already exists (see apply()), so it is removed, the
+        same as reject(); the submitter's revised form creates it again.
+        """
+        if self.action == ActionChoices.CREATE and self.object_id:
+            from .context import applying_change_on
+
+            with applying_change_on():
+                self.content_type.model_class().objects.filter(pk=self.object_id).delete()
+
+        self.status = StatusChoices.RETURNED
         self.decided_by = user
         self.decided_at = timezone.now()
         self.decision_comment = comment

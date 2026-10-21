@@ -12,7 +12,7 @@ from utilities.forms.forms import ConfirmationForm
 from utilities.htmx import htmx_partial
 from utilities.views import ConditionalLoginRequiredMixin, register_model_view
 
-from . import filtersets, forms, permissions, placement, serialization, tables
+from . import filtersets, forms, inbox, permissions, placement, revision, serialization, tables
 from .exceptions import ChangeConflict
 from .models import (
     ActionChoices, ApprovalRoutingRule, ApprovalRule, AutoApprovalRule, ChangeRequest, ExemptModel, StatusChoices,
@@ -360,6 +360,9 @@ class ChangeRequestView(_AnyLoggedInUserCanView, generic.ObjectView):
                 _("You don't have access to this change request, because you can't view the object it changes."),
             )
             return redirect(reverse('plugins:netbox_change_approval:changerequest_mine'))
+        if change_request is not None and request.user.is_authenticated:
+            # Opening your own rejected request takes it out of your inbox count.
+            inbox.mark_rejections_seen(request.user, ChangeRequest.objects.filter(pk=change_request.pk))
         return super().get(request, **kwargs)
 
     def get_extra_context(self, request, instance):
@@ -384,6 +387,12 @@ class ChangeRequestView(_AnyLoggedInUserCanView, generic.ObjectView):
             'can_decide': _can_decide(request.user, instance),
             'can_retract': (
                 instance.status == StatusChoices.PENDING and instance.submitted_by_id == request.user.pk
+            ),
+            'can_revise': (
+                instance.status == StatusChoices.RETURNED and instance.submitted_by_id == request.user.pk
+            ),
+            'revise_url': (
+                revision.revise_url(instance) if instance.status == StatusChoices.RETURNED else None
             ),
         }
 
@@ -527,3 +536,128 @@ class ChangeRequestRetractView(_ChangeRequestDecisionView):
             change_request.retract(request.user)
         messages.success(request, _('Retracted %(count)d change(s).') % {'count': len(targets)})
         return redirect(form.cleaned_data.get('return_url') or _default_return_url())
+
+
+@register_model_view(ChangeRequest, 'sendback', path='send-back')
+class ChangeRequestSendBackView(_ChangeRequestDecisionView):
+    """Approver asks the submitter to revise. Like reject (comment required,
+    whole batch), but the submitter can resubmit the same request."""
+    template_name = 'netbox_change_approval/changerequest_sendback.html'
+
+    def _render(self, request, form, return_url):
+        return render(request, self.template_name, {
+            'object': self.change_request,
+            'form': form,
+            'return_url': return_url,
+            'button_class': 'warning',
+            'batch_count': len(_batch_targets(self.change_request)),
+        })
+
+    def get(self, request, pk):
+        if (denied := self.check_permission(request)) is not None:
+            return denied
+        return self._render(
+            request, forms.ChangeRequestSendBackForm(initial=request.GET),
+            request.GET.get('return_url') or _default_return_url(),
+        )
+
+    def post(self, request, pk):
+        if (denied := self.check_permission(request)) is not None:
+            return denied
+        form = forms.ChangeRequestSendBackForm(request.POST)
+        if not form.is_valid():
+            return self._render(request, form, request.POST.get('return_url') or _default_return_url())
+
+        targets = _batch_targets(self.change_request)
+        for change_request in targets:
+            change_request.send_back(request.user, form.cleaned_data['comment'])
+        messages.success(
+            request,
+            _('Sent %(count)d change(s) back to %(user)s for revision.') % {
+                'count': len(targets), 'user': self.change_request.submitted_by or _('the submitter'),
+            },
+        )
+        return redirect(form.cleaned_data.get('return_url') or _default_return_url())
+
+
+class _SentBackView(ConditionalLoginRequiredMixin, View):
+    """Base for the submitter's two choices on a sent-back request."""
+    def setup(self, request, *args, **kwargs):
+        super().setup(request, *args, **kwargs)
+        self.change_request = get_object_or_404(
+            ChangeRequest.objects.filter(status=StatusChoices.RETURNED), pk=kwargs['pk'],
+        )
+
+    def check_permission(self, request):
+        if self.change_request.submitted_by_id != request.user.pk:
+            messages.error(request, _('Only the submitter can revise or discard this request.'))
+            return redirect(self.change_request.get_absolute_url())
+        return None
+
+
+@register_model_view(ChangeRequest, 'revise')
+class ChangeRequestReviseView(_SentBackView):
+    """Opens NetBox's own add/edit/delete page for the object, prefilled with
+    what was submitted. Saving it resubmits this same request (revision.py)."""
+    def get(self, request, pk):
+        if (denied := self.check_permission(request)) is not None:
+            return denied
+        url = revision.revise_url(self.change_request)
+        if url is None:
+            messages.error(request, _("The object this request changes no longer exists. Discard the request instead."))
+            return redirect(self.change_request.get_absolute_url())
+        if self.change_request.decision_comment:
+            messages.info(request, revision.revise_message(self.change_request))
+        return redirect(url)
+
+
+@register_model_view(ChangeRequest, 'discard')
+class ChangeRequestDiscardView(_SentBackView):
+    def get(self, request, pk):
+        if (denied := self.check_permission(request)) is not None:
+            return denied
+        return render(request, 'netbox_change_approval/changerequest_discard.html', {
+            'object': self.change_request,
+            'form': ConfirmationForm(initial=request.GET),
+            'return_url': request.GET.get('return_url') or self.change_request.get_absolute_url(),
+        })
+
+    def post(self, request, pk):
+        if (denied := self.check_permission(request)) is not None:
+            return denied
+        form = ConfirmationForm(request.POST)
+        if not form.is_valid():
+            messages.error(request, _('Could not process request.'))
+            return redirect(self.change_request.get_absolute_url())
+        self.change_request.retract(request.user)
+        messages.success(request, _('Discarded request #%(pk)s.') % {'pk': self.change_request.pk})
+        return redirect(reverse('plugins:netbox_change_approval:changerequest_inbox'))
+
+
+@register_model_view(ChangeRequest, 'inbox', path='inbox', detail=False)
+class InboxView(ConditionalLoginRequiredMixin, View):
+    """The Approval Inbox (see inbox.py), linked from the navbar button."""
+    def get(self, request):
+        if not request.user.is_authenticated:
+            return redirect(f"{reverse('login')}?next={request.path}")
+        user = request.user
+        sections = []
+        for key, title, queryset, counted in inbox.inbox_sections(user):
+            rows = list(queryset[:50])
+            sections.append({
+                'key': key,
+                'title': title,
+                'counted': counted,
+                'rows': rows,
+                'total': queryset.count() if len(rows) == 50 else len(rows),
+            })
+        return render(request, 'netbox_change_approval/inbox.html', {
+            'sections': sections,
+            'inbox_count': sum(s['total'] for s in sections if s['counted']),
+        })
+
+    def post(self, request):
+        # "Clear" on the Rejected section.
+        if request.user.is_authenticated and request.POST.get('clear') == 'rejected':
+            inbox.mark_rejections_seen(request.user)
+        return redirect(reverse('plugins:netbox_change_approval:changerequest_inbox'))

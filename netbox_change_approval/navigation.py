@@ -27,6 +27,10 @@ menu = PluginMenu(
     groups=(
         ('Change Approval', (
             PluginMenuItem(
+                link='plugins:netbox_change_approval:changerequest_inbox',
+                link_text='Approval Inbox',
+            ),
+            PluginMenuItem(
                 link='plugins:netbox_change_approval:changerequest_approvals',
                 link_text='Approvals',
                 permissions=['netbox_change_approval.is_approver_changerequest'],

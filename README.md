@@ -109,6 +109,20 @@ deletes the object the same way a rejection would; for an update or delete,
 nothing was written yet, so it just closes the request. Only you (the
 submitter) can retract your own request, and only while it's still pending.
 
+**Sent back for revision?** An approver can send a request back with a note
+instead of rejecting it. Open it (from the **Approval Inbox**) and click
+**Revise and resubmit**: it opens the same NetBox add/edit page you used,
+filled in with what you submitted. Fix it and save, and the same request goes
+back to the approvers as its next revision, with their earlier note kept on
+it. Or click **Discard** to drop it. For a new object, sending it back removes
+the object until you resubmit.
+
+**Approval Inbox:** the button at the top of the left-hand menu, under the
+NetBox logo, shows how many requests are waiting on you and opens a page
+listing them: requests you need to decide, your requests sent back to you, and
+your rejected requests you haven't opened yet. Your own requests still waiting
+on others are listed there too, but aren't counted.
+
 ### As an approver
 
 Go to **Change Approvals → Approvals** (its own top-level nav tab, not under
@@ -132,8 +146,9 @@ diff — only fields that actually changed (or, for a new object, fields that
 were actually set to something other than their default) are shown, and
 anything that references another object (site, rack, location, tenant, ...) is
 shown by name, not a bare database ID. Approve applies the change immediately;
-reject requires a short comment and discards it permanently (there is
-currently no "send back for revision" — see Limitations).
+reject requires a short comment and discards it permanently. **Send back**
+also requires a comment, but returns the request to its submitter to fix and
+resubmit, as the same request.
 
 **Approvals never overwrite newer edits.** If any field in an update request
 was changed after it was submitted (through the API, a script, or a user with
@@ -251,9 +266,8 @@ See NetBox's own docs on Event Rule conditions for the exact condition syntax.
 - **Tags aren't captured in the diff.** `django-taggit` tag assignment isn't a
   plain Django many-to-many field, and isn't currently diffed/gated — tag
   changes on a gated object apply immediately, uncaptured by approval.
-- **Rejection is a hard discard.** There's no "request changes, let the
-  submitter revise and resubmit" flow yet; a rejected request is just closed
-  with a comment, and the submitter has to start over.
+- **Tags aren't prefilled when revising.** For the same reason, **Revise and
+  resubmit** fills in every field you submitted except tags.
 - **Constraints on brand-new objects are best-effort.** A routing/auto-approval
   rule's constraint can only be checked against the database for objects that
   already exist. For a pending *create*, there's no database row yet, so

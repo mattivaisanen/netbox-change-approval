@@ -187,3 +187,14 @@ class ChangeRequestRejectForm(ConfirmationForm):
         widget=forms.Textarea(attrs={'rows': 3}),
         help_text=_('Required. Shown to the submitter; also applied to every other request in this batch, if any.'),
     )
+
+
+class ChangeRequestSendBackForm(ConfirmationForm):
+    comment = forms.CharField(
+        label=_('What needs to change'),
+        widget=forms.Textarea(attrs={'rows': 3}),
+        help_text=_(
+            'Required. Shown to the submitter, who can revise and resubmit the same request. '
+            'Also applied to every other request in this batch, if any.'
+        ),
+    )

@@ -93,6 +93,26 @@ class PendingRowStyles(PluginTemplateExtension):
         return self.render('netbox_change_approval/pending_row_styles.html')
 
 
+class InboxNavButton(PluginTemplateExtension):
+    """
+    "Approval Inbox" button with a count, at the top of the sidebar on every
+    page (see inbox.py). models=None and head() for the same reason as
+    PendingRowStyles above: it's the only hook that renders on every page.
+    """
+    def head(self):
+        request = self.context.get('request')
+        if request is None or not request.user.is_authenticated:
+            return ''
+        from django.urls import reverse
+
+        from .inbox import inbox_count
+        inbox_url = reverse('plugins:netbox_change_approval:changerequest_inbox')
+        return self.render('netbox_change_approval/inbox_nav.html', {
+            'count': inbox_count(request.user),
+            'active': request.path == inbox_url,
+        })
+
+
 # There used to be an ApprovalTicker here (models=None, PluginTemplateExtension.
 # navbar()) putting a pending-count badge in the top-right navbar icon tray. Moved:
 # the count now lives in the Approvals page's own title (views.ApprovalsQueueView,
@@ -101,4 +121,4 @@ class PendingRowStyles(PluginTemplateExtension):
 # just move onto the new top-level nav tab itself (NetBox's plugin API has no hook
 # for per-request-dynamic content inside the sidebar/nav tree, only the top navbar,
 # an object list's buttons, and an object detail page's various regions).
-template_extensions = [PendingChangeBanner, PendingRowStyles]
+template_extensions = [PendingChangeBanner, PendingRowStyles, InboxNavButton]

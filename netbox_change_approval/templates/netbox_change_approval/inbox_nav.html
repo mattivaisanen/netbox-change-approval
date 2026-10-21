@@ -1,0 +1,20 @@
+{% load i18n %}
+{# Approval Inbox button at the top of the sidebar, between the NetBox logo and the first menu. NetBox has no plugin hook there, so it's rendered in <head> and moved into place once the page loads. #}
+<template id="nbca-inbox-nav">
+  <div class="nbca-inbox-nav px-3 mt-2 mb-1">
+    <a href="{% url 'plugins:netbox_change_approval:changerequest_inbox' %}"
+       class="btn {% if count %}btn-primary{% else %}btn-outline-secondary{% endif %} w-100 justify-content-between{% if active %} active{% endif %}"
+       title="{% trans 'Change requests waiting on you' %}">
+      <span><i class="mdi mdi-inbox{% if count %}-full{% endif %}-outline me-1"></i>{% trans "Approval Inbox" %}</span>
+      {% if count %}<span class="badge bg-white text-primary ms-2">{{ count }}</span>{% endif %}
+    </a>
+  </div>
+</template>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    var tpl = document.getElementById('nbca-inbox-nav');
+    var menu = document.getElementById('sidebar-menu');
+    if (!tpl || !menu || menu.querySelector('.nbca-inbox-nav')) return;
+    menu.insertBefore(tpl.content.cloneNode(true), menu.firstChild);
+  });
+</script>

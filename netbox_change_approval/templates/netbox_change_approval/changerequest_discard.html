@@ -1,0 +1,11 @@
+{% extends 'generic/confirmation_form.html' %}
+{% load i18n %}
+
+{% block confirmation_title %}{% trans "Discard change request" %} #{{ object.pk }}?{% endblock %}
+
+{% block message %}
+<p>
+  {% trans "This closes the request without resubmitting it:" %}
+  <strong>{{ object.get_action_display }} {{ object.object_repr }}</strong>
+</p>
+{% endblock %}
