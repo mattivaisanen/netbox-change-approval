@@ -170,8 +170,54 @@ def wrap_model_delete(model):
     model.delete = delete
 
 
+def _wrap_pre_save_operations(original):
+    """
+    Bulk edit's "Add ..." / "Remove ..." fields (tags on every model; tagged
+    VLANs, contact groups, module bay types on some) are applied by NetBox
+    after the object is saved, in post_save_operations(), so the validator
+    never saw them and they needed no approval. Put the resulting set in
+    `_m2m_values` before validation instead, so it's part of the diff: queued
+    like any other change, or saved as usual when no approval is needed.
+    NetBox's own post_save_operations() still does the actual write.
+    """
+    @wraps(original)
+    def pre_save_operations(self, form, obj):
+        original(self, form, obj)
+        if is_gated_model(type(obj)):
+            for field in obj._meta.local_many_to_many:
+                _fold_add_remove(form, obj, field.name)
+
+    pre_save_operations._nbca_wrapped = True
+    return pre_save_operations
+
+
+def _fold_add_remove(form, obj, name):
+    add = form.cleaned_data.get(f'add_{name}') or []
+    remove = form.cleaned_data.get(f'remove_{name}') or []
+    if not add and not remove:
+        return
+    if name == 'tagged_vlans' and getattr(obj, 'mode', None) != 'tagged':
+        return  # NetBox only applies tagged VLANs to interfaces in tagged mode
+    m2m_values = getattr(obj, '_m2m_values', None)
+    if m2m_values is None:
+        m2m_values = obj._m2m_values = {}
+    current = m2m_values.get(name)
+    if current is None:
+        current = list(getattr(obj, name).all()) if obj.pk else []
+    remove_pks = {getattr(o, 'pk', o) for o in remove}
+    result = {getattr(o, 'pk', o): o for o in current if getattr(o, 'pk', o) not in remove_pks}
+    for o in add:
+        pk = getattr(o, 'pk', o)
+        if pk not in remove_pks:
+            result[pk] = o
+    m2m_values[name] = list(result.values())
+
+
 def patch_bulk_views():
     from netbox.views.generic import BulkEditView, BulkImportView
+
+    if not getattr(BulkEditView.pre_save_operations, '_nbca_wrapped', False):
+        BulkEditView.pre_save_operations = _wrap_pre_save_operations(BulkEditView.pre_save_operations)
 
     if not getattr(BulkEditView._update_objects, '_nbca_wrapped', False):
         BulkEditView._update_objects = _wrap_update_objects(BulkEditView._update_objects)

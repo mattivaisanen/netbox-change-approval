@@ -70,10 +70,12 @@ instance and call `.full_clean()` + `.save()`" — the same thing every NetBox
 `ModelForm` already does. Driving a generic DRF serializer per model instead
 would mean fighting every model's custom `create()`/`update()` overrides,
 nested writable fields, and serializer-specific validation quirks — fragile
-across hundreds of heterogeneous models. Field-level introspection has one
-real gap instead: **tags** (`django-taggit`) aren't a plain
-`ManyToManyField`, so they're not currently captured — documented in
-`serialization.py` and in the README.
+across hundreds of heterogeneous models. Tags (`django-taggit`) need no
+special case: NetBox puts them in `_m2m_values` like any other many-to-many
+field. They're applied as `Tag` objects, since taggit's `set()` refuses bare
+pks. Bulk edit's "Add ..."/"Remove ..." fields are folded into `_m2m_values`
+before validation by `bulk.py`, since NetBox itself only applies them after
+the save.
 
 Type coercion on the way back in (`_coerce` in `serialization.py`) uses each
 Django field's own `.to_python()` — the same method Django forms use to turn a
@@ -549,4 +551,3 @@ guarantee.
   table). NetBox doesn't have a clean generic "inject a column into every
   model's table" plugin hook; the per-object banner and the dedicated queue
   cover the same need today.
-- **Tag diffing** (see "Why field-level, not DRF serializers" above).

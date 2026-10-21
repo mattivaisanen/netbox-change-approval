@@ -40,8 +40,12 @@ by hand. See "Approval rules" below to skip or auto-approve specific models
 or objects.
 
 **Not yet gated (see Limitations):** the plugin's own models (an approval rule
-doesn't require its own approval), tag assignment, and anything done through the
+doesn't require its own approval), and anything done through the
 REST/GraphQL API rather than the web UI.
+
+Tags and other many-to-many fields are part of the change like any other
+field, including bulk edit's "Add tags" / "Remove tags" (and the other
+"Add ..." / "Remove ..." fields, such as tagged VLANs or contact groups).
 
 ## Installation
 
@@ -278,11 +282,6 @@ See NetBox's own docs on Event Rule conditions for the exact condition syntax.
 
 - **UI only.** Changes made via the REST or GraphQL API are not gated. This is
   the top roadmap item — see `DEVELOPER.md`.
-- **Tags aren't captured in the diff.** `django-taggit` tag assignment isn't a
-  plain Django many-to-many field, and isn't currently diffed/gated — tag
-  changes on a gated object apply immediately, uncaptured by approval.
-- **Tags aren't prefilled when revising.** For the same reason, **Revise and
-  resubmit** fills in every field you submitted except tags.
 - **Constraints on brand-new objects are best-effort.** A routing/auto-approval
   rule's constraint can only be checked against the database for objects that
   already exist. For a pending *create*, there's no database row yet, so

@@ -9,11 +9,12 @@ specifically so custom validators can see them — see CustomValidator._get_inst
 in NetBox core). Working at this level means apply() is just "set these attributes
 and save", which is the same thing every NetBox ModelForm already does.
 
-Known limitation (documented in README): tags (django-taggit) are not a plain
-ManyToManyField and are not currently captured in the diff — a *user's own* tag
-changes on a gated object apply immediately, uncaptured by approval. Everything else
-that is a concrete field or a real ManyToManyField (including
-custom_field_data, which is a plain JSONField) is covered.
+Tags (django-taggit's TaggableManager) are listed in local_many_to_many and
+NetBox's forms put them in `_m2m_values` like any other many-to-many field, so
+they're diffed and applied the same way. Bulk edit's "add tags"/"remove tags"
+are folded into `_m2m_values` before validation by bulk.py. Everything that is
+a concrete field or a many-to-many field (including custom_field_data, which
+is a plain JSONField) is covered.
 """
 import json
 from datetime import date, datetime, time
@@ -64,7 +65,9 @@ def _new_m2m_value(instance, field):
     None if we have no way to know yet (field untouched by this save)."""
     m2m_values = getattr(instance, '_m2m_values', None)
     if m2m_values and field.name in m2m_values:
-        return [obj.pk for obj in m2m_values[field.name]]
+        # Objects from a form's multi-select, or plain pks from NetBox's
+        # add/remove fields.
+        return [getattr(obj, 'pk', obj) for obj in m2m_values[field.name]]
     if instance.pk:
         return list(getattr(instance, field.name).values_list('pk', flat=True))
     return None
@@ -255,7 +258,9 @@ def apply_update(content_type, object_id, diff):
     instance.full_clean()
     instance.save()
     for name, ids in m2m_updates.items():
-        getattr(instance, name).set(ids)
+        # Objects, not pks: tags (django-taggit) only accept Tag objects or names.
+        related_model = field_map[name].related_model
+        getattr(instance, name).set(list(related_model.objects.filter(pk__in=ids)))
     return instance
 
 
