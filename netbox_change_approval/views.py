@@ -532,6 +532,15 @@ class ChangeRequestRetractView(_ChangeRequestDecisionView):
             return redirect(_default_return_url())
 
         targets = _batch_targets(self.change_request)
+        if request.POST.get('then') == 'edit':
+            # Same as an approver sending it back, without a note: the
+            # submitter lands on the prefilled form and saving it resubmits
+            # this same request (see revision.py).
+            for change_request in targets:
+                change_request.send_back(request.user, '')
+            return redirect(reverse(
+                'plugins:netbox_change_approval:changerequest_revise', kwargs={'pk': self.change_request.pk},
+            ))
         for change_request in targets:
             change_request.retract(request.user)
         messages.success(request, _('Retracted %(count)d change(s).') % {'count': len(targets)})

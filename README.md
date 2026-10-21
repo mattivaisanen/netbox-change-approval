@@ -103,10 +103,11 @@ covering the whole action — approving or rejecting applies to everything in th
 one bulk action together, not object-by-object.
 
 Changed your mind before anyone's decided? Open your request (from **My
-Requests**, or the banner on the object itself) and click **Retract** — no
-comment needed, since there's no one else to explain it to. For a create, this
-deletes the object the same way a rejection would; for an update or delete,
-nothing was written yet, so it just closes the request. Only you (the
+Requests**, or the banner on the object itself) and click **Retract**, then
+pick **Retract and edit** (opens the form with what you submitted; saving it
+resubmits the same request) or **Retract and discard** (drops it). No comment
+needed. For a create, the object is removed either way, the same as a
+rejection; for an update or delete, nothing was written yet. Only you (the
 submitter) can retract your own request, and only while it's still pending.
 
 **Sent back for revision?** An approver can send a request back with a note

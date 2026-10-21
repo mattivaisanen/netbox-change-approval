@@ -46,7 +46,7 @@
               {% elif section.key == 'waiting' %}
                 {% trans "waiting on" %} {{ cr.approver_group|default:_("the default approver group") }} &middot; {{ cr.submitted_at|timesince }} {% trans "ago" %}
               {% else %}
-                {{ cr.decided_by|default:_("An approver") }}{% if cr.decision_comment %}: &ldquo;{{ cr.decision_comment|truncatechars:200 }}&rdquo;{% endif %}
+                {% if cr.decided_by_id and cr.decided_by_id == cr.submitted_by_id %}{% trans "You retracted this to edit it" %}{% else %}{{ cr.decided_by|default:_("An approver") }}{% if cr.decision_comment %}: &ldquo;{{ cr.decision_comment|truncatechars:200 }}&rdquo;{% endif %}{% endif %}
                 &middot; {{ cr.decided_at|timesince }} {% trans "ago" %}
               {% endif %}
             </div>

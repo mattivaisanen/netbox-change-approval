@@ -38,8 +38,12 @@
 {% if object.status == 'returned' %}
 <div class="alert alert-warning" role="alert">
   <i class="mdi mdi-undo-variant"></i>
-  {% blocktrans with who=object.decided_by|default:_("An approver") %}{{ who }} sent this back for revision:{% endblocktrans %}
-  <strong>{{ object.decision_comment }}</strong>
+  {% if object.decided_by_id and object.decided_by_id == object.submitted_by_id %}
+    {% trans "Retracted by its submitter to edit. Not resubmitted yet." %}
+  {% else %}
+    {% blocktrans with who=object.decided_by|default:_("An approver") %}{{ who }} sent this back for revision:{% endblocktrans %}
+    <strong>{{ object.decision_comment }}</strong>
+  {% endif %}
   {% if can_revise %}
     <div class="mt-1 small">
       {% if revise_url %}

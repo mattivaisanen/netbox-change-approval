@@ -3,7 +3,8 @@ The Approval Inbox: one page (and a navbar button with a count) for what is
 waiting on *you*.
 
 - Needs your decision: pending requests routed to a group you're in.
-- Sent back to you: your requests an approver asked you to revise.
+- Waiting for your revision: your requests sent back by an approver, or
+  retracted by you to edit.
 - Rejected: your rejected requests you haven't opened yet.
 - Waiting on others: your own pending requests. Shown for reference, not
   counted, since there's nothing for you to do.
@@ -48,7 +49,7 @@ def inbox_sections(user):
 
     return [
         ('decide', _('Needs your decision'), _decide(user).select_related('submitted_by', 'content_type'), True),
-        ('sent_back', _('Sent back to you'), _sent_back(user).select_related('decided_by', 'content_type'), True),
+        ('sent_back', _('Waiting for your revision'), _sent_back(user).select_related('decided_by', 'content_type'), True),
         ('rejected', _('Rejected'), _rejected(user).select_related('decided_by', 'content_type'), True),
         ('waiting', _('Waiting on others'), _waiting(user).select_related('approver_group', 'content_type'), False),
     ]

@@ -217,7 +217,7 @@ class SendBackViewTests(TestCase):
         self.change_request.send_back(self.approver, 'fix')
         self.client.force_login(self.alice)
         response = self.client.get(reverse('plugins:netbox_change_approval:changerequest_inbox'))
-        self.assertContains(response, 'Sent back to you')
+        self.assertContains(response, 'Waiting for your revision')
         self.assertContains(response, 'fix')
 
     def test_opening_rejected_request_marks_it_seen(self):
@@ -226,3 +226,21 @@ class SendBackViewTests(TestCase):
         self.client.get(self.change_request.get_absolute_url())
         self.change_request.refresh_from_db()
         self.assertTrue(self.change_request.seen_by_submitter)
+
+    def test_retract_and_edit_reopens_form(self):
+        self.client.force_login(self.alice)
+        response = self.client.post(self._url('retract'), {'confirm': True, 'then': 'edit'})
+
+        self.change_request.refresh_from_db()
+        self.assertEqual(self.change_request.status, StatusChoices.RETURNED)
+        self.assertEqual(response.url, self._url('revise'))
+
+        response = self.client.get(self._url('revise'))
+        self.assertIn(f'/{self.obj.pk}/edit/', response.url)
+
+    def test_retract_and_discard(self):
+        self.client.force_login(self.alice)
+        self.client.post(self._url('retract'), {'confirm': True, 'then': 'discard'})
+
+        self.change_request.refresh_from_db()
+        self.assertEqual(self.change_request.status, StatusChoices.RETRACTED)
