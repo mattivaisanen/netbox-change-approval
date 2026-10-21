@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "netbox-change-approval"
+version = "0.1.0"
+description = "Require approval-group sign-off on NetBox object changes before they take effect, with auto-approval rules and bypass permissions."
+readme = "README.md"
+license = { text = "Apache-2.0" }
+authors = [{ name = "Matti" }]
+requires-python = ">=3.10"
+# No runtime dependencies beyond NetBox itself: NetBox provides Django, Django REST
+# Framework, django-rq, django-tables2, etc. Pinning only the NetBox floor below.
+dependencies = []
+classifiers = [
+    "Framework :: Django",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+]
+
+[project.urls]
+Homepage = "https://github.com/example/netbox-change-approval"
+Documentation = "https://github.com/example/netbox-change-approval/blob/main/README.md"
+
+[tool.setuptools.packages.find]
+include = ["netbox_change_approval*"]
+
+# Templates are not .py files, so packages.find alone won't pull them into the
+# built wheel — confirmed the hard way: without this, every custom template
+# (banner, change request detail/approve/reject, rule detail pages) 404s at
+# runtime with TemplateDoesNotExist even though the files are right there in
+# the source tree and get_template_name() resolves the "correct" path.
+[tool.setuptools.package-data]
+netbox_change_approval = ["templates/**/*.html"]
+
+# NetBox compatibility is enforced at runtime via NetBoxChangeApprovalConfig.min_version /
+# max_version (see netbox_change_approval/__init__.py), since NetBox plugins are not
+# installed as a normal pip dependency of NetBox but rather the other way around.
+# Minimum supported NetBox version: 4.2.0

@@ -1,0 +1,119 @@
+{% extends 'generic/object.html' %}
+{% load helpers %}
+{% load plugins %}
+{% load i18n %}
+
+{% block extra_controls %}
+  {% if can_decide and object.status == 'pending' %}
+    <a href="{% url 'plugins:netbox_change_approval:changerequest_approve' pk=object.pk %}" class="btn btn-success">
+      <i class="mdi mdi-check"></i> {% trans "Approve" %}
+    </a>
+    <a href="{% url 'plugins:netbox_change_approval:changerequest_reject' pk=object.pk %}" class="btn btn-danger">
+      <i class="mdi mdi-close"></i> {% trans "Reject" %}
+    </a>
+  {% endif %}
+  {% if can_retract %}
+    <a href="{% url 'plugins:netbox_change_approval:changerequest_retract' pk=object.pk %}" class="btn btn-secondary">
+      <i class="mdi mdi-undo"></i> {% trans "Retract" %}
+    </a>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="row mb-3">
+  <div class="col col-md-6">
+    <div class="card">
+      <h2 class="card-header">{% trans "Change Request" %}</h2>
+      <table class="table table-hover attr-table">
+        <tr>
+          <th scope="row">{% trans "Object type" %}</th>
+          <td>{{ object.content_type }}</td>
+        </tr>
+        <tr>
+          <th scope="row">{% trans "Object" %}</th>
+          <td>
+            {% if object.target_object %}{{ object.target_object|linkify }}{% else %}{{ object.object_repr }}{% endif %}
+          </td>
+        </tr>
+        <tr>
+          <th scope="row">{% trans "Action" %}</th>
+          <td>{{ object.get_action_display }}</td>
+        </tr>
+        <tr>
+          <th scope="row">{% trans "Status" %}</th>
+          <td>{{ object.get_status_display }}{% if object.auto_approved %} <span class="badge text-bg-blue">{% trans "auto-approved" %}</span>{% endif %}</td>
+        </tr>
+        <tr>
+          <th scope="row">{% trans "Submitted by" %}</th>
+          <td>{{ object.submitted_by|linkify|placeholder }} &middot; {{ object.submitted_at }}</td>
+        </tr>
+        <tr>
+          <th scope="row">{% trans "Approver group" %}</th>
+          <td>{{ object.approver_group|linkify|placeholder }}</td>
+        </tr>
+        {% if object.decided_by or object.decided_at %}
+        <tr>
+          <th scope="row">{% trans "Decided by" %}</th>
+          <td>{{ object.decided_by|linkify|placeholder }} &middot; {{ object.decided_at|placeholder }}</td>
+        </tr>
+        {% endif %}
+        {% if object.decision_comment %}
+        <tr>
+          <th scope="row">{% trans "Comment" %}</th>
+          <td>{{ object.decision_comment }}</td>
+        </tr>
+        {% endif %}
+        {% if object.applied_at %}
+        <tr>
+          <th scope="row">{% trans "Applied at" %}</th>
+          <td>{{ object.applied_at }}</td>
+        </tr>
+        {% endif %}
+        {% if object.batch_id %}
+        <tr>
+          <th scope="row">{% trans "Batch" %}</th>
+          <td>
+            <code>{{ object.batch_id }}</code>
+            {% if batch_siblings %}&mdash; {% blocktrans count counter=batch_siblings.count %}1 other object in this batch{% plural %}{{ counter }} other objects in this batch{% endblocktrans %}{% endif %}
+          </td>
+        </tr>
+        {% endif %}
+      </table>
+    </div>
+    {% plugin_left_page object %}
+  </div>
+  <div class="col col-md-6">
+    <div class="card">
+      <h2 class="card-header">{% trans "Diff" %}</h2>
+      {% if diff_rows %}
+      <table class="table table-hover attr-table">
+        <thead>
+          <tr><th>{% trans "Field" %}</th><th>{% trans "Old" %}</th><th>{% trans "New" %}</th></tr>
+        </thead>
+        {% for row in diff_rows %}
+        <tr>
+          <th scope="row" title="{{ row.field }}">{{ row.label|capfirst }}</th>
+          <td class="text-danger">{% if row.old is not None %}{{ row.old }}{% else %}—{% endif %}</td>
+          <td class="text-success">{% if row.new is not None %}{{ row.new }}{% else %}—{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </table>
+      {% else %}
+      <div class="card-body text-muted">{% trans "No field-level diff recorded." %}</div>
+      {% endif %}
+    </div>
+    {% if batch_siblings %}
+    <div class="card">
+      <h2 class="card-header">{% trans "Other objects in this batch" %}</h2>
+      <table class="table table-hover">
+        {% for sibling in batch_siblings %}
+        <tr><td>{{ sibling|linkify }}</td><td>{{ sibling.get_status_display }}</td></tr>
+        {% endfor %}
+      </table>
+    </div>
+    {% endif %}
+    {% plugin_right_page object %}
+  </div>
+</div>
+{% plugin_full_width_page object %}
+{% endblock %}

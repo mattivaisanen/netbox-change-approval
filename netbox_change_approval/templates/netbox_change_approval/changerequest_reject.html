@@ -1,0 +1,23 @@
+{% extends 'generic/confirmation_form.html' %}
+{% load i18n %}
+
+{% block confirmation_title %}{% trans "Reject change request" %} #{{ object.pk }}?{% endblock %}
+
+{% block message %}
+<p>
+  {% trans "This will discard:" %}
+  <strong>{{ object.get_action_display }} {{ object.object_repr }}</strong>
+</p>
+{% if batch_count > 1 %}
+<p class="text-warning">
+  {% blocktrans %}This request is part of a batch of {{ batch_count }} pending changes — rejecting will discard all of them with the same comment.{% endblocktrans %}
+</p>
+{% endif %}
+<div class="mb-2">
+  {{ form.comment.label_tag }}
+  {{ form.comment }}
+  {% if form.comment.errors %}
+    <div class="text-danger small">{{ form.comment.errors }}</div>
+  {% endif %}
+</div>
+{% endblock %}

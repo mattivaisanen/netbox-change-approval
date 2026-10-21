@@ -1,0 +1,26 @@
+{% load i18n %}
+{% if change_requests %}
+<table class="table table-hover mb-0">
+  <tbody>
+    {% for cr in change_requests %}
+    <tr>
+      <td>
+        <a href="{{ cr.get_absolute_url }}">{{ cr.get_action_display }} {{ cr.object_repr }}</a>
+        <div class="text-muted small">
+          {% if cr.submitted_by %}{{ cr.submitted_by }}{% else %}{% trans "unknown user" %}{% endif %}
+          &middot; {{ cr.submitted_at|timesince }} {% trans "ago" %}
+        </div>
+      </td>
+      <td class="text-end text-nowrap">
+        <a href="{% url 'plugins:netbox_change_approval:changerequest_approve' pk=cr.pk %}"
+           class="btn btn-sm btn-success" title="{% trans "Approve" %}"><i class="mdi mdi-check"></i></a>
+        <a href="{% url 'plugins:netbox_change_approval:changerequest_reject' pk=cr.pk %}"
+           class="btn btn-sm btn-danger" title="{% trans "Reject" %}"><i class="mdi mdi-close"></i></a>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="card-body text-muted">{% trans "Nothing waiting on you right now." %}</div>
+{% endif %}

@@ -1,0 +1,21 @@
+{% extends 'generic/confirmation_form.html' %}
+{% load i18n %}
+
+{% block confirmation_title %}{% trans "Retract change request" %} #{{ object.pk }}?{% endblock %}
+
+{% block message %}
+<p>
+  {% trans "This will withdraw your own request:" %}
+  <strong>{{ object.get_action_display }} {{ object.object_repr }}</strong>
+</p>
+{% if object.action == "create" %}
+<p class="text-warning">
+  {% trans "The object already exists as shown — retracting will delete it." %}
+</p>
+{% endif %}
+{% if batch_count > 1 %}
+<p class="text-warning">
+  {% blocktrans %}This request is part of a batch of {{ batch_count }} pending changes — retracting will withdraw all of them.{% endblocktrans %}
+</p>
+{% endif %}
+{% endblock %}

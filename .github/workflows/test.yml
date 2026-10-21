@@ -1,0 +1,87 @@
+name: Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  NETBOX_REF: v4.2.0
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: netbox
+          POSTGRES_PASSWORD: netbox
+          POSTGRES_DB: netbox
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Check out this plugin
+        uses: actions/checkout@v4
+        with:
+          path: plugin
+
+      - name: Check out NetBox
+        uses: actions/checkout@v4
+        with:
+          repository: netbox-community/netbox
+          ref: ${{ env.NETBOX_REF }}
+          path: netbox
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install NetBox + plugin
+        run: |
+          pip install --upgrade pip
+          pip install -r netbox/requirements.txt
+          pip install -e plugin
+
+      - name: Configure NetBox
+        run: |
+          cp netbox/netbox/netbox/configuration_example.py netbox/netbox/netbox/configuration.py
+          python - << 'PYEOF'
+          import pathlib
+          config_path = pathlib.Path('netbox/netbox/netbox/configuration.py')
+          config = config_path.read_text()
+          config = config.replace(
+              "DATABASE = {",
+              "DATABASE = {\n    'NAME': 'netbox', 'USER': 'netbox', 'PASSWORD': 'netbox', 'HOST': 'localhost', 'PORT': '5432',",
+          )
+          config += "\nPLUGINS = ['netbox_change_approval']\n"
+          config += "PLUGINS_CONFIG = {'netbox_change_approval': {'default_approver_group': 'Change Approvers'}}\n"
+          config += "SECRET_KEY = 'x' * 50\n"
+          config_path.write_text(config)
+          PYEOF
+
+      - name: Run migrations
+        working-directory: netbox/netbox
+        run: python manage.py migrate
+
+      - name: Check for migration drift
+        working-directory: netbox/netbox
+        run: python manage.py makemigrations netbox_change_approval --check --dry-run
+
+      - name: Run plugin test suite
+        working-directory: netbox/netbox
+        run: python manage.py test netbox_change_approval

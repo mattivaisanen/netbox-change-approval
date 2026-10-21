@@ -1,0 +1,45 @@
+"""
+A bespoke dashboard widget, not a reliance on NetBox's generic ObjectListWidget/
+ObjectCountsWidget pointed at ChangeRequest — those work (both are fully usable
+against this plugin's models; confirmed live), but show every change request
+unfiltered and have no inline decide action, which is the whole reason someone
+would want this on their homepage in the first place: "approve right from
+there" (see README "Task 9"). This one scopes to "routed to me, still pending"
+and links straight to approve/reject.
+"""
+from django.template.loader import render_to_string
+# Not gettext_lazy: DashboardWidget.__str__ returns `self.title` (derived from
+# default_title) directly, with no str() wrapper — Python's __str__ dunder
+# requires an actual str back, and a lazy proxy fails that with "__str__
+# returned non-string (type __proxy__)" the moment anything calls str() on a
+# widget instance. NetBox's own widgets (extras/dashboard/widgets.py) import
+# the non-lazy gettext for exactly this reason — matching that here, not a
+# general lazy-vs-eager style choice.
+from django.utils.translation import gettext as _
+
+from extras.dashboard.utils import register_widget
+from extras.dashboard.widgets import DashboardWidget
+
+from . import permissions
+from .models import ChangeRequest, StatusChoices
+
+
+@register_widget
+class ApprovalsWidget(DashboardWidget):
+    default_title = _('Pending Approvals')
+    description = _(
+        'Change requests currently routed to you for approval, with a quick link to decide each one.'
+    )
+    template_name = 'netbox_change_approval/dashboard_widget.html'
+    width = 12
+    height = 4
+
+    def render(self, request):
+        if not request.user.is_authenticated:
+            return ''
+
+        queryset = permissions.approver_queue(
+            request.user, ChangeRequest.objects.filter(status=StatusChoices.PENDING),
+        ).order_by('submitted_at')[:10]
+
+        return render_to_string(self.template_name, {'change_requests': queryset})

@@ -1,0 +1,16 @@
+<style>
+  /* table_styling.py's PENDING_ROW_CSS_CLASS. box-shadow, not border: borders on
+     <tr>/<td> interact badly with border-collapse (double/missing lines at
+     shared edges); an inset box-shadow draws cleanly regardless, and doesn't
+     shift layout the way an actual border would. --tblr-warning matches the
+     list-view "N pending approval" badge's own btn-outline-warning color. */
+  tr.nbca-pending-row > td {
+    box-shadow: inset 0 1px 0 0 var(--tblr-warning), inset 0 -1px 0 0 var(--tblr-warning);
+  }
+  tr.nbca-pending-row > td:first-child {
+    box-shadow: inset 0 1px 0 0 var(--tblr-warning), inset 0 -1px 0 0 var(--tblr-warning), inset 2px 0 0 0 var(--tblr-warning);
+  }
+  tr.nbca-pending-row > td:last-child {
+    box-shadow: inset 0 1px 0 0 var(--tblr-warning), inset 0 -1px 0 0 var(--tblr-warning), inset -2px 0 0 0 var(--tblr-warning);
+  }
+</style>
