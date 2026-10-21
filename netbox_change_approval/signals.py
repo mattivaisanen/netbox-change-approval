@@ -1,4 +1,5 @@
 from django.contrib import messages
+from django.db import models
 from django.db.models.signals import post_delete, post_save, pre_delete
 from django.utils.html import format_html, format_html_join
 from django.utils.translation import gettext as _
@@ -7,7 +8,7 @@ from netbox.context import current_request
 
 from . import permissions
 from .bulk import wrap_model_delete
-from .discovery import iter_gated_models
+from .discovery import is_gated_model, iter_gated_models
 from .exceptions import ChangeApprovalRequired, ObjectLocked
 from .gating import gate
 from .models import ActionChoices, ApprovalRule, StatusChoices
@@ -29,15 +30,47 @@ def gate_delete(sender, instance, **kwargs):
     """
     request = current_request.get()
 
+    # Deleting one object deletes its dependents too (a device's interfaces, a
+    # site's locations, ...), and Django sends pre_delete for those dependents
+    # *before* the object itself. Gating each one on its own would queue
+    # "delete interface eth0" instead of "delete device sw1". So when the delete
+    # started from another object (`origin`), gate that object, once: the
+    # dependents simply follow its outcome.
+    origin = kwargs.get('origin')
+    target = instance
+    if isinstance(origin, models.Model) and origin is not instance:
+        if not is_gated_model(type(origin)):
+            return  # an ungated object's delete; its dependents go with it
+        target = origin
+
+    decided = getattr(target, _DELETE_DECIDED_ATTR, False)
+    if decided:
+        return  # already let through for this delete
+
     try:
-        change_request = gate(instance, ActionChoices.DELETE, request)
+        change_request = gate(target, ActionChoices.DELETE, request)
     except ObjectLocked as exc:
         raise ChangeApprovalRequired(exc.change_request, locked=True)
 
     if change_request is None:
-        return  # proceed: bypass granted, or an auto-approval rule already logged it
+        # Proceed: bypass granted, or an auto-approval rule already logged it.
+        # Remember it, so the object's other dependents (and the object itself)
+        # don't run the check again or log a second auto-approved request.
+        setattr(target, _DELETE_DECIDED_ATTR, True)
+        return
 
     raise ChangeApprovalRequired(change_request)
+
+
+#: Set on an object once its delete has been let through (see gate_delete).
+_DELETE_DECIDED_ATTR = '_nbca_delete_allowed'
+
+
+def forget_delete_decision(sender, instance, **kwargs):
+    """Once the object is gone, drop gate_delete's marker, so the same Python
+    object can never carry an old decision into a later delete."""
+    if getattr(instance, _DELETE_DECIDED_ATTR, False):
+        delattr(instance, _DELETE_DECIDED_ATTR)
 
 
 def finish_pending_create(sender, instance, created, **kwargs):
@@ -110,6 +143,7 @@ def connect():
     for model in iter_gated_models():
         dispatch_uid = f'netbox_change_approval:{model._meta.label}'
         pre_delete.connect(gate_delete, sender=model, dispatch_uid=f'{dispatch_uid}:delete')
+        post_delete.connect(forget_delete_decision, sender=model, dispatch_uid=f'{dispatch_uid}:delete_done')
         post_save.connect(finish_pending_create, sender=model, dispatch_uid=f'{dispatch_uid}:create')
         post_save.connect(label_activity, sender=model, dispatch_uid=f'{dispatch_uid}:activity')
         # Lets bulk delete queue every selected object, not just the first one.
