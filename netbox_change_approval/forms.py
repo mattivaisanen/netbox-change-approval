@@ -198,3 +198,11 @@ class ChangeRequestSendBackForm(ConfirmationForm):
             'Also applied to every other request in this batch, if any.'
         ),
     )
+
+
+class ChangeRequestBulkRejectForm(forms.Form):
+    comment = forms.CharField(
+        label=_('Reason'),
+        widget=forms.Textarea(attrs={'rows': 3}),
+        help_text=_('Required. Shown to every submitter of the selected requests.'),
+    )

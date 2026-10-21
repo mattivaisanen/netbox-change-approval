@@ -16,7 +16,7 @@
         <a href="{% url 'plugins:netbox_change_approval:changerequest_revise' pk=cr.pk %}"
            class="btn btn-sm btn-primary" title="{% trans "Revise and resubmit" %}"><i class="mdi mdi-pencil"></i> {% trans "Revise" %}</a>
         <a href="{% url 'plugins:netbox_change_approval:changerequest_discard' pk=cr.pk %}"
-           class="btn btn-sm btn-ghost-secondary" title="{% trans "Discard" %}"><i class="mdi mdi-delete-outline"></i></a>
+           class="btn btn-sm btn-primary" title="{% trans "Discard" %}" aria-label="{% trans "Discard" %}"><i class="mdi mdi-delete-outline"></i></a>
       </td>
     </tr>
     {% endfor %}

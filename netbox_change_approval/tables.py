@@ -93,7 +93,7 @@ _DECISION_BUTTONS = """
 <a href="{% url 'plugins:netbox_change_approval:changerequest_revise' pk=record.pk %}"
    class="btn btn-sm btn-primary" title="Revise and resubmit"><i class="mdi mdi-pencil"></i></a>
 <a href="{% url 'plugins:netbox_change_approval:changerequest_discard' pk=record.pk %}?return_url={{ request.get_full_path|urlencode }}"
-   class="btn btn-sm btn-secondary" title="Discard"><i class="mdi mdi-delete-outline"></i></a>
+   class="btn btn-sm btn-primary" title="Discard"><i class="mdi mdi-delete-outline"></i></a>
 {% endif %}
 """
 

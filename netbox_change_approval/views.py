@@ -14,6 +14,7 @@ from utilities.views import ConditionalLoginRequiredMixin, register_model_view
 
 from . import filtersets, forms, inbox, permissions, placement, revision, serialization, tables
 from .exceptions import ChangeConflict
+from .object_actions import BulkApprove, BulkReject
 from .models import (
     ActionChoices, ApprovalRoutingRule, ApprovalRule, AutoApprovalRule, ChangeRequest, ExemptModel, StatusChoices,
 )
@@ -332,6 +333,9 @@ class ApprovalsQueueView(_AnyLoggedInUserCanView, generic.ObjectListView):
     filterset_form = forms.ChangeRequestFilterForm
     table = tables.ChangeRequestTable
     template_name = 'netbox_change_approval/changerequest_approvals.html'
+    # Tick requests, then Approve/Reject Selected. Export kept; no add/import/
+    # bulk edit/delete (requests come from edits elsewhere).
+    actions = (BulkExport, BulkApprove, BulkReject)
 
     def get_queryset(self, request):
         return permissions.approver_queue(request.user, super().get_queryset(request))
@@ -670,3 +674,102 @@ class InboxView(ConditionalLoginRequiredMixin, View):
         if request.user.is_authenticated and request.POST.get('clear') == 'rejected':
             inbox.mark_rejections_seen(request.user)
         return redirect(reverse('plugins:netbox_change_approval:changerequest_inbox'))
+
+
+class _BulkDecisionView(ConditionalLoginRequiredMixin, View):
+    """
+    "Approve Selected" / "Reject Selected" under the Approvals list. The list
+    posts the ticked pks (or `_all` for everything matching the filter); this
+    shows a confirmation page, and its own post (with `_confirm`) decides.
+
+    Only pending requests you may decide are touched. A ticked request in a
+    bulk batch takes the rest of its batch along, as on its own page. Each
+    request (or batch) is decided on its own: one that can't be applied
+    (changed since submission, say) stays pending and the others go ahead.
+    """
+    decision = None  # 'approve' or 'reject'
+    template_name = 'netbox_change_approval/changerequest_bulk_decision.html'
+
+    def _selected(self, request):
+        queue = permissions.approver_queue(
+            request.user, ChangeRequest.objects.filter(status=StatusChoices.PENDING),
+        )
+        if request.POST.get('_all'):
+            return queue.filter(
+                pk__in=filtersets.ChangeRequestFilterSet(request.GET, queue, request=request).qs.values('pk'),
+            )
+        return queue.filter(pk__in=[pk for pk in request.POST.getlist('pk') if str(pk).isdigit()])
+
+    @staticmethod
+    def _groups(selected):
+        """Selected requests grouped into units decided together (a batch, or
+        a single request), in list order."""
+        groups, seen = [], set()
+        for change_request in selected.order_by('-submitted_at'):
+            if change_request.pk in seen:
+                continue
+            members = _batch_targets(change_request)
+            seen.update(cr.pk for cr in members)
+            groups.append(members)
+        return groups
+
+    def _return_url(self, request):
+        url = request.POST.get('return_url') or ''
+        if url.startswith('/') and not url.startswith('//'):
+            return url
+        return reverse('plugins:netbox_change_approval:changerequest_approvals')
+
+    def post(self, request):
+        selected = self._selected(request)
+        return_url = self._return_url(request)
+        if not selected.exists():
+            messages.warning(request, _('No requests selected that you can decide.'))
+            return redirect(return_url)
+
+        form = forms.ChangeRequestBulkRejectForm(request.POST) if self.decision == 'reject' else None
+        if '_confirm' not in request.POST or (form is not None and not form.is_valid()):
+            return render(request, self.template_name, {
+                'decision': self.decision,
+                'selected': list(selected.order_by('-submitted_at').select_related('submitted_by', 'content_type')),
+                'pks': list(selected.values_list('pk', flat=True)),
+                'form': form if form is not None and '_confirm' in request.POST else forms.ChangeRequestBulkRejectForm(),
+                'return_url': return_url,
+            })
+
+        done, failed = 0, []
+        for group in self._groups(selected):
+            if self.decision == 'reject':
+                for change_request in group:
+                    change_request.reject(request.user, form.cleaned_data['comment'])
+                done += len(group)
+                continue
+            try:
+                with transaction.atomic():
+                    for change_request in group:
+                        change_request.apply(user=request.user)
+                done += len(group)
+            except ChangeConflict as e:
+                failed.append(f'#{group[0].pk}: {e}')
+            except (ValidationError, FieldDoesNotExist) as e:
+                failed.append(f"#{group[0].pk}: {'; '.join(getattr(e, 'messages', [str(e)]))}")
+
+        if self.decision == 'reject':
+            messages.success(request, _('Rejected %(count)d change(s).') % {'count': done})
+        elif done:
+            messages.success(request, _('Approved and applied %(count)d change(s).') % {'count': done})
+        if failed:
+            messages.error(
+                request,
+                _('Not applied, still pending: %(errors)s') % {'errors': ' '.join(failed)},
+            )
+        return redirect(return_url)
+
+
+@register_model_view(ChangeRequest, 'bulk_approve', path='approve', detail=False)
+class ChangeRequestBulkApproveView(_BulkDecisionView):
+    decision = 'approve'
+
+
+@register_model_view(ChangeRequest, 'bulk_reject', path='reject', detail=False)
+class ChangeRequestBulkRejectView(_BulkDecisionView):
+    decision = 'reject'
