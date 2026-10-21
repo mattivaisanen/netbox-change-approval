@@ -250,30 +250,11 @@ class ApprovalsQueueView(generic.ObjectListView):
 class ChangeRequestView(generic.ObjectView):
     queryset = ChangeRequest.objects.all()
 
-    def get_queryset(self, request):
-        # Same scoping as the list view — otherwise someone could browse another
-        # user's request by guessing/incrementing its URL even though it's
-        # filtered out of the list.
-        return permissions.visible_change_requests(request.user, super().get_queryset(request))
-
-    def get(self, request, **kwargs):
-        # A request that exists but isn't visible to this user would otherwise
-        # be a bare 404 ("page does not exist"), which reads like a bug. Say it's
-        # an access issue instead, and send them to the object it's about.
-        pk = kwargs.get('pk')
-        if pk is not None and not self.get_queryset(request).filter(pk=pk).exists():
-            hidden = ChangeRequest.objects.filter(pk=pk).first()
-            if hidden is not None:
-                messages.warning(
-                    request,
-                    _("You don't have access to this change request. "
-                      "Only the person who submitted it and its approvers can open it."),
-                )
-                target = hidden.target_object
-                if target is not None and hasattr(target, 'get_absolute_url'):
-                    return redirect(target.get_absolute_url())
-                return redirect(reverse('plugins:netbox_change_approval:changerequest_mine'))
-        return super().get(request, **kwargs)
+    # No per-user scoping here: any logged-in user can open a single request
+    # (e.g. from the banner on the object) and read its diff. Lists stay scoped:
+    # My Requests is only your own, Approvals only what's routed to you, and
+    # All Change Requests needs view_all. Approve/reject/retract keep their own
+    # checks.
 
     def get_extra_context(self, request, instance):
         batch_siblings = ChangeRequest.objects.none()

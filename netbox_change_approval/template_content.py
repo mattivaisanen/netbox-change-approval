@@ -30,15 +30,8 @@ class PendingChangeBanner(PluginTemplateExtension):
         if change_request is None:
             return ''
 
-        from .permissions import visible_change_requests
-
-        request = self.context.get('request')
-        can_view = request is not None and visible_change_requests(
-            request.user, ChangeRequest.objects.filter(pk=change_request.pk),
-        ).exists()
         return self.render('netbox_change_approval/banner.html', {
             'change_request': change_request,
-            'can_view': can_view,
         })
 
     def list_buttons(self):

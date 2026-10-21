@@ -148,10 +148,11 @@ conflict or validation error means none of the batch is applied.
 You can only approve/reject requests routed to a group you belong to (or any
 request, if you're a superuser).
 
-**Who can see which requests:** by default, **My Requests** only ever shows
-your own submissions, **Approvals** only shows requests routed to a group
-you're in, and **All Change Requests** shows the union of both (not every
-request in the system). To let someone (e.g. a change-management admin) see
+**Who can see which requests:** any logged-in user can open a single request
+(e.g. from the "View request" button on the object) and read its changes.
+The lists are scoped: **My Requests** only ever shows your own submissions,
+**Approvals** only shows requests routed to a group you're in, and **All
+Change Requests** shows the union of both (not every request in the system). To let someone (e.g. a change-management admin) see
 every request regardless of who submitted or approves it, grant them the
 `view_all` action the same way as `bypass_approval` below, but on object type
 **Change Approval > Change
