@@ -54,7 +54,7 @@ class SelfApprovalTests(TestCase):
         self.client.force_login(self.approver)
         for name in ('changerequest_reject', 'changerequest_sendback'):
             url = reverse(f'plugins:netbox_change_approval:{name}', kwargs={'pk': change_request.pk})
-            self.client.post(url, {'comment': 'no'})
+            self.client.post(url, {'comment': 'no', 'confirm': True})
         change_request.refresh_from_db()
         self.assertEqual(change_request.status, StatusChoices.PENDING)
 

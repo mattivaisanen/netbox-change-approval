@@ -2,6 +2,7 @@ from django.contrib import messages
 from django.core.exceptions import FieldDoesNotExist, ValidationError
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils.translation import gettext as _
 from django.views.generic import View
 
@@ -381,6 +382,16 @@ def _default_return_url():
     return reverse('plugins:netbox_change_approval:changerequest_list')
 
 
+def _safe_return_url(url, fallback=None):
+    """`url` if it is a path on this site, else `fallback` (default: the
+    request list). return_url comes from the query string or a hidden form
+    field, so without this a crafted link could send an approver to another
+    site after deciding, or run a javascript: URL from the Cancel button."""
+    if url and url_has_allowed_host_and_scheme(url, allowed_hosts=None):
+        return url
+    return fallback or _default_return_url()
+
+
 class _ChangeRequestDecisionView(ConditionalLoginRequiredMixin, View):
     def setup(self, request, *args, **kwargs):
         super().setup(request, *args, **kwargs)
@@ -415,7 +426,7 @@ class ChangeRequestApproveView(_ChangeRequestDecisionView):
         return render(request, 'netbox_change_approval/changerequest_approve.html', {
             'object': self.change_request,
             'form': ConfirmationForm(initial=request.GET),
-            'return_url': request.GET.get('return_url') or _default_return_url(),
+            'return_url': _safe_return_url(request.GET.get('return_url')),
             'button_class': 'success',
             'batch_count': len(targets),
         })
@@ -449,7 +460,7 @@ class ChangeRequestApproveView(_ChangeRequestDecisionView):
             messages.success(request, _(
                 'Approval recorded (%(have)d of %(need)d). It is applied once %(left)d more approver(s) approve.'
             ) % {'have': result.have, 'need': result.need, 'left': result.need - result.have})
-        return redirect(form.cleaned_data.get('return_url') or _default_return_url())
+        return redirect(_safe_return_url(form.cleaned_data.get('return_url')))
 
 
 @register_model_view(ChangeRequest, 'reject')
@@ -461,7 +472,7 @@ class ChangeRequestRejectView(_ChangeRequestDecisionView):
         return render(request, 'netbox_change_approval/changerequest_reject.html', {
             'object': self.change_request,
             'form': forms.ChangeRequestRejectForm(initial=request.GET),
-            'return_url': request.GET.get('return_url') or _default_return_url(),
+            'return_url': _safe_return_url(request.GET.get('return_url')),
             'batch_count': len(targets),
         })
 
@@ -473,7 +484,7 @@ class ChangeRequestRejectView(_ChangeRequestDecisionView):
             return render(request, 'netbox_change_approval/changerequest_reject.html', {
                 'object': self.change_request,
                 'form': form,
-                'return_url': request.POST.get('return_url') or _default_return_url(),
+                'return_url': _safe_return_url(request.POST.get('return_url')),
                 'batch_count': len(_batch_targets(self.change_request)),
             })
 
@@ -481,7 +492,7 @@ class ChangeRequestRejectView(_ChangeRequestDecisionView):
         for change_request in targets:
             change_request.reject(request.user, form.cleaned_data['comment'])
         messages.success(request, _('Rejected %(count)d change(s).') % {'count': len(targets)})
-        return redirect(form.cleaned_data.get('return_url') or _default_return_url())
+        return redirect(_safe_return_url(form.cleaned_data.get('return_url')))
 
 
 @register_model_view(ChangeRequest, 'retract')
@@ -506,7 +517,7 @@ class ChangeRequestRetractView(_ChangeRequestDecisionView):
         return render(request, 'netbox_change_approval/changerequest_retract.html', {
             'object': self.change_request,
             'form': ConfirmationForm(initial=request.GET),
-            'return_url': request.GET.get('return_url') or _default_return_url(),
+            'return_url': _safe_return_url(request.GET.get('return_url')),
             'batch_count': len(targets),
         })
 
@@ -531,7 +542,7 @@ class ChangeRequestRetractView(_ChangeRequestDecisionView):
         for change_request in targets:
             change_request.retract(request.user)
         messages.success(request, _('Retracted %(count)d change(s).') % {'count': len(targets)})
-        return redirect(form.cleaned_data.get('return_url') or _default_return_url())
+        return redirect(_safe_return_url(form.cleaned_data.get('return_url')))
 
 
 @register_model_view(ChangeRequest, 'sendback', path='send-back')
@@ -554,7 +565,7 @@ class ChangeRequestSendBackView(_ChangeRequestDecisionView):
             return denied
         return self._render(
             request, forms.ChangeRequestSendBackForm(initial=request.GET),
-            request.GET.get('return_url') or _default_return_url(),
+            _safe_return_url(request.GET.get('return_url')),
         )
 
     def post(self, request, pk):
@@ -562,7 +573,7 @@ class ChangeRequestSendBackView(_ChangeRequestDecisionView):
             return denied
         form = forms.ChangeRequestSendBackForm(request.POST)
         if not form.is_valid():
-            return self._render(request, form, request.POST.get('return_url') or _default_return_url())
+            return self._render(request, form, _safe_return_url(request.POST.get('return_url')))
 
         targets = _batch_targets(self.change_request)
         for change_request in targets:
@@ -573,7 +584,7 @@ class ChangeRequestSendBackView(_ChangeRequestDecisionView):
                 'count': len(targets), 'user': self.change_request.submitted_by or _('the submitter'),
             },
         )
-        return redirect(form.cleaned_data.get('return_url') or _default_return_url())
+        return redirect(_safe_return_url(form.cleaned_data.get('return_url')))
 
 
 class _SentBackView(ConditionalLoginRequiredMixin, View):
@@ -615,7 +626,7 @@ class ChangeRequestDiscardView(_SentBackView):
         return render(request, 'netbox_change_approval/changerequest_discard.html', {
             'object': self.change_request,
             'form': ConfirmationForm(initial=request.GET),
-            'return_url': request.GET.get('return_url') or self.change_request.get_absolute_url(),
+            'return_url': _safe_return_url(request.GET.get('return_url'), self.change_request.get_absolute_url()),
         })
 
     def post(self, request, pk):
@@ -732,10 +743,12 @@ class _BulkDecisionView(ConditionalLoginRequiredMixin, View):
         return groups
 
     def _return_url(self, request):
-        url = request.POST.get('return_url') or ''
-        if url.startswith('/') and not url.startswith('//'):
-            return url
-        return reverse('plugins:netbox_change_approval:changerequest_approvals')
+        # A plain "starts with one slash" check lets "/\evil.example" through,
+        # which browsers treat like "//evil.example".
+        return _safe_return_url(
+            request.POST.get('return_url'),
+            reverse('plugins:netbox_change_approval:changerequest_approvals'),
+        )
 
     def post(self, request):
         selected = self._selected(request)
