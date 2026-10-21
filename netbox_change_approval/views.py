@@ -168,18 +168,7 @@ class _AnyLoggedInUserCanView:
         return self.request.user.is_authenticated
 
 
-def _can_decide(user, change_request):
-    if not user.is_authenticated:
-        return False
-    if user.is_superuser:
-        return True
-    if change_request.approver_group_id is None:
-        return False
-    # Forward relation (user.groups), not approver_group.user_set: NetBox's own
-    # Group model doesn't use Django's stock related_name (it's `users`, not
-    # `user_set` — see users/models/users.py). Going through the user avoids
-    # caring what it's called.
-    return user.groups.filter(pk=change_request.approver_group_id).exists()
+_can_decide = permissions.can_decide
 
 
 def _resolve_display(model, key, value):
@@ -375,6 +364,9 @@ class _ChangeRequestDecisionView(ConditionalLoginRequiredMixin, View):
         )
 
     def check_permission(self, request):
+        if self.change_request.submitted_by_id == request.user.pk:
+            messages.error(request, _('You cannot decide your own request. Another approver has to.'))
+            return redirect(self.change_request.get_absolute_url())
         if not _can_decide(request.user, self.change_request):
             messages.error(request, _("You are not a member of this request's approver group."))
             return redirect(self.change_request.get_absolute_url())

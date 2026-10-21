@@ -46,7 +46,11 @@ class ApprovalsWidget(DashboardWidget):
         user = request.user
         group_ids = set(user.groups.values_list('pk', flat=True))
         rows = [
-            (cr, user.is_superuser or cr.approver_group_id in group_ids)
+            (
+                cr,
+                cr.submitted_by_id != user.pk
+                and (user.is_superuser or cr.approver_group_id in group_ids),
+            )
             for cr in queryset
         ]
         # Your own requests sent back to you (or retracted to edit), with Revise.

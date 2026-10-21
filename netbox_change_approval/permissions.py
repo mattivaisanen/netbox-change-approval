@@ -168,11 +168,33 @@ def can_view_change_request(user, change_request):
     return restrict(user, 'view').filter(pk=change_request.object_id).exists()
 
 
+def can_decide(user, change_request):
+    """
+    May `user` approve, reject or send back `change_request`? Superusers and
+    members of the request's approver group may, except on their own requests:
+    nobody signs off their own change, superusers included (they withdraw it
+    with Retract instead).
+    """
+    if user is None or not user.is_authenticated:
+        return False
+    if change_request.submitted_by_id is not None and change_request.submitted_by_id == user.pk:
+        return False
+    if user.is_superuser:
+        return True
+    if change_request.approver_group_id is None:
+        return False
+    # Forward relation (user.groups), not approver_group.user_set: NetBox's own
+    # Group model uses `users` as its related name.
+    return user.groups.filter(pk=change_request.approver_group_id).exists()
+
+
 def approver_queue(user, queryset):
     """The "Approvals" tab: pending work routed to a group this user is in
-    (everything, for a superuser)."""
+    (everything, for a superuser), minus the user's own requests (see
+    can_decide)."""
     if not user.is_authenticated:
         return queryset.none()
+    queryset = queryset.exclude(submitted_by=user)
     if user.is_superuser:
         return queryset
     return queryset.filter(approver_group__in=user.groups.all()).distinct()

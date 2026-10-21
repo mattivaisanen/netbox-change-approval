@@ -173,7 +173,8 @@ no VPN requests), plus your own submissions and anything routed to your
 approver groups. Opening a single request also respects object-level
 permission constraints. **Approvals** only shows requests routed to a group
 you're in. Only the approver group (or a superuser) can approve or reject,
-and only the submitter can retract.
+and only the submitter can retract. Nobody can approve, reject or send back
+their own request, superusers included: someone else has to sign it off.
 
 ### Letting specific users skip approval entirely
 

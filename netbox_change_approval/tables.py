@@ -74,17 +74,18 @@ class AutoApprovalRuleTable(NetBoxTable):
 #: NoReverseMatch rather than just hiding the button. So: no 'edit'/'delete' here,
 #: and our own buttons instead, shown only while still pending and only to who
 #: can use them (same rules the views enforce): Approve/Reject to superusers and
-#: members of the request's approver group, Retract to the submitter.
+#: members of the request's approver group, never on their own requests;
+#: Retract to the submitter.
 _DECISION_BUTTONS = """
 {% if record.status == "pending" %}
-{% if request.user.is_superuser or record.approver_group and record.approver_group in request.user.groups.all %}
+{% if record.submitted_by_id != request.user.pk %}{% if request.user.is_superuser or record.approver_group and record.approver_group in request.user.groups.all %}
 <a href="{% url 'plugins:netbox_change_approval:changerequest_approve' pk=record.pk %}?return_url={{ request.get_full_path|urlencode }}"
    class="btn btn-sm btn-success" title="Approve"><i class="mdi mdi-check"></i></a>
 <a href="{% url 'plugins:netbox_change_approval:changerequest_sendback' pk=record.pk %}?return_url={{ request.get_full_path|urlencode }}"
    class="btn btn-sm btn-warning" title="Send back for revision"><i class="mdi mdi-undo-variant"></i></a>
 <a href="{% url 'plugins:netbox_change_approval:changerequest_reject' pk=record.pk %}?return_url={{ request.get_full_path|urlencode }}"
    class="btn btn-sm btn-danger" title="Reject"><i class="mdi mdi-close"></i></a>
-{% endif %}
+{% endif %}{% endif %}
 {% if record.submitted_by_id == request.user.pk %}
 <a href="{% url 'plugins:netbox_change_approval:changerequest_retract' pk=record.pk %}?return_url={{ request.get_full_path|urlencode }}"
    class="btn btn-sm btn-secondary" title="Retract"><i class="mdi mdi-undo"></i></a>
