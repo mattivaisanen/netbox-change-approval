@@ -54,13 +54,13 @@ def gate(instance, action, request):
     """
     Returns None if the write should proceed exactly as given: bypass granted, a
     true no-op update, we're already inside ChangeRequest.apply(), an
-    auto-approval rule matched (for CREATE/DELETE — see those branches below for
-    why "proceed" is correct rather than "abort and redo"), or — for CREATE
+    auto-approval rule matched (the request is logged as applied and the write
+    already in flight is the approved one), or — for CREATE
     specifically, even when *not* auto-approved — see "CREATE is different"
     below.
 
     Otherwise returns a ChangeRequest the caller must abort the write for:
-    - UPDATE, not auto-approved: returned *saved* (safe — this runs before any
+    - UPDATE: returned *saved* (safe — this runs before any
       transaction.atomic() the view opens; see DEVELOPER.md).
     - DELETE, not auto-approved: returned *unsaved*. This runs inside NetBox's
       delete-collector's own transaction.atomic() (netbox/models/deletion.py),
@@ -144,9 +144,13 @@ def gate(instance, action, request):
             instance._nbca_pending_create = change_request
             return None
 
+        # UPDATE: same as DELETE/CREATE above, the save already in flight *is*
+        # the approved write. Log it and let it proceed, so the user gets
+        # NetBox's normal "saved" flow instead of a form error. The validator
+        # picks the marker up to show which rule approved it.
         change_request.save()
-        change_request.apply(user=None)
-        return change_request
+        instance._nbca_auto_applied = change_request
+        return None
 
     if action == ActionChoices.CREATE:
         instance._nbca_pending_create = change_request  # unsaved — see docstring above

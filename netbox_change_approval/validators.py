@@ -4,9 +4,10 @@ from django.utils.translation import gettext as _
 
 from extras.validators import CustomValidator
 
-from .exceptions import ObjectLocked
+from .context import current_batch
+from .exceptions import ChangeApprovalRequired, ObjectLocked
 from .gating import gate
-from .models import ActionChoices, StatusChoices
+from .models import ActionChoices
 
 
 class ApprovalGateValidator(CustomValidator):
@@ -25,28 +26,32 @@ class ApprovalGateValidator(CustomValidator):
             self.fail(str(exc))
 
         if change_request is None:
+            auto_applied = getattr(instance, '_nbca_auto_applied', None)
+            if auto_applied is not None and request is not None:
+                del instance._nbca_auto_applied
+                messages.info(
+                    request,
+                    _('Auto-approved by rule (request #%(pk)s).') % {'pk': auto_applied.pk},
+                )
             return
 
-        # fail() always raises ValidationError, which Django's ModelForm renders
-        # as a red field/form error — there's no way around that part, it's what
-        # actually blocks the save. But that's a poor home for the real news, so
-        # the clear, positive-toned version goes out as its own flash message;
-        # the form error itself stays short and just points at it.
-        if request is not None:
-            if change_request.status == StatusChoices.APPLIED:
-                messages.success(
-                    request,
-                    _('Change auto-approved by rule and applied immediately (request #%(pk)s).')
-                    % {'pk': change_request.pk},
-                )
-            else:
-                messages.success(
-                    request,
-                    _('Change submitted for approval. Approval sent to: %(approvers)s.')
-                    % {'approvers': change_request.approver_names},
-                )
+        # A pending update must block the save. In a normal single-object edit,
+        # raise ChangeApprovalRequired instead of a ValidationError: it escapes
+        # the form, and ChangeApprovalMiddleware.process_exception() turns it
+        # into a redirect to the (unchanged) object with one green message, the
+        # same way a gated delete is handled. A ValidationError would re-render
+        # the form with a red error next to the green message.
+        #
+        # Bulk edit/import still use ValidationError: those views run inside
+        # their own transaction and handle ValidationError per object, and an
+        # escaping exception would roll back the saved ChangeRequest.
+        if request is not None and current_batch.get() is None:
+            raise ChangeApprovalRequired(change_request)
 
-        if change_request.status == StatusChoices.APPLIED:
-            self.fail(_('Applied automatically as request #%(pk)s.') % {'pk': change_request.pk})
-        else:
-            self.fail(_('Submitted for approval as request #%(pk)s.') % {'pk': change_request.pk})
+        if request is not None:
+            messages.success(
+                request,
+                _('Change submitted for approval. Approval sent to: %(approvers)s.')
+                % {'approvers': change_request.approver_names},
+            )
+        self.fail(_('Submitted for approval as request #%(pk)s.') % {'pk': change_request.pk})

@@ -1,7 +1,7 @@
 from django.conf import settings
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.core.serializers.json import DjangoJSONEncoder
-from django.db import models
+from django.db import models, transaction
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
@@ -86,10 +86,10 @@ class BaseMatchRule(NetBoxModel):
     def __str__(self):
         return self.description or f'{self._meta.verbose_name} #{self.pk}'
 
-    def matches(self, instance):
+    def matches(self, instance, check_new_state=False):
         if not self.enabled:
             return False
-        return rule_matches(self, instance)
+        return rule_matches(self, instance, check_new_state=check_new_state)
 
 
 class ApprovalRoutingRule(BaseMatchRule):
@@ -143,7 +143,9 @@ class AutoApprovalRule(BaseMatchRule):
     def matches(self, instance, action=None):
         if action is not None and not self.matches_action(action):
             return False
-        return super().matches(instance)
+        # For an update, both the stored and the submitted values must match:
+        # otherwise {"status": "planned"} would auto-approve planned -> active.
+        return super().matches(instance, check_new_state=(action == AutoApprovalActionChoices.UPDATE))
 
 
 class ExemptModel(NetBoxModel):
@@ -324,7 +326,10 @@ class ChangeRequest(NetBoxModel):
         from .context import applying_change_on
         from .tags import get_pending_tag
 
-        with applying_change_on():
+        # One transaction for the write *and* the status change: if the write
+        # fails (e.g. serialization.ChangeConflict because the object changed
+        # since submission), nothing is written and the request stays pending.
+        with transaction.atomic(), applying_change_on():
             if self.action == ActionChoices.CREATE:
                 model = self.content_type.model_class()
                 model.objects.get(pk=self.object_id).tags.remove(get_pending_tag())
@@ -333,12 +338,12 @@ class ChangeRequest(NetBoxModel):
             elif self.action == ActionChoices.DELETE:
                 serialization.apply_delete(self.content_type, self.object_id)
 
-        self.status = StatusChoices.APPLIED
-        self.applied_at = timezone.now()
-        if user is not None:
-            self.decided_by = user
-            self.decided_at = self.applied_at
-        self.save()
+            self.status = StatusChoices.APPLIED
+            self.applied_at = timezone.now()
+            if user is not None:
+                self.decided_by = user
+                self.decided_at = self.applied_at
+            self.save()
 
     def reject(self, user, comment):
         """

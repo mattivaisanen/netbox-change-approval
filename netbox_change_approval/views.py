@@ -1,5 +1,6 @@
 from django.contrib import messages
-from django.core.exceptions import FieldDoesNotExist
+from django.core.exceptions import FieldDoesNotExist, ValidationError
+from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.translation import gettext as _
@@ -9,7 +10,8 @@ from netbox.views import generic
 from utilities.forms.forms import ConfirmationForm
 from utilities.views import ConditionalLoginRequiredMixin, register_model_view
 
-from . import filtersets, forms, permissions, tables
+from . import filtersets, forms, permissions, serialization, tables
+from .exceptions import ChangeConflict
 from .models import ActionChoices, ApprovalRoutingRule, AutoApprovalRule, ChangeRequest, ExemptModel, StatusChoices
 
 #
@@ -168,7 +170,7 @@ def _field_label(model, key):
     return str(field.verbose_name)
 
 
-def _diff_rows(change_request):
+def _diff_rows(change_request, conflict_fields=()):
     diff = change_request.diff
     if not isinstance(diff, dict):
         return []
@@ -181,6 +183,7 @@ def _diff_rows(change_request):
                 'label': _field_label(model, field),
                 'old': _resolve_display(model, field, change.get('old')),
                 'new': _resolve_display(model, field, change.get('new')),
+                'conflict': field in conflict_fields,
             }
             for field, change in sorted(diff.items())
         ]
@@ -259,8 +262,17 @@ class ChangeRequestView(generic.ObjectView):
             batch_siblings = ChangeRequest.objects.filter(
                 batch_id=instance.batch_id,
             ).exclude(pk=instance.pk)
+        conflict_fields, object_missing = [], False
+        if instance.status == StatusChoices.PENDING and instance.action == ActionChoices.UPDATE:
+            conflict_fields, object_missing = serialization.conflicts_for(
+                instance.content_type, instance.object_id, instance.diff,
+            )
         return {
-            'diff_rows': _diff_rows(instance),
+            'diff_rows': _diff_rows(instance, conflict_fields),
+            'conflict_labels': [
+                _field_label(instance.content_type.model_class(), f) for f in conflict_fields
+            ],
+            'object_missing': object_missing,
             'batch_siblings': batch_siblings,
             'can_decide': _can_decide(request.user, instance),
             'can_retract': (
@@ -320,8 +332,19 @@ class ChangeRequestApproveView(_ChangeRequestDecisionView):
             return redirect(_default_return_url())
 
         targets = _batch_targets(self.change_request)
-        for change_request in targets:
-            change_request.apply(user=request.user)
+        try:
+            # All-or-nothing for a batch: one conflict or validation failure
+            # rolls back every change already applied in this batch, and every
+            # request stays pending.
+            with transaction.atomic():
+                for change_request in targets:
+                    change_request.apply(user=request.user)
+        except ChangeConflict as e:
+            messages.error(request, _('Not applied: %(error)s Reject this request and resubmit it.') % {'error': e})
+            return redirect(self.change_request.get_absolute_url())
+        except (ValidationError, FieldDoesNotExist) as e:
+            messages.error(request, _('Not applied: %(error)s') % {'error': '; '.join(getattr(e, 'messages', [str(e)]))})
+            return redirect(self.change_request.get_absolute_url())
         messages.success(request, _('Approved and applied %(count)d change(s).') % {'count': len(targets)})
         return redirect(form.cleaned_data.get('return_url') or _default_return_url())
 

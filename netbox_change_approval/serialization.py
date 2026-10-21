@@ -17,11 +17,13 @@ tags.py/signals.py outside of this diff machinery entirely.) Everything else
 that is a concrete field or a real ManyToManyField (including
 custom_field_data, which is a plain JSONField) is covered.
 """
+import json
 from datetime import date, datetime, time
 from decimal import Decimal
 from uuid import UUID
 
 from django.core.exceptions import FieldDoesNotExist
+from django.core.serializers.json import DjangoJSONEncoder
 
 #: Types ChangeRequest.diff's DjangoJSONEncoder already knows how to serialize
 #: (it special-cases these in its .default()) — pass them through as-is so
@@ -120,19 +122,88 @@ def _coerce(field, value):
     return field.to_python(value)
 
 
-def apply_update(content_type, object_id, diff):
-    model = content_type.model_class()
-    instance = model.objects.get(pk=object_id)
-    field_map = _field_map(model)
-    m2m_updates = {}
+def _stored_form(value):
+    """
+    `value` as it looks after a round-trip through ChangeRequest.diff (a
+    JSONField using DjangoJSONEncoder): Decimal/date/UUID become strings, etc.
+    Idempotent, so it's safe on a value that has already been round-tripped
+    (a diff loaded from the DB) as well as one that hasn't (a diff still in
+    memory, e.g. the auto-approval path in gating.gate()).
+    """
+    return json.loads(json.dumps(_json_safe(value), cls=DjangoJSONEncoder))
 
+
+def _field_for_key(model, field_map, key):
+    try:
+        return field_map[key]
+    except KeyError:
+        raise FieldDoesNotExist(
+            f"'{key}' is no longer a field on {model._meta.label} — cannot apply this change."
+        )
+
+
+def find_conflicts(instance, diff):
+    """
+    Return the diff keys whose *current* value on `instance` no longer matches
+    the "old" value recorded when the request was submitted — i.e. fields that
+    someone else changed in the meantime. Applying the request as-is would
+    silently overwrite those newer edits.
+    """
+    model = type(instance)
+    field_map = _field_map(model)
+    conflicts = []
     for key, change in diff.items():
-        try:
-            field = field_map[key]
-        except KeyError:
-            raise FieldDoesNotExist(
-                f"'{key}' is no longer a field on {model._meta.label} — cannot apply this change."
-            )
+        field = _field_for_key(model, field_map, key)
+        old = change.get('old')
+        if field.many_to_many:
+            current = list(getattr(instance, field.name).values_list('pk', flat=True))
+            if sorted(_stored_form(current)) != sorted(_stored_form(old or [])):
+                conflicts.append(key)
+        elif _stored_form(getattr(instance, field.attname)) != _stored_form(old):
+            conflicts.append(key)
+    return conflicts
+
+
+def conflicts_for(content_type, object_id, diff):
+    """Read-only variant for display (the change request detail page). Returns
+    (conflicting field keys, object_missing)."""
+    model = content_type.model_class()
+    try:
+        instance = model.objects.get(pk=object_id)
+    except model.DoesNotExist:
+        return [], True
+    try:
+        return find_conflicts(instance, diff), False
+    except FieldDoesNotExist:
+        return [], False  # surfaced as its own error at apply time
+
+
+def apply_update(content_type, object_id, diff):
+    """
+    Apply an approved UPDATE. Refuses (raises ChangeConflict, writes nothing) if
+    any field in the diff changed after the request was submitted, so an
+    approval can never overwrite a newer edit to the same object.
+
+    Must run inside a transaction (ChangeRequest.apply() opens one): the row is
+    locked with SELECT ... FOR UPDATE so nothing can change it between the
+    conflict check and the save.
+    """
+    from .exceptions import ChangeConflict
+
+    model = content_type.model_class()
+    try:
+        instance = model.objects.select_for_update().get(pk=object_id)
+    except model.DoesNotExist:
+        raise ChangeConflict(f'{model._meta.verbose_name} #{object_id}', [], missing=True)
+    field_map = _field_map(model)
+
+    conflicts = find_conflicts(instance, diff)
+    if conflicts:
+        raise ChangeConflict(str(instance), conflicts)
+
+    m2m_updates = {}
+    for key, change in diff.items():
+        field = _field_for_key(model, field_map, key)
         if field.many_to_many:
             m2m_updates[field.name] = change['new']
         else:
@@ -146,6 +217,11 @@ def apply_update(content_type, object_id, diff):
 
 
 def apply_delete(content_type, object_id):
+    from .exceptions import ChangeConflict
+
     model = content_type.model_class()
-    instance = model.objects.get(pk=object_id)
+    try:
+        instance = model.objects.get(pk=object_id)
+    except model.DoesNotExist:
+        raise ChangeConflict(f'{model._meta.verbose_name} #{object_id}', [], missing=True)
     instance.delete()

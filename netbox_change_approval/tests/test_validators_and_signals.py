@@ -47,11 +47,46 @@ class ApprovalGateValidatorTests(TestCase):
         obj = Manufacturer.objects.create(name='Acme', slug='acme')
         obj.description = 'a pending edit'
 
-        with self.assertRaises(ValidationError):
+        # Single-object edit: escapes the form as ChangeApprovalRequired so the
+        # middleware can redirect with one message instead of a form error.
+        with self.assertRaises(ChangeApprovalRequired) as ctx:
             ApprovalGateValidator().validate(obj, fake_request(self.alice))
 
+        self.assertEqual(ctx.exception.change_request.status, StatusChoices.PENDING)
+        self.assertIsNotNone(ctx.exception.change_request.pk)
         obj.refresh_from_db()
         self.assertEqual(obj.description, '')
+
+    def test_update_in_bulk_edit_still_raises_validation_error(self):
+        import uuid
+
+        from ..context import batch_scope
+
+        obj = Manufacturer.objects.create(name='Acme', slug='acme')
+        obj.description = 'a pending bulk edit'
+
+        with batch_scope(uuid.uuid4()), self.assertRaises(ValidationError):
+            ApprovalGateValidator().validate(obj, fake_request(self.alice))
+
+    def test_auto_approved_update_passes_validation(self):
+        from core.models import ObjectType
+
+        from ..models import AutoApprovalRule
+
+        AutoApprovalRule.objects.create(
+            content_type=ObjectType.objects.get_for_model(Manufacturer), action='update',
+        )
+        obj = Manufacturer.objects.create(name='Acme', slug='acme')
+        obj.description = 'auto edit'
+
+        ApprovalGateValidator().validate(obj, fake_request(self.alice))  # should not raise
+        obj.save()
+
+        obj.refresh_from_db()
+        self.assertEqual(obj.description, 'auto edit')
+        change_request = ChangeRequest.objects.get(object_id=obj.pk)
+        self.assertEqual(change_request.status, StatusChoices.APPLIED)
+        self.assertTrue(change_request.auto_approved)
 
 
 class GateDeleteSignalTests(TransactionTestCase):

@@ -8,6 +8,31 @@ class ObjectLocked(Exception):
         )
 
 
+class ChangeConflict(Exception):
+    """
+    Raised when applying an approved UPDATE would overwrite something that
+    changed after the request was submitted (via the API, a script, a bypass
+    user, ...), or when the target object no longer exists. Nothing is written;
+    the request stays pending so an approver can reject it and the submitter
+    can resubmit against the current state.
+
+    `fields` is a list of field names whose current value no longer matches the
+    request's recorded "old" value (empty when the object itself is gone).
+    """
+    def __init__(self, object_repr, fields, missing=False):
+        self.object_repr = object_repr
+        self.fields = list(fields)
+        self.missing = missing
+        if missing:
+            message = f'{object_repr} no longer exists.'
+        else:
+            message = (
+                f'{object_repr} was changed after this request was submitted '
+                f'(fields: {", ".join(self.fields)}). Approving would overwrite those newer edits.'
+            )
+        super().__init__(message)
+
+
 class ChangeApprovalRequired(Exception):
     """
     Raised from the pre_delete gate to abort a delete. Unlike the create/update path

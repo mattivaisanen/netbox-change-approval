@@ -5,9 +5,11 @@
 
 {% block extra_controls %}
   {% if can_decide and object.status == 'pending' %}
+    {% if not conflict_labels and not object_missing %}
     <a href="{% url 'plugins:netbox_change_approval:changerequest_approve' pk=object.pk %}" class="btn btn-success">
       <i class="mdi mdi-check"></i> {% trans "Approve" %}
     </a>
+    {% endif %}
     <a href="{% url 'plugins:netbox_change_approval:changerequest_reject' pk=object.pk %}" class="btn btn-danger">
       <i class="mdi mdi-close"></i> {% trans "Reject" %}
     </a>
@@ -20,6 +22,18 @@
 {% endblock %}
 
 {% block content %}
+{% if object_missing %}
+<div class="alert alert-danger" role="alert">
+  <i class="mdi mdi-alert"></i>
+  {% trans "The object this request changes no longer exists, so it can't be approved. Reject it to close it." %}
+</div>
+{% elif conflict_labels %}
+<div class="alert alert-danger" role="alert">
+  <i class="mdi mdi-alert"></i>
+  {% trans "This object was changed after the request was submitted. Approving would overwrite those newer edits, so it can't be approved. Reject it and have the submitter resubmit against the current values." %}
+  <br><strong>{% trans "Changed since submission" %}:</strong> {{ conflict_labels|join:", " }}
+</div>
+{% endif %}
 <div class="row mb-3">
   <div class="col col-md-6">
     <div class="card">
@@ -91,8 +105,8 @@
           <tr><th>{% trans "Field" %}</th><th>{% trans "Old" %}</th><th>{% trans "New" %}</th></tr>
         </thead>
         {% for row in diff_rows %}
-        <tr>
-          <th scope="row" title="{{ row.field }}">{{ row.label|capfirst }}</th>
+        <tr{% if row.conflict %} class="table-warning" title="{% trans 'Changed since submission' %}"{% endif %}>
+          <th scope="row" title="{{ row.field }}">{{ row.label|capfirst }}{% if row.conflict %} <i class="mdi mdi-alert text-warning"></i>{% endif %}</th>
           <td class="text-danger">{% if row.old is not None %}{{ row.old }}{% else %}—{% endif %}</td>
           <td class="text-success">{% if row.new is not None %}{{ row.new }}{% else %}—{% endif %}</td>
         </tr>
