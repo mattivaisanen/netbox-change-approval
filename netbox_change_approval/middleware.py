@@ -7,14 +7,14 @@ from django.shortcuts import redirect
 from django.urls import Resolver404, resolve
 from django.utils.http import url_has_allowed_host_and_scheme
 
-from netbox.views.generic import BulkDeleteView, BulkEditView, BulkImportView, ObjectEditView
+from netbox.views.generic import BulkDeleteView, BulkEditView, BulkImportView, BulkRenameView, ObjectEditView
 
 from .bulk import BatchCollector, collecting
 from .context import batch_scope
 from .discovery import is_gated_model
 from .exceptions import ChangeApprovalRequired
 
-BULK_VIEW_CLASSES = (BulkEditView, BulkDeleteView, BulkImportView)
+BULK_VIEW_CLASSES = (BulkEditView, BulkDeleteView, BulkImportView, BulkRenameView)
 
 
 class ChangeApprovalMiddleware:

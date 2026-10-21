@@ -37,7 +37,7 @@ class NetBoxChangeApprovalConfig(PluginConfig):
         # only guaranteed once ready() runs.
         from django.db.utils import OperationalError, ProgrammingError
 
-        from . import permissions, signals  # noqa: F401  (connects pre_delete/post_save receivers)
+        from . import backstop, permissions, signals  # noqa: F401  (connects pre_delete/post_save receivers)
         from . import widgets  # noqa: F401  (runs @register_widget)
         from .bulk import patch_bulk_views
         from .discovery import wire_up_gated_models
@@ -45,6 +45,7 @@ class NetBoxChangeApprovalConfig(PluginConfig):
         from .table_styling import patch_netbox_table
 
         wire_up_gated_models()
+        backstop.connect()
         patch_bulk_views()
         patch_netbox_table()
         patch_rack_elevation_svg()
