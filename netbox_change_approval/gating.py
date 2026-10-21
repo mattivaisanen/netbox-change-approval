@@ -152,7 +152,12 @@ def _gate(instance, action, request):
         # the approved write. Log it and let it proceed, so the user gets
         # NetBox's normal "saved" flow instead of a form error. The validator
         # picks the marker up to show which rule approved it.
+        # Saved before the real write, so NetBox has no activity entry for the
+        # object yet. Log quietly; signals.label_activity puts the label on the
+        # object's own entry once the save has written it.
+        change_request._nbca_log_quietly = True
         change_request.save()
+        instance._nbca_activity_label = change_request
         instance._nbca_auto_applied = change_request
         return None
 

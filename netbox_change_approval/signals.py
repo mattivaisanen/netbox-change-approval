@@ -91,6 +91,17 @@ def finish_pending_create(sender, instance, created, **kwargs):
         request._nbca_suppress_default_create_message = True
 
 
+def label_activity(sender, instance, **kwargs):
+    """After an auto-approved edit is saved, label the object's own activity
+    entry with the change request (see gating._gate, AUTO + UPDATE). Runs after
+    NetBox's own post_save receiver, which wrote that entry."""
+    change_request = getattr(instance, '_nbca_activity_label', None)
+    if change_request is None:
+        return
+    del instance._nbca_activity_label
+    change_request.label_target_activity()
+
+
 def _resync_approver_permission(sender, **kwargs):
     permissions.sync_is_approver_permission()
 
@@ -100,6 +111,7 @@ def connect():
         dispatch_uid = f'netbox_change_approval:{model._meta.label}'
         pre_delete.connect(gate_delete, sender=model, dispatch_uid=f'{dispatch_uid}:delete')
         post_save.connect(finish_pending_create, sender=model, dispatch_uid=f'{dispatch_uid}:create')
+        post_save.connect(label_activity, sender=model, dispatch_uid=f'{dispatch_uid}:activity')
         # Lets bulk delete queue every selected object, not just the first one.
         wrap_model_delete(model)
 

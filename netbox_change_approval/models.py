@@ -283,6 +283,18 @@ class ExemptModel(NetBoxModel):
         return reverse('plugins:netbox_change_approval:exemptmodel', args=[self.pk])
 
 
+def combine_activity_message(existing, ours):
+    """Keep any message the user typed and add ours after it, within the
+    200 characters NetBox allows for an activity message."""
+    if not existing:
+        combined = ours
+    elif ours in existing:
+        combined = existing
+    else:
+        combined = f'{existing} | {ours}'
+    return combined if len(combined) <= 200 else combined[:199] + '\u2026'
+
+
 class ChangeRequest(NetBoxModel):
     """
     A single pending, applied, or rejected change to one object. Bulk actions create
@@ -418,6 +430,85 @@ class ChangeRequest(NetBoxModel):
             from .revision import adopt_sent_back
             adopt_sent_back(self)
         super().save(*args, **kwargs)
+
+    # ---- Activity (core changelog) ------------------------------------------
+    #
+    # A change request is a NetBox object, so NetBox logs it in the activity
+    # list like anything else. Next to the real object's own entry that made
+    # every user action show up twice. So: when the real object already got an
+    # entry in this same request (a pending create, an approval, a rejected
+    # create, an auto-approved write), this request writes nothing of its own
+    # and labels that entry's Message instead. It only logs itself when it is
+    # the sole trace of what happened, e.g. an edit or delete still waiting.
+
+    def activity_message(self):
+        """One short line for the activity Message column."""
+        ref = _('change request #{pk}').format(pk=self.pk)
+        decider = self.decided_by or ''
+        if self.status == StatusChoices.PENDING:
+            text = _('Waiting for approval ({ref})') if self.revision <= 1 else _('Resubmitted for approval ({ref})')
+            text = text.format(ref=ref)
+        elif self.status == StatusChoices.APPLIED:
+            if self.auto_approved:
+                text = _('Auto-approved by rule ({ref})').format(ref=ref)
+            elif decider:
+                text = _('Approved by {user} ({ref})').format(user=decider, ref=ref)
+            else:
+                text = _('Approved ({ref})').format(ref=ref)
+        elif self.status == StatusChoices.REJECTED:
+            text = _('Rejected by {user} ({ref})').format(user=decider, ref=ref)
+            if self.decision_comment:
+                text = f'{text}: {self.decision_comment}'
+        elif self.status == StatusChoices.RETURNED:
+            text = _('Sent back for revision by {user} ({ref})').format(user=decider, ref=ref)
+            if self.decision_comment:
+                text = f'{text}: {self.decision_comment}'
+        elif self.status == StatusChoices.RETRACTED:
+            text = _('Withdrawn by submitter ({ref})').format(ref=ref)
+        else:
+            text = ref
+        return str(text)
+
+    def _target_object_changes(self, request):
+        from core.models import ObjectChange
+
+        if request is None or self.object_id is None:
+            return ObjectChange.objects.none()
+        return ObjectChange.objects.filter(
+            changed_object_type_id=self.content_type_id,
+            changed_object_id=self.object_id,
+            request_id=request.id,
+        )
+
+    def label_target_activity(self, entries=None):
+        """Add this request's activity_message() to the real object's activity
+        entries written in the current request."""
+        from netbox.context import current_request
+
+        if entries is None:
+            entries = self._target_object_changes(current_request.get())
+        message = self.activity_message()
+        for entry in entries:
+            entry.message = combine_activity_message(entry.message, message)
+            entry.save(update_fields=['message'])
+
+    def to_objectchange(self, action):
+        from core.choices import ObjectChangeActionChoices
+        from netbox.context import current_request
+
+        message = self.activity_message()
+        if action != ObjectChangeActionChoices.ACTION_DELETE:
+            entries = self._target_object_changes(current_request.get())
+            if getattr(self, '_nbca_log_quietly', False) or entries.exists():
+                self.label_target_activity(entries)
+                return None
+        typed = self._changelog_message
+        self._changelog_message = combine_activity_message(typed, message)
+        try:
+            return super().to_objectchange(action)
+        finally:
+            self._changelog_message = typed
+    to_objectchange.alters_data = True
 
     @property
     def approver_names(self):

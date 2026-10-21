@@ -246,6 +246,16 @@ into Approval Rules, keeping the order the old code checked them in.
 touched by the plugin at all. It needs a NetBox restart, so for day-to-day
 use prefer a **Skip approval** rule; this setting is an emergency off switch.
 
+### Activity log
+
+Each action shows up once in NetBox's activity (changelog) list. Submitting a
+new object, approving, or rejecting a new object logs the object itself, with
+the Message column saying what happened, e.g. "Waiting for approval (change
+request #12)" or "Approved by anna (change request #12)". The change request
+gets its own entry only when nothing else was written, such as an edit or
+delete that is still waiting, or approving a new object. A message the user
+typed is kept, with ours added after it.
+
 ### Getting notified of pending changes
 
 No email/Slack code is built into this plugin — it reuses NetBox's own
