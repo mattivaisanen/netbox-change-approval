@@ -35,9 +35,8 @@ class BaseRuleForm(NetBoxModelForm):
         required=False,
         label=_('Constraint'),
         help_text=_(
-            'Django ORM-style filter dict, or a list of such dicts (OR\'d together). '
-            'Same format as NetBox object permission constraints, e.g. '
-            '{"tenant__slug": "acme"}. Leave blank to match unconditionally.'
+            'Optional filter in the same format as NetBox permission constraints. '
+            'Leave blank to match all objects.'
         ),
     )
 
@@ -87,11 +86,8 @@ class ExemptModelForm(NetBoxModelForm):
         required=False,
         label=_('Constraint'),
         help_text=_(
-            'Only exempt objects matching this filter, or a list of filters (OR\'d together). '
-            'E.g. {"site__region__slug": "tampere"}, or for cables '
-            '[{"a_terminations__device__site__region__slug": "tampere"}, '
-            '{"b_terminations__device__site__region__slug": "tampere"}]. '
-            'Leave blank to exempt every object of this type.'
+            'Optional filter in the same format as NetBox permission constraints. '
+            'Leave blank to exempt all objects of this type.'
         ),
     )
 

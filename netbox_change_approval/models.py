@@ -168,9 +168,8 @@ class ExemptModel(NetBoxModel):
         null=True,
         encoder=DjangoJSONEncoder,
         help_text=_(
-            'Only exempt objects matching this filter (same format as rule '
-            'constraints), e.g. {"site__region__slug": "tampere"}. Leave blank to '
-            'exempt every object of this type.'
+            'Optional filter in the same format as NetBox permission constraints. '
+            'Leave blank to exempt all objects of this type.'
         ),
     )
     enabled = models.BooleanField(default=True)

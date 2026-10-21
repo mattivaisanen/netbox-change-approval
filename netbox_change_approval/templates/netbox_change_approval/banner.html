@@ -2,19 +2,13 @@
 <div class="alert alert-warning d-flex align-items-center justify-content-between" role="alert">
   <div>
     <i class="mdi mdi-clock-alert-outline"></i>
-    <strong>Pending change</strong>
+    <strong>Waiting for approval</strong>
     &mdash;
-    {{ change_request.get_action_display }} submitted by
-    {% if change_request.submitted_by %}{{ change_request.submitted_by }}{% else %}an unknown user{% endif %}
-    {{ change_request.submitted_at|timesince }} ago.
-    Approval sent to: {{ change_request.approver_names }}.
-    {% if change_request.action == "create" %}
-    This object already exists as shown — if rejected, it will be deleted.
-    {% else %}
-    This object will not change until the request is approved or rejected.
-    {% endif %}
+    {% if change_request.action == "create" %}Created{% elif change_request.action == "delete" %}Deletion requested{% else %}Change requested{% endif %}
+    by {{ change_request.submitted_by|default:"unknown user" }}, {{ change_request.submitted_at|timesince }} ago.
+    {% if change_request.approver_group %}Approvers: {{ change_request.approver_group.name }}.{% endif %}
   </div>
   <a href="{{ change_request.get_absolute_url }}" class="btn btn-sm btn-warning">
-    View request #{{ change_request.pk }}
+    View request
   </a>
 </div>

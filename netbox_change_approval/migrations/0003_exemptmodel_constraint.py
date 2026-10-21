@@ -33,9 +33,8 @@ class Migration(migrations.Migration):
                 null=True,
                 encoder=django.core.serializers.json.DjangoJSONEncoder,
                 help_text=(
-                    'Only exempt objects matching this filter (same format as rule '
-                    'constraints), e.g. {"site__region__slug": "tampere"}. Leave blank to '
-                    'exempt every object of this type.'
+                    'Optional filter in the same format as NetBox permission constraints. '
+            'Leave blank to exempt all objects of this type.'
                 ),
             ),
         ),
