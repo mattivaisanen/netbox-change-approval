@@ -9,7 +9,7 @@ from netbox.views import generic
 from utilities.forms.forms import ConfirmationForm
 from utilities.views import ConditionalLoginRequiredMixin, register_model_view
 
-from . import filtersets, forms, permissions, tables
+from . import filtersets, forms, permissions, placement, tables
 from .models import ActionChoices, ApprovalRoutingRule, AutoApprovalRule, ChangeRequest, ExemptModel, StatusChoices
 
 #
@@ -261,6 +261,7 @@ class ChangeRequestView(generic.ObjectView):
             ).exclude(pk=instance.pk)
         return {
             'diff_rows': _diff_rows(instance),
+            'placement_rows': placement.placement_rows(instance),
             'batch_siblings': batch_siblings,
             'can_decide': _can_decide(request.user, instance),
             'can_retract': (

@@ -35,6 +35,20 @@
             {% if object.target_object %}{{ object.target_object|linkify }}{% else %}{{ object.object_repr }}{% endif %}
           </td>
         </tr>
+        {% for row in placement_rows %}
+        <tr>
+          <th scope="row">{{ row.label|capfirst }}</th>
+          <td>
+            {% if row.changed %}
+              <span class="text-danger">{% if row.value is not None %}{{ row.value|linkify }}{% else %}&mdash;{% endif %}</span>
+              <i class="mdi mdi-arrow-right text-muted"></i>
+              <span class="text-success">{% if row.new is not None %}{{ row.new|linkify }}{% else %}&mdash;{% endif %}</span>
+            {% else %}
+              {{ row.value|linkify }}
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
         <tr>
           <th scope="row">{% trans "Action" %}</th>
           <td>{{ object.get_action_display }}</td>
