@@ -233,9 +233,10 @@ def sync_is_approver_permission():
     Keeps one ObjectPermission's `groups` in sync with "every Group that is
     currently an approver" — i.e. referenced by an enabled "Needs approval" ApprovalRule,
     or the configured default_approver_group (which also decides who approves
-    when no rule matches — see gating._default_approver_group). Called from
-    __init__.py's ready() at process start, and again on every
-    ApprovalRule save/delete, so "Approvals" nav visibility
+    when no rule matches — see gating._default_approver_group). Called after
+    `migrate`, on each process's first request, on every ApprovalRule
+    save/delete and when the default approver group is created, renamed or
+    deleted (signals.py), so "Approvals" nav visibility
     (navigation.py, permissions=[f'...{IS_APPROVER_ACTION}_changerequest']) stays
     correct without anyone needing to grant this by hand — unlike
     BYPASS_ACTION, this one is entirely our own bookkeeping, not

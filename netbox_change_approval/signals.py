@@ -156,6 +156,13 @@ def _resync_approver_permission(sender, **kwargs):
     permissions.sync_is_approver_permission()
 
 
+def _resync_on_group_change(sender, instance, raw=False, **kwargs):
+    # Groups change rarely and the sync is a few queries, so any group change
+    # (created, renamed to or away from the default name, deleted) resyncs.
+    if not raw:
+        permissions.sync_is_approver_permission()
+
+
 def connect():
     for model in iter_gated_models():
         dispatch_uid = f'netbox_change_approval:{model._meta.label}'
@@ -169,12 +176,8 @@ def connect():
     # Keeps the "Approvals" nav item's backing permission (permissions.
     # IS_APPROVER_ACTION) in sync with whichever groups are approvers right
     # now, every time an admin adds/edits/deletes an ApprovalRule — see
-    # sync_is_approver_permission()'s docstring. The *initial* sync (covering
-    # process start and default_approver_group config changes, which don't go
-    # through this model at all) happens in __init__.py's ready() instead,
-    # since that one needs a migrated database to query against and this
-    # module can be imported before one exists (e.g. during the first
-    # `migrate` itself).
+    # sync_is_approver_permission()'s docstring. The initial sync runs after
+    # `migrate` and on each process's first request (__init__.py, middleware).
     post_save.connect(
         _resync_approver_permission, sender=ApprovalRule,
         dispatch_uid='netbox_change_approval:resync_approver_permission:save',
@@ -183,6 +186,17 @@ def connect():
         _resync_approver_permission, sender=ApprovalRule,
         dispatch_uid='netbox_change_approval:resync_approver_permission:delete',
     )
-
+    # The default approver group is named in the config, so it can be
+    # created (or renamed to that name) after NetBox has started. Resync on
+    # group changes too, or its members only see "Approvals" after a restart.
+    from users.models import Group
+    post_save.connect(
+        _resync_on_group_change, sender=Group,
+        dispatch_uid='netbox_change_approval:resync_approver_permission:group_save',
+    )
+    post_delete.connect(
+        _resync_on_group_change, sender=Group,
+        dispatch_uid='netbox_change_approval:resync_approver_permission:group_delete',
+    )
 
 connect()
