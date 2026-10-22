@@ -87,6 +87,9 @@ PLUGINS_CONFIG = {
         # Optional: days after which a pending request nobody decided expires,
         # for rules that don't set their own. None means never.
         'expire_pending_after_days': None,
+        # Optional: 'outline' brings back the single yellow outline for pending
+        # objects in lists and rack elevations, instead of colors per action.
+        'pending_row_style': 'by_action',
     },
 }
 ```
@@ -120,7 +123,11 @@ list view, outlined in yellow as pending. This is deliberate: it's there
 specifically so a second person browsing Racks/Devices/IPs/etc. sees yours
 already exists instead of creating a duplicate. The object is locked against
 further edits until decided. If approved, it simply stays; if rejected, it is
-deleted. A pending Device gets the same outline in its rack's elevation view.
+deleted. Pending objects are marked by what's pending: green for new, blue
+for an edit (changed values shown as old → new), red and struck through for a
+delete, each with a label linking to the request. A pending Device gets the
+same color in its rack's elevation view. (`pending_row_style: 'outline'`
+brings back the older single yellow outline.)
 
 Bulk edit, bulk import, and bulk delete are each gated as a single request
 covering the whole action — approving or rejecting applies to everything in that
