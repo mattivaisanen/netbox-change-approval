@@ -325,7 +325,7 @@ class ChangeRequestView(_AnyLoggedInUserCanView, generic.ObjectView):
             'placement_rows': placement.placement_rows(instance),
             'rack_previews': placement.rack_previews(instance),
             'change_set': changesets.for_request(instance),
-            # Unchanged placement (site › rack › ...) for the "Where" line;
+            # Unchanged placement (site › rack › ...) for the location line;
             # changed placement fields are rows of the change table already.
             'where': [
                 row for row in placement.placement_rows(instance)
