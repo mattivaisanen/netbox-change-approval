@@ -50,6 +50,10 @@
   lists them.
 
 ### Improvements
+- The small change tables (batch pages, Approval Inbox quick view,
+  dashboard widget) line up: same column widths in every table, every
+  empty value shown as the same grey dash, and new objects show just their
+  values without an empty Old column.
 - The change request page is easier to decide from: one "Changes"
   table (now → requested, with "(empty)" instead of a blank), a line with
   the object's site and rack, details and comments on the side, and only

@@ -1,18 +1,27 @@
-{% load i18n %}
-{# Field changes of one request, for the quick view (Approval Inbox, dashboard widget). #}
+{% load i18n nbca_diff %}
+{# Field changes of one request, for the quick view (Approval Inbox, dashboard widget, batches). #}
+{# Fixed column widths so the tables of a batch line up, whatever their values. #}
 {% if rows %}
-<table class="table table-sm">
-  <thead><tr><th>{% trans "Field" %}</th><th>{% trans "Old" %}</th><th>{% trans "New" %}</th></tr></thead>
+{% with show_old=rows|has_old_values %}
+<table class="table table-sm nbca-diff" style="table-layout: fixed; width: 100%;">
+  <colgroup>
+    <col style="width: 30%;">
+    {% if show_old %}<col style="width: 35%;"><col style="width: 35%;">{% else %}<col style="width: 70%;">{% endif %}
+  </colgroup>
+  <thead><tr><th>{% trans "Field" %}</th>{% if show_old %}<th>{% trans "Old" %}</th><th>{% trans "New" %}</th>{% else %}<th>{% trans "Value" %}</th>{% endif %}</tr></thead>
   <tbody>
   {% for row in rows %}
     <tr>
-      <th scope="row" class="fw-normal">{{ row.label|capfirst }}</th>
-      <td class="text-danger">{% if row.old is not None %}{{ row.old }}{% else %}&mdash;{% endif %}</td>
-      <td class="text-success">{% if row.new is not None %}{{ row.new }}{% else %}&mdash;{% endif %}</td>
+      <th scope="row" class="fw-normal text-break">{{ row.label|capfirst }}</th>
+      {% if show_old %}
+      <td class="text-break">{% if row.old|is_blank %}<span class="text-muted">&mdash;</span>{% else %}<span class="text-danger">{{ row.old }}</span>{% endif %}</td>
+      {% endif %}
+      <td class="text-break">{% if row.new|is_blank %}<span class="text-muted">&mdash;</span>{% else %}<span class="text-success">{{ row.new }}</span>{% endif %}</td>
     </tr>
   {% endfor %}
   </tbody>
 </table>
+{% endwith %}
 {% else %}
   <div class="text-muted small">{% trans "No field-level diff recorded." %}</div>
 {% endif %}
