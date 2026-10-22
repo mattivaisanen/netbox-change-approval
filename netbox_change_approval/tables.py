@@ -70,7 +70,8 @@ class _DecisionActionsColumn(columns.ActionsColumn):
         request = getattr(table, 'context', {}).get('request') if hasattr(table, 'context') else None
         user = getattr(request, 'user', None)
         if group_ids is None:
-            group_ids = set(user.groups.values_list('pk', flat=True)) if user is not None and user.is_authenticated else set()
+            from .absence import decide_group_ids
+            group_ids = decide_group_ids(user)
             table._nbca_group_ids = group_ids
         record.nbca_can_decide = bool(user is not None and (
             user.is_superuser or (record.approver_group_id and record.approver_group_id in group_ids)

@@ -14,7 +14,7 @@ from netbox.views import generic
 from utilities.forms.forms import ConfirmationForm
 from utilities.views import ConditionalLoginRequiredMixin, register_model_view
 
-from . import amend, approvals, components, filtersets, forms, inbox, notifications, permissions, placement, revision, serialization, tables
+from . import absence, amend, approvals, components, filtersets, forms, inbox, notifications, permissions, placement, revision, serialization, tables
 from .exceptions import AlreadyDecided, ChangeConflict
 from .rule_access import RuleReadMixin, RuleWriteMixin
 from .object_actions import BulkApprove, BulkReject
@@ -909,3 +909,44 @@ def _guard_feature_tabs():
 
 
 _guard_feature_tabs()
+
+
+class AwayView(ConditionalLoginRequiredMixin, View):
+    """Your "away" status and stand-in (absence.py), and whom you cover for."""
+    template_name = 'netbox_change_approval/away.html'
+
+    def _render(self, request, form, current):
+        return render(request, self.template_name, {
+            'form': form,
+            'current': current,
+            'covering': absence.covering_for(request.user),
+        })
+
+    def get(self, request):
+        if not request.user.is_authenticated:
+            return redirect(f"{reverse('login')}?next={request.path}")
+        from django.utils import timezone
+
+        current = absence.current_for(request.user)
+        initial = {'starts': timezone.localdate()}
+        if current is not None:
+            initial = {'stand_in': current.stand_in, 'starts': current.starts, 'ends': current.ends, 'note': current.note}
+        return self._render(request, forms.AwayForm(initial=initial, user=request.user), current)
+
+    def post(self, request):
+        from .models import ApproverAbsence
+
+        if not request.user.is_authenticated:
+            return redirect(reverse('login'))
+        if request.POST.get('clear'):
+            ApproverAbsence.objects.filter(user=request.user).delete()
+            messages.success(request, _('You are no longer marked as away.'))
+            return redirect(reverse('plugins:netbox_change_approval:away'))
+        form = forms.AwayForm(request.POST, user=request.user)
+        if not form.is_valid():
+            return self._render(request, form, absence.current_for(request.user))
+        ApproverAbsence.objects.update_or_create(user=request.user, defaults=form.cleaned_data)
+        messages.success(request, _('Saved. %(who)s decides for you while you are away.') % {
+            'who': form.cleaned_data['stand_in'],
+        })
+        return redirect(reverse('plugins:netbox_change_approval:away'))

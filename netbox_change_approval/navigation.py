@@ -40,6 +40,11 @@ menu = PluginMenu(
                 link_text='All Change Requests',
             ),
             PluginMenuItem(
+                link='plugins:netbox_change_approval:away',
+                link_text='Away / Stand-in',
+                permissions=['netbox_change_approval.is_approver_changerequest'],
+            ),
+            PluginMenuItem(
                 link='plugins:netbox_change_approval:approvalrule_list',
                 link_text='Approval Rules',
                 permissions=['netbox_change_approval.view_approvalrule'],

@@ -101,7 +101,8 @@ def _approvers(change_request):
         group = change_request.approver_group
     if group is None:
         return []
-    return list(group.users.filter(is_active=True))
+    from .absence import notify_users
+    return notify_users(group)
 
 
 def _is_batch_lead(change_request, status):

@@ -4,7 +4,7 @@ from django.utils.translation import gettext_lazy as _
 
 from core.models import ObjectType
 from netbox.forms import NetBoxModelFilterSetForm, NetBoxModelForm
-from users.models import Group
+from users.models import Group, User
 from utilities.forms.fields import ContentTypeChoiceField, DynamicModelChoiceField, JSONField
 from utilities.forms.forms import ConfirmationForm
 from utilities.forms.rendering import FieldSet
@@ -144,3 +144,32 @@ class ChangeRequestCommentForm(forms.Form):
         max_length=2000,
         widget=forms.Textarea(attrs={'rows': 2, 'class': 'form-control', 'placeholder': _('Ask or answer something…')}),
     )
+
+
+class AwayForm(forms.Form):
+    """The Away page: who decides for you while you're away (absence.py)."""
+    stand_in = DynamicModelChoiceField(
+        queryset=User.objects.filter(is_active=True),
+        label=_('Stand-in'),
+        help_text=_('Decides requests routed to your approver groups while you are away.'),
+    )
+    starts = forms.DateField(label=_('From'), widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}))
+    ends = forms.DateField(
+        label=_('Until'), required=False,
+        widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
+        help_text=_('Last day away. Leave empty to stay away until you clear it.'),
+    )
+    note = forms.CharField(label=_('Note'), required=False, max_length=200, widget=forms.TextInput(attrs={'class': 'form-control'}))
+
+    def __init__(self, *args, user=None, **kwargs):
+        self.user = user
+        super().__init__(*args, **kwargs)
+
+    def clean(self):
+        data = super().clean()
+        stand_in = data.get('stand_in')
+        if stand_in is not None and self.user is not None and stand_in.pk == self.user.pk:
+            raise forms.ValidationError({'stand_in': _('Pick someone else.')})
+        if data.get('starts') and data.get('ends') and data['ends'] < data['starts']:
+            raise forms.ValidationError({'ends': _('Must be on or after the start date.')})
+        return data

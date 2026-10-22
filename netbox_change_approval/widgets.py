@@ -44,7 +44,8 @@ class ApprovalsWidget(DashboardWidget):
         ).select_related('content_type', 'submitted_by', 'approver_group').order_by('-submitted_at')[:10]
 
         user = request.user
-        group_ids = set(user.groups.values_list('pk', flat=True))
+        from .absence import decide_group_ids
+        group_ids = decide_group_ids(user)
         rows = [
             (
                 cr,

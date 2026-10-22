@@ -20,6 +20,7 @@ __all__ = (
     'ChangeRequest',
     'ChangeRequestApproval',
     'ChangeRequestComment',
+    'ApproverAbsence',
 )
 
 
@@ -698,3 +699,37 @@ class ChangeRequestComment(models.Model):
 
     def __str__(self):
         return f'{self.author}: {self.text[:50]}'
+
+
+class ApproverAbsence(models.Model):
+    """
+    "I'm away; <stand_in> decides for me." While active, the stand-in can
+    approve, reject and send back requests routed to the away approver's
+    groups, sees them in their queue and inbox, and gets the notifications
+    instead of them. See absence.py.
+    """
+    user = models.OneToOneField(
+        to=settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='+',
+    )
+    stand_in = models.ForeignKey(
+        to=settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='+',
+        verbose_name=_('stand-in'),
+    )
+    starts = models.DateField(verbose_name=_('from'))
+    ends = models.DateField(null=True, blank=True, verbose_name=_('until'), help_text=_('Last day away. Empty: until cleared.'))
+    note = models.CharField(max_length=200, blank=True)
+
+    class Meta:
+        verbose_name = _('approver absence')
+        verbose_name_plural = _('approver absences')
+
+    def __str__(self):
+        return f'{self.user} away, {self.stand_in} stands in'
+
+    def is_active(self, today=None):
+        today = today or timezone.localdate()
+        return self.starts <= today and (self.ends is None or today <= self.ends)

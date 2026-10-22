@@ -1,0 +1,55 @@
+{% extends 'generic/_base.html' %}
+{% load form_helpers %}
+{% load i18n %}
+
+{% block title %}{% trans "Away / Stand-in" %}{% endblock %}
+
+{% block subtitle %}
+  <div class="text-secondary">{% trans "While you are away, your stand-in decides requests routed to your approver groups and gets your notifications." %}</div>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-12 col-lg-6">
+    {% if current %}
+    <div class="alert {% if current.is_active %}alert-warning{% else %}alert-info{% endif %}" role="alert">
+      {% if current.is_active %}
+        {% blocktrans with who=current.stand_in %}You are away. {{ who }} decides for you{% endblocktrans %}{% if current.ends %} {% blocktrans with day=current.ends %}until {{ day }}{% endblocktrans %}{% endif %}.
+      {% else %}
+        {% blocktrans with who=current.stand_in day=current.starts %}Planned: away from {{ day }}, {{ who }} standing in.{% endblocktrans %}
+      {% endif %}
+    </div>
+    {% endif %}
+    <form method="post" class="card">
+      {% csrf_token %}
+      <h2 class="card-header">{% trans "Away" %}</h2>
+      <div class="card-body">
+        {% render_field form.stand_in %}
+        {% render_field form.starts %}
+        {% render_field form.ends %}
+        {% render_field form.note %}
+      </div>
+      <div class="card-footer d-flex justify-content-end gap-2">
+        {% if current %}
+        <button type="submit" name="clear" value="1" class="btn btn-outline-danger">{% trans "I'm back" %}</button>
+        {% endif %}
+        <button type="submit" class="btn btn-primary">{% trans "Save" %}</button>
+      </div>
+    </form>
+  </div>
+  <div class="col-12 col-lg-6">
+    <div class="card">
+      <h2 class="card-header">{% trans "You stand in for" %}</h2>
+      {% if covering %}
+      <table class="table table-hover">
+        {% for item in covering %}
+        <tr><td>{{ item.user }}</td><td class="text-muted">{% if item.ends %}{% blocktrans with day=item.ends %}until {{ day }}{% endblocktrans %}{% else %}{% trans "until cleared" %}{% endif %}</td><td>{{ item.note }}</td></tr>
+        {% endfor %}
+      </table>
+      {% else %}
+      <div class="card-body text-muted">{% trans "Nobody right now." %}</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

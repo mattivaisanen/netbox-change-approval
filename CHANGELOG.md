@@ -3,6 +3,11 @@
 ## Unreleased
 
 ### New features
+- Backup approvers: on the new "Away / Stand-in" page an approver names a
+  stand-in and the days they're away. Meanwhile the stand-in can decide
+  requests routed to the away approver's groups, sees them in their
+  Approvals list, inbox and dashboard widget, and gets the notifications
+  instead.
 - A device request that puts a device in a rack, takes it out or moves it
   shows the rack on the request page. For a move, the rack elevation marks
   the requested spot with a dashed outline, so the approver sees the fit and

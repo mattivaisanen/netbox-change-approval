@@ -160,7 +160,7 @@ def visible_change_requests(user, queryset):
     return queryset.filter(
         _viewable_requests_q(user, queryset)
         | Q(submitted_by=user)
-        | Q(approver_group__in=user.groups.all())
+        | Q(approver_group__in=_decide_group_ids(user))
     ).distinct()
 
 
@@ -171,7 +171,7 @@ def can_view_change_request(user, change_request):
         return False
     if user.is_superuser or change_request.submitted_by_id == user.pk:
         return True
-    if change_request.approver_group_id and user.groups.filter(pk=change_request.approver_group_id).exists():
+    if change_request.approver_group_id and change_request.approver_group_id in _decide_group_ids(user):
         return True
     ct = change_request.content_type
     if not user.has_perm(f'{ct.app_label}.view_{ct.model}'):
@@ -202,9 +202,8 @@ def can_decide(user, change_request):
         return True
     if change_request.approver_group_id is None:
         return False
-    # Forward relation (user.groups), not approver_group.user_set: NetBox's own
-    # Group model uses `users` as its related name.
-    return user.groups.filter(pk=change_request.approver_group_id).exists()
+    # A member of the group, or standing in for an away member (absence.py).
+    return change_request.approver_group_id in _decide_group_ids(user)
 
 
 def approver_queue(user, queryset):
@@ -225,7 +224,7 @@ def approver_queue(user, queryset):
     )))
     if user.is_superuser:
         return queryset
-    return queryset.filter(approver_group__in=user.groups.all()).distinct()
+    return queryset.filter(approver_group__in=_decide_group_ids(user)).distinct()
 
 
 def sync_is_approver_permission():
@@ -267,3 +266,9 @@ def sync_is_approver_permission():
         perm.save()
     perm.object_types.set([ObjectType.objects.get_for_model(ChangeRequest)])
     perm.groups.set(group_ids)
+
+
+def _decide_group_ids(user):
+    from .absence import decide_group_ids
+
+    return decide_group_ids(user)
