@@ -742,6 +742,8 @@ class InboxView(ConditionalLoginRequiredMixin, View):
             items = inbox.group_items(queryset, page=page)
             members = [member for item in items for member in item['members']]
             names = prefetch_display_names(members)
+            from .titles import attach_titles
+            attach_titles(members)
             for member in members:
                 # Shown by the row's quick-view toggle.
                 member.quick_rows = _diff_rows(member, names=names)

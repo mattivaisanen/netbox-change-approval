@@ -72,6 +72,10 @@
   lists them.
 
 ### Improvements
+- Approval Inbox and dashboard widget titles say what is requested and on
+  what: "Create Rack R1", "Edit Device Access switch sw1" (devices and VMs
+  include their role). Site, rack and the field changes are in the quick
+  view.
 - The README, configuration reference and developer guide cover change
   sets, the Field work section of the inbox, backup approvers, the rack
   preview, cables that follow a new device, change log labels for parts of

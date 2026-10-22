@@ -64,6 +64,8 @@ class ApprovalsWidget(DashboardWidget):
         sent_back = list(sent_back)
         shown = [cr for cr, _can in rows] + sent_back
         names = prefetch_display_names(shown)
+        from .titles import attach_titles
+        attach_titles(shown)
         for cr in shown:
             cr.quick_rows = _diff_rows(cr, names=names)
         return render_to_string(self.template_name, {'change_requests': rows, 'sent_back': sent_back})
