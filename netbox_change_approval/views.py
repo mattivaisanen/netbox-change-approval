@@ -12,7 +12,7 @@ from netbox.views import generic
 from utilities.forms.forms import ConfirmationForm
 from utilities.views import ConditionalLoginRequiredMixin, register_model_view
 
-from . import approvals, filtersets, forms, inbox, notifications, permissions, placement, revision, serialization, tables
+from . import amend, approvals, filtersets, forms, inbox, notifications, permissions, placement, revision, serialization, tables
 from .exceptions import ChangeConflict
 from .rule_access import RuleReadMixin, RuleWriteMixin
 from .object_actions import BulkApprove, BulkReject
@@ -341,6 +341,9 @@ class ChangeRequestView(_AnyLoggedInUserCanView, generic.ObjectView):
             'approvals_so_far': approvals.approvers_so_far(instance),
             'comments': instance.comments.select_related('author'),
             'comment_form': forms.ChangeRequestCommentForm(),
+            'update_url': (
+                amend.edit_url(instance) if amend.amendable(instance, request.user) else None
+            ),
             'can_retract': (
                 instance.status == StatusChoices.PENDING and instance.submitted_by_id == request.user.pk
             ),

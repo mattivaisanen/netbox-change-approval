@@ -154,6 +154,11 @@ def _gate(instance, action, request):
         existing = ChangeRequest.objects.get(
             content_type=content_type, object_id=instance.pk, status='pending',
         )
+        # The submitter editing their own pending request updates it instead
+        # (see amend.py). Everyone else is still blocked.
+        from . import amend
+        if action == ActionChoices.UPDATE and amend.amendable(existing, user, request):
+            return amend.amend(existing, instance, request)
         raise ObjectLocked(existing)
 
     if action == ActionChoices.UPDATE:

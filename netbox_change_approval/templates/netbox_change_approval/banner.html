@@ -8,7 +8,14 @@
     by {{ change_request.submitted_by|default:"unknown user" }}, {{ change_request.submitted_at|timesince }} ago.
     {% if change_request.approver_group %}Approvers: {{ change_request.approver_group.name }}.{% endif %}
   </div>
-  <a href="{{ change_request.get_absolute_url }}" class="btn btn-sm btn-warning">
-    View request
-  </a>
+  <div class="text-nowrap">
+    {% if update_url %}
+    <a href="{{ update_url }}" class="btn btn-sm btn-primary">
+      <i class="mdi mdi-pencil"></i> Update request
+    </a>
+    {% endif %}
+    <a href="{{ change_request.get_absolute_url }}" class="btn btn-sm btn-warning">
+      View request
+    </a>
+  </div>
 </div>

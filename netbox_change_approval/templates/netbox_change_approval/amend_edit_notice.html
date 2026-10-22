@@ -1,0 +1,18 @@
+{% load i18n %}
+<script>
+  /* Editing your own pending request (amend.py): Save becomes "Update request",
+     with a note on what happens. */
+  document.addEventListener('DOMContentLoaded', function () {
+    var button = document.querySelector('button[type=submit][name=_update]');
+    if (!button) return;
+    button.innerHTML = '<i class="mdi mdi-send"></i> {% trans "Update request" %}';
+    var note = document.createElement('div');
+    note.className = 'alert alert-info';
+    note.setAttribute('role', 'alert');
+    note.innerHTML = '<i class="mdi mdi-information-outline"></i> ' +
+      '{% filter escapejs %}{% blocktrans with pk=change_request.pk next=next_revision %}You are editing your own pending request #{{ pk }}. Update request replaces what it asks for, makes it revision {{ next }} and sends it to the approvers again. Approvals given so far start over.{% endblocktrans %}{% endfilter %}' +
+      ' <a href="{{ change_request.get_absolute_url }}">{% trans "View request" %}</a>';
+    var form = button.closest('form');
+    if (form) form.insertBefore(note, form.firstChild);
+  });
+</script>

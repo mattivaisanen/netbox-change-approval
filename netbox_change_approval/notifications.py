@@ -165,6 +165,13 @@ def change_request_saved(sender, instance, created, **kwargs):
     transaction.on_commit(lambda: _after_commit(pk, old_status))
 
 
+def request_updated(change_request):
+    """The submitter updated their pending request (amend.py): tell the
+    approvers again, the same way as a new request."""
+    pk = change_request.pk
+    transaction.on_commit(lambda: _after_commit(pk, None))
+
+
 def comment_added(comment):
     change_request = comment.change_request
     recipients = []

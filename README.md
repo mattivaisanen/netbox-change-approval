@@ -141,6 +141,16 @@ needed. For a create, the object is removed either way, the same as a
 rejection; for an update or delete, nothing was written yet. Only you (the
 submitter) can retract your own request, and only while it's still pending.
 
+**Want to change your request while it's waiting?** Open the object and click
+**Update request** (on the yellow banner or the request page), or just use the
+object's Edit button. The edit page opens with what you asked for, and its
+Save button reads **Update request**. Saving replaces what the request asks
+for, makes it the next revision and sends it to the approvers again; any
+approvals so far start over. If your edit puts everything back the way it is
+now, the request is withdrawn. Only you can do this; for everyone else the
+object stays locked. Pending deletes can't be updated: retract them instead.
+(Bulk edit, import and the REST API still treat the object as locked.)
+
 **Sent back for revision?** An approver can send a request back with a note
 instead of rejecting it. Open it (from the **Approval Inbox**) and click
 **Revise and resubmit**: it opens the same NetBox add/edit page you used,

@@ -300,6 +300,13 @@ class ChangeApprovalMiddleware:
                 f'This object has a pending change (request #{change_request.pk}) '
                 f'awaiting approval — resolve it before deleting it.',
             )
+        elif getattr(change_request, '_nbca_amended', False):
+            # The submitter updated their own pending request (amend.py).
+            messages.success(
+                request,
+                f'Request #{change_request.pk} updated (revision {change_request.revision}) '
+                f'and sent to the approvers again.',
+            )
         else:
             # Auto-approved deletes never reach here — gate() lets those proceed
             # normally instead of raising (see its docstring) — so this is always

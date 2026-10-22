@@ -32,8 +32,16 @@ class PendingChangeBanner(PluginTemplateExtension):
 
         from . import pending_marks
 
+        from . import amend
+
+        request = self.context.get('request')
+        update_url = None
+        if request is not None and amend.amendable(change_request, request.user):
+            update_url = amend.edit_url(change_request)
+
         return self.render('netbox_change_approval/banner.html', {
             'change_request': change_request,
+            'update_url': update_url,
             'by_action': pending_marks.by_action(),
         })
 
@@ -114,6 +122,28 @@ class InboxNavButton(PluginTemplateExtension):
         })
 
 
+class AmendEditNotice(PluginTemplateExtension):
+    """On the edit page of your own pending request's object: Save becomes
+    "Update request", with a note (see amend.py). models=None and head() for
+    the same reason as PendingRowStyles."""
+    def head(self):
+        request = self.context.get('request')
+        if request is None or request.method != 'GET':
+            return ''
+        from .amend import own_pending_for_edit_page
+
+        try:
+            change_request = own_pending_for_edit_page(request)
+        except Exception:
+            return ''
+        if change_request is None:
+            return ''
+        return self.render('netbox_change_approval/amend_edit_notice.html', {
+            'change_request': change_request,
+            'next_revision': change_request.revision + 1,
+        })
+
+
 # There used to be an ApprovalTicker here (models=None, PluginTemplateExtension.
 # navbar()) putting a pending-count badge in the top-right navbar icon tray. Moved:
 # the count now lives in the Approvals page's own title (views.ApprovalsQueueView,
@@ -122,4 +152,4 @@ class InboxNavButton(PluginTemplateExtension):
 # just move onto the new top-level nav tab itself (NetBox's plugin API has no hook
 # for per-request-dynamic content inside the sidebar/nav tree, only the top navbar,
 # an object list's buttons, and an object detail page's various regions).
-template_extensions = [PendingChangeBanner, PendingRowStyles, InboxNavButton]
+template_extensions = [PendingChangeBanner, PendingRowStyles, InboxNavButton, AmendEditNotice]

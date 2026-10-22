@@ -17,6 +17,11 @@
       <i class="mdi mdi-close"></i> {% trans "Reject" %}
     </a>
   {% endif %}
+  {% if update_url %}
+    <a href="{{ update_url }}" class="btn btn-primary">
+      <i class="mdi mdi-pencil"></i> {% trans "Update request" %}
+    </a>
+  {% endif %}
   {% if can_retract %}
     <a href="{% url 'plugins:netbox_change_approval:changerequest_retract' pk=object.pk %}" class="btn btn-secondary">
       <i class="mdi mdi-undo"></i> {% trans "Retract" %}
