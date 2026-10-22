@@ -1,8 +1,9 @@
 """
 Field work sheet: the physical jobs approved changes need.
 
-When a request racks, unracks or moves a device, adds or removes a cable, or
-inserts or removes a module, it gets plain-language tasks ("Mount sw1 (Switch
+When a request racks, unracks or moves a device, adds or removes a cable,
+inserts or removes a module, configures, moves or removes an IP address, or
+creates or removes a VM, it gets plain-language tasks ("Mount sw1 (Switch
 48) in rack A3, U20-21, front", "Patch sw1 eth1 -> pp1 port 3"). The text is
 written while the request waits, when everything it names still exists, and
 rewritten when the request is updated. A task appears on the Work Sheet page
@@ -91,6 +92,7 @@ def _device_tasks(change_request, device):
 
         for cable in Cable.objects.filter(terminations___device_id=device.pk).distinct():
             tasks += _cable_tasks(ActionChoices.CREATE, cable)
+        tasks += _ips_on(device.interfaces.all(), device.site, device.rack)
         return tasks
     if change_request.action == ActionChoices.DELETE:
         where = _place(device.rack, device.position, device.face, device_type) if device.rack_id else str(device.site)
@@ -137,6 +139,85 @@ def _cable_tasks(action, cable, diff=None):
                          f'make it {_ends(new_a)} ↔ {_ends(new_b)}')]
 
 
+def _assigned_label(obj):
+    """'sw1 eth0' for an interface an IP is on."""
+    parent = getattr(obj, 'device', None) or getattr(obj, 'virtual_machine', None)
+    return f'{parent} {obj.name}' if parent is not None else str(obj)
+
+
+def _assigned_location(obj):
+    parent = getattr(obj, 'device', None) or getattr(obj, 'virtual_machine', None)
+    if parent is None:
+        return None, None
+    return getattr(parent, 'site', None), getattr(parent, 'rack', None)
+
+
+def _ips_on(interfaces, site, rack):
+    """Configure tasks for IP addresses on these interfaces (added while a
+    new device or VM waited for approval)."""
+    from django.contrib.contenttypes.models import ContentType
+
+    from ipam.models import IPAddress
+
+    interfaces = list(interfaces)
+    if not interfaces:
+        return []
+    ips = IPAddress.objects.filter(
+        assigned_object_type=ContentType.objects.get_for_model(interfaces[0]),
+        assigned_object_id__in=[i.pk for i in interfaces],
+    )
+    return [(site, rack, f'Configure {ip} on {_assigned_label(ip.assigned_object)}') for ip in ips]
+
+
+def _ip_tasks(change_request, ip):
+    diff = change_request.diff if isinstance(change_request.diff, dict) else {}
+    current = ip.assigned_object
+    if change_request.action == ActionChoices.CREATE:
+        if current is None:
+            return []  # a reserved address: nothing to configure yet
+        site, rack = _assigned_location(current)
+        return [(site, rack, f'Configure {ip} on {_assigned_label(current)}')]
+    if change_request.action == ActionChoices.DELETE:
+        if current is None:
+            return []
+        site, rack = _assigned_location(current)
+        return [(site, rack, f'Remove {ip} from {_assigned_label(current)}')]
+    if not ({'assigned_object_id', 'assigned_object_type_id'} & set(diff)):
+        return []
+    from django.contrib.contenttypes.models import ContentType
+
+    def requested(key, value):
+        change = diff.get(key)
+        return change.get('new') if isinstance(change, dict) else value
+
+    type_id = requested('assigned_object_type_id', ip.assigned_object_type_id)
+    object_id = requested('assigned_object_id', ip.assigned_object_id)
+    target = None
+    if type_id and object_id:
+        model = ContentType.objects.get_for_id(type_id).model_class()
+        target = model.objects.filter(pk=object_id).first() if model else None
+    site, rack = _assigned_location(target or current) if (target or current) else (None, None)
+    if current is not None and target is not None:
+        text = f'Move {ip} from {_assigned_label(current)} to {_assigned_label(target)}'
+    elif target is not None:
+        text = f'Configure {ip} on {_assigned_label(target)}'
+    elif current is not None:
+        text = f'Remove {ip} from {_assigned_label(current)}'
+    else:
+        return []
+    return [(site, rack, text)]
+
+
+def _vm_tasks(change_request, vm):
+    site = getattr(vm, 'site', None)
+    if change_request.action == ActionChoices.CREATE:
+        where = f' on cluster {vm.cluster}' if vm.cluster_id else ''
+        return [(site, None, f'Create VM {vm}{where}')] + _ips_on(vm.interfaces.all(), site, None)
+    if change_request.action == ActionChoices.DELETE:
+        return [(site, None, f'Remove VM {vm}')]
+    return []
+
+
 def _module_tasks(change_request, module):
     site, rack = _location(module.device)
     if change_request.action == ActionChoices.CREATE:
@@ -158,6 +239,11 @@ def describe(change_request):
         return _cable_tasks(change_request.action, target, change_request.diff)
     if label == 'dcim.module':
         return _module_tasks(change_request, target)
+    if label == 'ipam.ipaddress':
+        return _ip_tasks(change_request, target)
+    if label == 'virtualization.virtualmachine':
+        return _vm_tasks(change_request, target)
+    # Sites, locations, racks and the like already exist on the ground.
     return []
 
 

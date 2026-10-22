@@ -15,7 +15,8 @@
   off switch, stays `configuration.py`-only and is shown read-only.
 - Field work sheet (a "Field work" section in the Approval Inbox): approved changes that
   need hands on site become plain tasks ("Mount sw1 in rack A3, U20–21",
-  "Patch sw1 eth1 → pp1 port 3", moves, removals, modules), grouped by site
+  "Patch sw1 eth1 → pp1 port 3", "Configure 192.0.2.1/24 on sw1 eth0", moves,
+  removals, modules, VMs), grouped by site
   and rack, to tick off; "Work sheet by rack" opens a printable page. Rack
   and site pages show open tasks.
   `work_sheets: False` turns it off.

@@ -142,3 +142,54 @@ class ComponentTasksTests(WorkSheetTests):
             change_request.apply(user=self.approver)
         texts = sorted(worksheet.open_tasks().filter(change_request=change_request).values_list('text', flat=True))
         self.assertEqual(texts, ['Mount sw7 (Switch 48) in rack A3, U20–21, front', 'Patch sw7 eth1 → pp7 eth1'])
+
+
+class MoreTaskKindsTests(WorkSheetTests):
+    def test_ip_on_new_device_and_standalone_ips(self):
+        from ipam.models import IPAddress
+
+        device, change_request = self._create_device(name='sw8')
+        eth = Interface.objects.get(device=device)
+        IPAddress.objects.create(address='192.0.2.8/24', assigned_object=eth)
+        with self.captureOnCommitCallbacks(execute=True):
+            change_request.apply(user=self.approver)
+        texts = list(worksheet.open_tasks().filter(change_request=change_request).values_list('text', flat=True))
+        self.assertIn('Configure 192.0.2.8/24 on sw8 eth1', texts)
+
+        with self.captureOnCommitCallbacks(execute=True):
+            assigned = IPAddress(address='192.0.2.9/24', assigned_object=eth)
+            request = fake_request(self.alice)
+            token = current_request.set(request)
+            try:
+                gating.gate(assigned, ActionChoices.CREATE, request)
+                assigned.save()
+            finally:
+                current_request.reset(token)
+        ip_request = ChangeRequest.objects.get(object_id=assigned.pk, action=ActionChoices.CREATE,
+                                               content_type=ContentType.objects.get_for_model(IPAddress))
+        self.assertEqual(list(WorkTask.objects.filter(change_request=ip_request).values_list('text', flat=True)),
+                         ['Configure 192.0.2.9/24 on sw8 eth1'])
+
+        reserved = IPAddress(address='192.0.2.10/24')
+        with self.captureOnCommitCallbacks(execute=True):
+            request = fake_request(self.alice)
+            token = current_request.set(request)
+            try:
+                gating.gate(reserved, ActionChoices.CREATE, request)
+                reserved.save()
+            finally:
+                current_request.reset(token)
+        self.assertFalse(WorkTask.objects.filter(change_request__object_id=reserved.pk,
+                                                 change_request__content_type=ContentType.objects.get_for_model(IPAddress)).exists())
+
+    def test_new_rack_has_no_task(self):
+        rack = Rack(name='A9', site=self.site)
+        with self.captureOnCommitCallbacks(execute=True):
+            request = fake_request(self.alice)
+            token = current_request.set(request)
+            try:
+                gating.gate(rack, ActionChoices.CREATE, request)
+                rack.save()
+            finally:
+                current_request.reset(token)
+        self.assertFalse(WorkTask.objects.exists())
