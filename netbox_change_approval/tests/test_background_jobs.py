@@ -50,6 +50,11 @@ class BackgroundJobTests(TestCase):
             current_request.reset(token)
 
     def test_background_bulk_edit_queues_every_object(self):
+        from utilities.request import NetBoxFakeRequest
+        if not hasattr(NetBoxFakeRequest, 'htmx'):
+            # NetBox 4.7.0's own background bulk edit fails before reaching
+            # this plugin (its copied request has no `htmx`); fixed in later 4.7.x.
+            self.skipTest('Background bulk edit is broken in this NetBox release')
         self._run_as_job(reverse('dcim:manufacturer_bulk_edit'), {
             'pk': [o.pk for o in self.objs], 'description': 'bg', '_apply': '1',
         })
