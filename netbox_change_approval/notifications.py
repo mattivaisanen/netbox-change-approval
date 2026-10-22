@@ -40,6 +40,14 @@ def register_event_types():
     )
     from netbox.registry import registry
 
+    class TranslatedEventType(EventType):
+        # NetBox prints an event with str(event), and its __str__ returns the
+        # text as is. Ours is a lazy translation (so each user sees their own
+        # language), which Python rejects as a __str__ result: the notification
+        # bell's drop-down failed to load. Turn it into plain text here.
+        def __str__(self):
+            return str(self.text)
+
     for name, text, kind in (
         (NEEDS_APPROVAL, _('Change request needs your approval'), EVENT_TYPE_KIND_WARNING),
         (APPROVED, _('Change request approved'), EVENT_TYPE_KIND_SUCCESS),
@@ -49,7 +57,7 @@ def register_event_types():
         (COMMENTED, _('New comment on change request'), EVENT_TYPE_KIND_INFO),
     ):
         if name not in registry['event_types']:
-            EventType(name, text, kind=kind).register()
+            TranslatedEventType(name, text, kind=kind).register()
 
 
 def _label(change_request):

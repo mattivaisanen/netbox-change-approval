@@ -217,6 +217,17 @@ class NotificationTests(_Base):
             self.assertEqual(note.event_type, notifications.NEEDS_APPROVAL)
         self.assertFalse(self._notes(self.submitter, change_request).exists())
 
+    def test_notification_bell_shows_our_notifications(self):
+        # The bell's drop-down prints each notification's event; ours used to
+        # make it fail ("__str__ returned non-string"), leaving it empty.
+        with self.captureOnCommitCallbacks(execute=True):
+            change_request = self._update_request()
+        self.client.force_login(self.alice)
+        response = self.client.get('/extras/notifications/')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Change request needs your approval')
+        self.assertContains(response, f'#{change_request.pk} ')
+
     def test_decision_notifies_submitter_and_clears_approver_notes(self):
         with self.captureOnCommitCallbacks(execute=True):
             change_request = self._update_request()

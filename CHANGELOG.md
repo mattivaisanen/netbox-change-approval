@@ -24,6 +24,9 @@
   replaced.
 - The Approvals menu didn't show for members of a default approver group
   created (or renamed) after NetBox started, until a restart.
+- The notification bell showed a red dot but an empty drop-down for anyone
+  with a change request notification: the drop-down failed to load. It now
+  lists them.
 
 ### Improvements
 - The Approvals list, Approval Inbox and Pending Approvals widget no longer
