@@ -4,6 +4,10 @@
 <style>
   /* Tasks are sentences: show them whole, wrapping if needed. */
   .nbca-inbox .nbca-field-work > tbody > tr > td.nbca-task { white-space: normal !important; overflow: visible !important; }
+  /* Wrapping text in a fixed-layout table left the table narrower than its
+     card after window resizes in some browsers; auto layout always fills it.
+     The column widths below still keep it lined up with the other sections. */
+  .nbca-inbox .nbca-rows.nbca-field-work { table-layout: auto !important; width: 100% !important; }
 </style>
 <div class="card mb-3" id="nbca-section-field-work">
   <h2 class="card-header d-flex align-items-center">
