@@ -60,6 +60,10 @@
   lists them.
 
 ### Improvements
+- Changes to the interfaces, cables and other parts of a new device that is
+  still waiting for approval are labelled in the change log ("Part of
+  change request #N, waiting for approval"), and no longer add a
+  "Resubmitted for approval" row each time.
 - Approval Inbox and dashboard widget are more compact: one line per
   request, with columns for the request, its object type, who it's from (or
   waiting on, or who decided), and how long ago, instead of two tall lines

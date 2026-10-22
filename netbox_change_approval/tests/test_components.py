@@ -190,3 +190,53 @@ class CablesFollowPendingDeviceTests(ComponentsOfPendingDeviceTests):
         self.assertIn('Cables', [label for label, _count, _url in __import__(
             'netbox_change_approval.components', fromlist=['component_summary']
         ).component_summary(self.device_request)])
+
+
+class ComponentChangeLogTests(TestCase):
+    """Change log entries for components of a pending device say which
+    request they belong to; bumping the request writes no entry of its own."""
+
+    @classmethod
+    def setUpTestData(cls):
+        from core.models import ObjectType
+        from users.models import ObjectPermission
+
+        Group.objects.get_or_create(name='Change Approvers')
+        cls.alice = User.objects.create(username='alice')
+        perm = ObjectPermission.objects.create(name='dcim', actions=['view', 'add', 'change', 'delete'])
+        perm.object_types.set([ObjectType.objects.get_for_model(m) for m in (Device, Interface)])
+        perm.users.set([cls.alice])
+        cls.site = Site.objects.create(name='S1', slug='s1')
+        manufacturer = Manufacturer.objects.create(name='M', slug='m')
+        cls.device_type = DeviceType.objects.create(manufacturer=manufacturer, model='Switch', slug='switch')
+        InterfaceTemplate.objects.create(device_type=cls.device_type, name='eth0', type='1000base-t')
+        cls.role = DeviceRole.objects.create(name='R', slug='r')
+
+    def test_interface_edit_is_labelled(self):
+        from core.models import ObjectChange
+
+        device = Device(name='sw1', site=self.site, device_type=self.device_type, role=self.role)
+        request = fake_request(self.alice)
+        token = current_request.set(request)
+        try:
+            gating.gate(device, ActionChoices.CREATE, request)
+            device.save()
+        finally:
+            current_request.reset(token)
+        change_request = ChangeRequest.objects.get(object_id=device.pk, action=ActionChoices.CREATE)
+        interface = Interface.objects.get(device=device)
+
+        self.client.force_login(self.alice)
+        self.client.post(f'/dcim/interfaces/{interface.pk}/edit/', {
+            'device': device.pk, 'name': 'eth0', 'type': '1000base-t', 'description': 'uplink', '_update': '',
+        })
+        interface.refresh_from_db()
+        self.assertEqual(interface.description, 'uplink')
+        entry = ObjectChange.objects.filter(
+            changed_object_type=ContentType.objects.get_for_model(Interface), changed_object_id=interface.pk,
+        ).order_by('-time').first()
+        self.assertIn(f'Part of change request #{change_request.pk}', entry.message)
+        self.assertFalse(ObjectChange.objects.filter(
+            changed_object_type=ContentType.objects.get_for_model(ChangeRequest),
+            changed_object_id=change_request.pk, message__contains='Resubmitted',
+        ).exists())

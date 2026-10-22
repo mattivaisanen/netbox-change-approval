@@ -43,6 +43,7 @@ class NetBoxChangeApprovalConfig(PluginConfig):
     middleware = [
         'netbox_change_approval.middleware.ChangeApprovalMiddleware',
         'netbox_change_approval.amend.AmendMiddleware',
+        'netbox_change_approval.components.ChangeLogLabelMiddleware',
     ]
 
     template_extensions = 'template_content.template_extensions'
