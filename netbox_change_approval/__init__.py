@@ -52,6 +52,11 @@ class NetBoxChangeApprovalConfig(PluginConfig):
         from .table_styling import patch_netbox_table
 
         wire_up_gated_models()
+        from netbox.utils import register_request_processor
+
+        from .middleware import background_job_scope
+        if background_job_scope not in registry_request_processors():
+            register_request_processor(background_job_scope)
         notifications.connect()
         backstop.connect()
         patch_bulk_views()
@@ -67,6 +72,11 @@ class NetBoxChangeApprovalConfig(PluginConfig):
             permissions.sync_is_approver_permission()
         except (OperationalError, ProgrammingError):
             pass
+
+
+def registry_request_processors():
+    from netbox.registry import registry
+    return registry['request_processors']
 
 
 config = NetBoxChangeApprovalConfig

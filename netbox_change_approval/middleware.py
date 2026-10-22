@@ -1,3 +1,4 @@
+from contextlib import contextmanager
 from urllib.parse import urlparse
 from uuid import uuid4
 
@@ -16,6 +17,62 @@ from .discovery import is_gated_model
 from .exceptions import ChangeApprovalRequired
 
 BULK_VIEW_CLASSES = (BulkEditView, BulkDeleteView, BulkImportView, BulkRenameView)
+
+
+def bulk_view_mode(view_class):
+    """The BatchCollector mode for a bulk edit/import/delete view, else None."""
+    if not view_class or not issubclass(view_class, BULK_VIEW_CLASSES):
+        return None
+    return BatchCollector.HOLD if issubclass(view_class, BulkImportView) else BatchCollector.RAISE
+
+
+@contextmanager
+def background_job_scope(request):
+    """
+    NetBox request processor (registered in __init__.py). NetBox can run a bulk
+    edit/import/delete, or a REST API bulk write, as a background job. The
+    worker calls the view directly, without any middleware, so
+    ChangeApprovalMiddleware never set up the per-object handling for it: the
+    first object needing approval failed the whole job, and nothing was
+    queued. Request processors do run in the worker, so this sets up the same
+    handling there. The job log gets the summary the web UI would have shown.
+
+    In a normal web request this runs too, around the middleware; the
+    middleware's own handling then takes over, so this only acts for jobs
+    and API bulk writes.
+    """
+    match = ChangeApprovalMiddleware._resolve_match(request)
+    if ChangeApprovalMiddleware._is_api_bulk_write(request, match):
+        with collecting(BatchCollector.REFUSE):
+            yield
+        return
+    job = getattr(request, 'job', None)
+    mode = bulk_view_mode(getattr(match.func, 'view_class', None) if match else None)
+    if job is None or mode is None:
+        yield
+        return
+    with batch_scope(uuid4()), collecting(mode) as collector:
+        yield
+    _log_batch(job, collector)
+
+
+def _log_batch(job, collector):
+    from .models import ChangeRequest
+
+    logger = getattr(job, 'logger', None)
+    if logger is None:
+        return
+    queued = list(ChangeRequest.objects.filter(pk__in=[cr.pk for cr in collector.queued]).order_by('pk'))
+    if queued:
+        logger.info(
+            f'{len(queued)} change(s) submitted for approval instead of being saved '
+            f'(requests {", ".join(f"#{cr.pk}" for cr in queued)}).'
+        )
+    if collector.locked:
+        logger.warning(
+            f'{len(collector.locked)} object(s) skipped: they already have a pending change '
+            f'(requests {", ".join(f"#{cr.pk}" for cr in collector.locked)}).'
+        )
 
 
 class ChangeApprovalMiddleware:
@@ -54,8 +111,7 @@ class ChangeApprovalMiddleware:
             with collecting(BatchCollector.REFUSE):
                 return self.get_response(request)
 
-        if view_class and issubclass(view_class, BULK_VIEW_CLASSES):
-            mode = BatchCollector.HOLD if issubclass(view_class, BulkImportView) else BatchCollector.RAISE
+        if (mode := bulk_view_mode(view_class)) is not None:
             with batch_scope(uuid4()), collecting(mode) as collector:
                 response = self.get_response(request)
             self._report_batch(request, collector)
@@ -169,8 +225,11 @@ class ChangeApprovalMiddleware:
 
     @staticmethod
     def _resolve_match(request):
+        path = getattr(request, 'path_info', None) or getattr(request, 'path', None)
+        if not path:
+            return None
         try:
-            return resolve(request.path_info)
+            return resolve(path)
         except Resolver404:
             return None
 

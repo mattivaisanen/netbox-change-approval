@@ -114,6 +114,7 @@ def finish_pending_create(sender, instance, created, **kwargs):
             messages.success(
                 request,
                 f'{instance} created — auto-approved by rule (request #{change_request.pk}).',
+                fail_silently=True,
             )
             # See ChangeApprovalMiddleware._drop_duplicate_create_message: without
             # this, the view's own generic "Created <Model> <obj>" message (queued
@@ -135,6 +136,7 @@ def finish_pending_create(sender, instance, created, **kwargs):
                 '<a href="{}">{}</a> awaiting approval<br>Approvers:{}',
                 instance.get_absolute_url(), instance, approver_lines,
             ),
+            fail_silently=True,
         )
         request._nbca_suppress_default_create_message = True
 

@@ -40,6 +40,7 @@ class ApprovalGateValidator(CustomValidator):
                 messages.info(
                     request,
                     _('Auto-approved by rule (request #%(pk)s).') % {'pk': auto_applied.pk},
+                    fail_silently=True,
                 )
             return
 
@@ -66,6 +67,7 @@ class ApprovalGateValidator(CustomValidator):
                 request,
                 _('Change submitted for approval. Approval sent to: %(approvers)s.')
                 % {'approvers': change_request.approver_names},
+                fail_silently=True,
             )
         self.fail(_('Submitted for approval as request #%(pk)s.') % {'pk': change_request.pk})
 

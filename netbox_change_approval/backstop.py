@@ -125,7 +125,7 @@ def gate_plain_save(sender, instance, raw=False, update_fields=None, **kwargs):
         if collector is not None:
             collector.locked.append(exc.change_request)
         elif request is not None:
-            messages.warning(request, f'{instance}: not changed. {exc}')
+            messages.warning(request, f'{instance}: not changed. {exc}', fail_silently=True)
         return
 
     if change_request is None:
@@ -143,6 +143,7 @@ def gate_plain_save(sender, instance, raw=False, update_fields=None, **kwargs):
             request,
             f'{old}: change submitted for approval (request #{change_request.pk}). '
             f'Approval sent to: {change_request.approver_names}.',
+            fail_silently=True,
         )
 
 
