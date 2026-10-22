@@ -73,19 +73,6 @@ def _is_bulk_or_api(request):
         return False
 
 
-def pending_for(instance):
-    from core.models import ObjectType
-
-    from .models import ChangeRequest
-
-    if instance.pk is None:
-        return None
-    return ChangeRequest.objects.filter(
-        content_type=ObjectType.objects.get_for_model(type(instance)), object_id=instance.pk,
-        status=StatusChoices.PENDING,
-    ).first()
-
-
 def amend(change_request, instance, request):
     """
     Called by gating._gate() instead of refusing the save, when the submitter

@@ -42,8 +42,8 @@ on all of them, and connect one `pre_delete` receiver to all of them.
 | Module | Responsibility |
 |---|---|
 | `discovery.py` | The *only* place that decides "is this model gated". Everything else (validators, delete signal, the detail-page banner) sources its model list from here. |
-| `matching.py` | `rule_matches(rule, instance)` — the constraint-matching engine shared by `ApprovalRoutingRule` and `AutoApprovalRule`. Reuses `utilities.permissions.qs_filter_from_constraints`, the same helper NetBox's own `ObjectPermission` constraint evaluation uses, so the JSON filter-dict format is identical to what operators already know from the Permissions UI. |
-| `models.py` | `BaseMatchRule` (abstract), `ApprovalRoutingRule`, `AutoApprovalRule`, `ExemptModel`, `ChangeRequest`. All are `NetBoxModel` subclasses — which is also how `ChangeRequest` gets change-logging and Event Rule support "for free" (see "Notifications" below). |
+| `matching.py` | `rule_matches(rule, instance)` — the constraint-matching engine behind `ApprovalRule`. Reuses `utilities.permissions.qs_filter_from_constraints`, the same helper NetBox's own `ObjectPermission` constraint evaluation uses, so the JSON filter-dict format is identical to what operators already know from the Permissions UI. |
+| `models.py` | `BaseMatchRule` (abstract), `ApprovalRule`, `ChangeRequest`, `ChangeRequestApproval`, `ChangeRequestComment`. The rule and request models are `NetBoxModel` subclasses — which is also how `ChangeRequest` gets change-logging and Event Rule support "for free" (see "Notifications" below). |
 | `serialization.py` | Generic field-level snapshot/diff/apply. Deliberately *not* DRF-serializer-based — see "Why field-level, not DRF serializers" below. |
 | `context.py` | Two `ContextVar`s: `applying_change` (the escape hatch so an *approved* write isn't gated again) and `current_batch` (groups one bulk action's `ChangeRequest` rows under one `batch_id`). |
 | `gating.py` | `gate(instance, action, request)` — the single decision function both the validator and the delete signal call. Locking, bypass, auto-approval, routing all live here exactly once. |
@@ -55,6 +55,17 @@ on all of them, and connect one `pre_delete` receiver to all of them.
 | `widgets.py` | `ApprovalsWidget`, a custom `extras.dashboard.widgets.DashboardWidget` — see "The dashboard widget" below for two real gotchas hit building it. |
 | `table_styling.py` | Monkeypatches `NetBoxTable.configure()` to highlight any row with a pending `ChangeRequest`, across every model's list view generically — see its own module docstring. |
 | `rack_styling.py` | Monkeypatches `dcim.svg.racks.RackElevationSVG` to draw the same pending-highlight around devices in a rack elevation. A separate patch target from `table_styling.py` because the elevation is a standalone SVG document embedded via `<object>`, not part of the host page's DOM — see its own module docstring. |
+| `pending_marks.py` | How pending objects are marked in object lists and rack elevations (the `pending_row_style` setting). |
+| `inbox.py` | The Approval Inbox: your requests and what is waiting on you, grouped into sections, with the navbar count. |
+| `approvals.py` | Rules needing more than one approver, and copying a rule's expiry onto a request. |
+| `expiry.py` | Expiring undecided requests (hourly job and `expire_change_requests` command). |
+| `amend.py` | The submitter editing their own pending request ("Update request"). |
+| `revision.py` | Send back for revision and resubmitting. |
+| `bulk.py`, `backstop.py` | Bulk edit/import/delete as one request per object, and gating updates that skip `full_clean()`. |
+| `components.py`, `placement.py` | Components of a pending new device belong to its request; "where does it live" rows on the request page. |
+| `notifications.py` | NetBox in-app notifications for requests. |
+| `branching.py` | Working alongside netbox-branching, if installed. |
+| `rule_access.py` | Only superusers may change approval rules. |
 
 ## Why field-level, not DRF serializers
 
@@ -104,7 +115,7 @@ something this plugin can route around.
 
 ## NetBox's `Group` is not Django's `Group`
 
-Caught by deploying against a real instance (NetBox 4.7): `ApprovalRoutingRule.
+Caught by deploying against a real instance (NetBox 4.7): `ApprovalRule.
 approver_group` and `ChangeRequest.approver_group` must be FKs to
 **`users.Group`**, NetBox's own standalone group model
 (`users/models/users.py`) — not `django.contrib.auth.models.Group`. NetBox
@@ -334,33 +345,18 @@ dynamic badge inside it either. So "move the ticker onto the tab" could only
 mean *the page you reach by that tab*, not the tab control itself — which is
 what this does.
 
-## Two exemption mechanisms, not one, on purpose
+## Two ways to switch approval off, on purpose
 
-`discovery.iter_gated_models()` (the static `PLUGINS_CONFIG['exempt_models']`
-list) and `models.ExemptModel` (a DB table, UI-editable under Change Approvals
-→ Exempt Models) both exclude a model from gating, but at different points in
-the request lifecycle, and that's deliberate rather than redundant:
+- **"Skip approval" Approval Rules** are checked inside `gate()` on every
+  call (`gating._first_matching_rule`), so enabling or disabling one takes
+  effect on the next request, with no restart. This is the normal way.
+- **`PLUGINS_CONFIG['exempt_models']`** is read once at `ready()` by
+  `discovery.iter_gated_models()`. Listed models get no validator and no
+  `pre_delete` receiver at all, so `gate()` never runs for them. It needs a
+  restart and is meant as an emergency off switch.
 
-- `iter_gated_models()` runs once, at `ready()`, and decides which models get
-  a validator registered (`discovery.wire_up_gated_models()`) and a
-  `pre_delete` receiver connected (`signals.connect()`). Changing the config
-  list requires a NetBox restart before it takes effect — it's baked into
-  `settings.CUSTOM_VALIDATORS` and Django's signal dispatch table at process
-  start, neither of which re-reads config mid-process.
-- `gating._is_exempt(model, content_type)` runs inside `gate()` itself, on
-  *every* call, querying `ExemptModel` fresh each time. This is what makes the
-  "Enabled" checkbox in the UI take effect immediately, with no restart —
-  which is the entire point of building it as a DB table instead of just
-  telling people to edit `PLUGINS_CONFIG` and restart.
-
-A model can only be *exempted* via either path, never gated by one and exempt
-via the other in a way that matters — `iter_gated_models()` exemption is
-coarser (no validator/signal connected at all, so there isn't even a `gate()`
-call to reach), `ExemptModel` exemption is finer (validator/signal stay
-connected, `gate()` runs, and just returns `None` immediately). Both are
-checked independently in their respective places; nothing unifies them into
-one list, because they serve different operational needs (config-as-code vs.
-day-to-day UI toggle) rather than being two ways to express the same thing.
+(Earlier versions also had a separate Exempt Models table; migration 0005
+copied it into Approval Rules and 0008 removed it.)
 
 ## The dashboard widget, and two things that aren't bugs in this plugin
 
@@ -423,8 +419,8 @@ becomes a problem, it's a manual `ChangeRequest.objects.filter(status__in=
 an operator would have to do themselves.
 
 **Approver groups become permanently undeletable.** `approver_group` is
-`on_delete=models.PROTECT` in *two* places — `ApprovalRoutingRule` and
-`ChangeRequest` itself. Deleting the routing rule that used a group isn't
+`on_delete=models.PROTECT` in *two* places — `ApprovalRule` and
+`ChangeRequest` itself. Deleting the rule that used a group isn't
 enough to free it up: every historical `ChangeRequest` ever routed through or
 decided by that group *also* blocks deletion, forever. Confirmed firsthand
 this session — trying to delete a test "Hardware Approvers" group failed with
@@ -461,8 +457,8 @@ itself:
   had). Reapplying it, if still wanted, is a manual job.
 - Any object that was mid-flight on a pending **create** simply stays, as a
   normal object (nothing marks it as pending once the plugin is gone).
-- The three DB tables (`ChangeRequest`, `ApprovalRoutingRule`,
-  `AutoApprovalRule`) are **not** dropped automatically. Without running
+- The plugin's DB tables (`ChangeRequest`, `ApprovalRule` and the approval
+  and comment tables) are **not** dropped automatically. Without running
   `python manage.py migrate netbox_change_approval zero` first, they're left
   behind as orphaned-but-harmless dead weight (Postgres doesn't enforce any
   "owning app" relationship, so nothing breaks — they just sit there). Running
@@ -482,23 +478,16 @@ work, not something this version does.
 
 ## Migrations
 
-`migrations/0001_initial.py` was **hand-authored** — there was no running
-NetBox instance available while writing this plugin to run `makemigrations`
-against. The field definitions were cross-checked against real NetBox 4.2
-migrations for other `NetBoxModel`-based models (field types, `BigAutoField`
-PKs, the exact `TaggableManager`/`custom_field_data` boilerplate every
-`NetBoxModel` contributes), but this is not a substitute for actually running
-it. **Before relying on this migration**, from a real NetBox install with this
-plugin installed:
+Generate migrations with `makemigrations` against a running NetBox with the
+plugin installed, and check for drift before committing:
 
 ```bash
 python manage.py makemigrations netbox_change_approval --check --dry-run
 ```
 
-If it reports drift, run `makemigrations` for real and replace
-`0001_initial.py` (this is still your *first* migration — the app has never
-been deployed yet, so replacing it outright is correct, not a schema change
-against existing data).
+CI runs the same check. Notable history: 0005 copied the three older rule
+tables (routing rules, auto-approval rules, exempt models) into
+`ApprovalRule`, and 0008 dropped them.
 
 ## Running tests
 
@@ -526,17 +515,10 @@ applying the first one.
 
 ## CI
 
-`.github/workflows/test.yml` checks out a pinned NetBox tag alongside this
-plugin, installs both, patches a `configuration.py` via a small inline script,
-runs migrations, checks for migration drift (see "Migrations" above), and runs
-the test suite. It was written against the documented NetBox plugin-testing
-approach but **has not been run** (no NetBox instance was available while
-writing this plugin — see the top of this document). Likely first-run
-friction: the `configuration_example.py` string-replace for `DATABASE` is
-version-sensitive; if NetBox's example config format has changed, replace that
-step with writing a complete `configuration.py` from scratch instead of
-patching the example. Treat the workflow as a strong starting point, not a
-guarantee.
+`.github/workflows/test.yml` checks out each NetBox version in its matrix
+(currently 4.7.0 and 4.7.3) alongside this plugin, installs both, writes a
+`configuration.py`, runs migrations, checks for migration drift (see
+"Migrations" above), and runs the test suite.
 
 ## Roadmap / known gaps
 
@@ -550,10 +532,3 @@ guarantee.
   queued requests with it, so those objects are refused instead
   (`BatchCollector.REFUSE`). Queuing them would need per-object savepoints in
   NetBox's `perform_bulk_update`/`perform_bulk_destroy`.
-- **Resubmit-after-reject.** Currently out of scope (see README limitations).
-  If built, it should reuse the existing `ChangeRequest` row (new status,
-  e.g. `changes_requested`) rather than adding a parallel concept.
-- **List-view pending-change indicators** (e.g. a column in the Interfaces
-  table). NetBox doesn't have a clean generic "inject a column into every
-  model's table" plugin hook; the per-object banner and the dedicated queue
-  cover the same need today.

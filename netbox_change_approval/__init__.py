@@ -16,8 +16,8 @@ class NetBoxChangeApprovalConfig(PluginConfig):
     min_version = '4.7.0'
 
     default_settings = {
-        # Name of the Django Group used as the fallback approver group when no
-        # ApprovalRoutingRule matches a given object. Must exist in the database.
+        # Name of the NetBox Group that approves a change when no "Needs
+        # approval" rule with its own approver group matches. Must exist.
         'default_approver_group': 'Change Approvers',
         # Dotted labels ('app_label.model_name') to exclude from gating entirely, on top
         # of this plugin's own models (which are always excluded). Useful for noisy,

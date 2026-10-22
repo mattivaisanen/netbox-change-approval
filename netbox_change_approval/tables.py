@@ -4,7 +4,7 @@ from django.utils.translation import gettext_lazy as _
 from netbox.tables import NetBoxTable, columns
 
 from .rule_access import RuleActionsColumn
-from .models import ApprovalRoutingRule, ApprovalRule, AutoApprovalRule, ChangeRequest, ExemptModel
+from .models import ApprovalRule, ChangeRequest
 
 
 class ApprovalRuleTable(NetBoxTable):
@@ -28,49 +28,6 @@ class ApprovalRuleTable(NetBoxTable):
             'pk', 'priority', 'description', 'content_type', 'constraint', 'action',
             'outcome', 'approver_group', 'enabled',
         )
-
-
-class ExemptModelTable(NetBoxTable):
-    actions = RuleActionsColumn()
-    content_type = columns.ContentTypeColumn(verbose_name=_('Object type'), linkify=True)
-    enabled = columns.BooleanColumn()
-
-    class Meta(NetBoxTable.Meta):
-        model = ExemptModel
-        fields = ('pk', 'id', 'content_type', 'constraint', 'description', 'enabled', 'created', 'last_updated')
-        default_columns = ('pk', 'content_type', 'constraint', 'description', 'enabled')
-
-
-class ApprovalRoutingRuleTable(NetBoxTable):
-    actions = RuleActionsColumn()
-    description = tables.Column(linkify=True)
-    content_type = columns.ContentTypeColumn(verbose_name=_('Object type'))
-    approver_group = tables.Column(linkify=True)
-    enabled = columns.BooleanColumn()
-
-    class Meta(NetBoxTable.Meta):
-        model = ApprovalRoutingRule
-        fields = (
-            'pk', 'id', 'priority', 'description', 'content_type', 'constraint',
-            'approver_group', 'enabled', 'created', 'last_updated',
-        )
-        default_columns = ('pk', 'priority', 'description', 'content_type', 'approver_group', 'enabled')
-
-
-class AutoApprovalRuleTable(NetBoxTable):
-    actions = RuleActionsColumn()
-    description = tables.Column(linkify=True)
-    content_type = columns.ContentTypeColumn(verbose_name=_('Object type'))
-    action = columns.ChoiceFieldColumn()
-    enabled = columns.BooleanColumn()
-
-    class Meta(NetBoxTable.Meta):
-        model = AutoApprovalRule
-        fields = (
-            'pk', 'id', 'priority', 'description', 'content_type', 'constraint',
-            'action', 'enabled', 'created', 'last_updated',
-        )
-        default_columns = ('pk', 'priority', 'description', 'content_type', 'action', 'enabled')
 
 
 #: ChangeRequest has no 'edit' view by design (it's a record of what happened, not

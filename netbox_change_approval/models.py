@@ -15,14 +15,11 @@ __all__ = (
     'ActionChoices',
     'AutoApprovalActionChoices',
     'StatusChoices',
-    'ApprovalRoutingRule',
     'ApprovalRule',
     'RuleOutcomeChoices',
-    'AutoApprovalRule',
     'ChangeRequest',
     'ChangeRequestApproval',
     'ChangeRequestComment',
-    'ExemptModel',
 )
 
 
@@ -66,9 +63,9 @@ class RuleOutcomeChoices(models.TextChoices):
 
 class BaseMatchRule(NetBoxModel):
     """
-    Shared shape for ApprovalRoutingRule and AutoApprovalRule: both are evaluated, in
-    priority order, by testing a model instance against an optional content type and
-    an optional constraint (see matching.rule_matches for the constraint format).
+    Fields shared by rule tables: a rule is evaluated, in priority order, by
+    testing a model instance against an optional content type and an optional
+    constraint (see matching.rule_matches for the constraint format).
     """
     priority = models.PositiveIntegerField(
         default=100,
@@ -108,74 +105,10 @@ class BaseMatchRule(NetBoxModel):
         return rule_matches(self, instance, check_new_state=check_new_state)
 
 
-class ApprovalRoutingRule(BaseMatchRule):
-    """
-    LEGACY: replaced by ApprovalRule (migration 0005 copied every row). Kept
-    only so the old table and its change log stay readable; not used for
-    gating. Remove in a later cleanup.
-
-    Decides which Group must approve a change to a given object. The first enabled
-    rule (by priority) whose content type and constraint match the object wins; if
-    none match, PLUGINS_CONFIG['netbox_change_approval']['default_approver_group'] is
-    used. This is how tenant/region/site-scoped approver groups work, without a
-    separate concept from auto-approval rules — it's just a rule table evaluated the
-    same way.
-    """
-    # 'users.Group', not django.contrib.auth.models.Group: NetBox ships its own
-    # standalone Group model (users/models/users.py) rather than using Django's
-    # stock one, and that's what User.groups / the Admin UI actually populate.
-    approver_group = models.ForeignKey(
-        to='users.Group',
-        on_delete=models.PROTECT,
-        related_name='+',
-    )
-
-    class Meta(BaseMatchRule.Meta):
-        verbose_name = _('approval routing rule')
-        verbose_name_plural = _('approval routing rules')
-
-    def get_absolute_url(self):
-        return reverse('plugins:netbox_change_approval:approvalroutingrule', args=[self.pk])
-
-
-class AutoApprovalRule(BaseMatchRule):
-    """
-    LEGACY: replaced by ApprovalRule (migration 0005 copied every row). Kept
-    only so the old table and its change log stay readable; not used for
-    gating. Remove in a later cleanup.
-
-    A change matching an enabled AutoApprovalRule (content type + constraint + action)
-    is applied immediately instead of being queued — a ChangeRequest row is still
-    created, marked auto_approved, so there is always a full audit trail.
-    """
-    action = models.CharField(
-        max_length=10,
-        choices=AutoApprovalActionChoices.choices,
-        default=AutoApprovalActionChoices.ANY,
-    )
-
-    class Meta(BaseMatchRule.Meta):
-        verbose_name = _('auto-approval rule')
-        verbose_name_plural = _('auto-approval rules')
-
-    def get_absolute_url(self):
-        return reverse('plugins:netbox_change_approval:autoapprovalrule', args=[self.pk])
-
-    def matches_action(self, action):
-        return self.action == AutoApprovalActionChoices.ANY or self.action == action
-
-    def matches(self, instance, action=None):
-        if action is not None and not self.matches_action(action):
-            return False
-        # For an update, both the stored and the submitted values must match:
-        # otherwise {"status": "planned"} would auto-approve planned -> active.
-        return super().matches(instance, check_new_state=(action == AutoApprovalActionChoices.UPDATE))
-
-
 class ApprovalRule(BaseMatchRule):
     """
-    The one rule table (replaces ApprovalRoutingRule, AutoApprovalRule and
-    ExemptModel, which migration 0005 copied into this one). Rules are checked
+    The one rule table (it replaced three older ones; migration 0005 copied
+    their rows here and 0008 dropped them). Rules are checked
     in priority order and the first enabled match decides the outcome:
 
     - REQUIRE: the change needs approval, from `approver_group` (or the
@@ -254,58 +187,6 @@ class ApprovalRule(BaseMatchRule):
             action == AutoApprovalActionChoices.UPDATE and self.outcome != RuleOutcomeChoices.REQUIRE
         )
         return rule_matches(self, instance, check_new_state=check_new_state)
-
-
-class ExemptModel(NetBoxModel):
-    """
-    LEGACY: replaced by ApprovalRule (migration 0005 copied every row). Kept
-    only so the old table and its change log stay readable; not used for
-    gating. Remove in a later cleanup.
-
-    DB-backed, UI-editable list of object types excluded from gating entirely —
-    complements (doesn't replace) PLUGINS_CONFIG['exempt_models']. That static
-    list controls validator/signal *registration* in discovery.py at process
-    start (coarse, deploy-time, needs a restart to change); this table is
-    checked live, inside gating.gate(), every single time, so toggling it here
-    takes effect immediately for the next request — no restart, unlike the
-    config-file list. See README "Choosing which object types are gated".
-    """
-    content_type = models.ForeignKey(
-        to='core.ObjectType',
-        on_delete=models.CASCADE,
-        verbose_name=_('object type'),
-    )
-    constraint = models.JSONField(
-        blank=True,
-        null=True,
-        encoder=DjangoJSONEncoder,
-        help_text=_(
-            'Optional filter in the same format as NetBox permission constraints. '
-            'Leave blank to exempt all objects of this type.'
-        ),
-    )
-    enabled = models.BooleanField(default=True)
-    description = models.CharField(max_length=200, blank=True)
-
-    class Meta:
-        ordering = ['content_type', 'pk']
-        verbose_name = _('exempt model')
-        verbose_name_plural = _('exempt models')
-
-    def __str__(self):
-        return self.description or str(self.content_type)
-
-    def matches(self, instance, check_new_state=False):
-        """Same matching as the rule tables. For an update, both the stored
-        and the submitted values must match, so moving an object *out* of the
-        exempted scope (e.g. a cable re-terminated outside Tampere) is still
-        gated."""
-        if not self.enabled:
-            return False
-        return rule_matches(self, instance, check_new_state=check_new_state)
-
-    def get_absolute_url(self):
-        return reverse('plugins:netbox_change_approval:exemptmodel', args=[self.pk])
 
 
 def combine_activity_message(existing, ours):

@@ -11,16 +11,15 @@ from netbox.plugins import PluginMenu, PluginMenuItem
 #: strings, checked via user.has_perms(), which passes automatically for
 #: superusers) and `staff_only` (despite the name, actually checks
 #: user.is_superuser in this NetBox version, not is_staff). There's no "NOT"
-#: version of `permissions` — hiding "My Requests" specifically *from*
-#: approvers can't be expressed this way, so it stays visible to every
-#: authenticated user (including approvers, who may also submit their own
-#: changes and want to track them). "Approvals" *can* be gated properly,
+#: version of `permissions`, so the "Approval Inbox" stays visible to every
+#: authenticated user (approvers may also submit their own changes). "Approvals" *can* be gated properly,
 #: just not directly off group membership: permissions.
 #: sync_is_approver_permission() keeps a real ObjectPermission's groups in
-#: sync with whoever is currently an approver (every ApprovalRoutingRule.
-#: approver_group, plus the default_approver_group), triggered automatically
-#: whenever a routing rule changes — see its docstring and DEVELOPER.md "The
-#: top-level nav tab, and why the ticker moved to the Approvals page".
+#: sync with whoever is currently an approver (the approver_group of every
+#: enabled "Needs approval" ApprovalRule, plus the default_approver_group),
+#: triggered automatically whenever a rule changes. See its docstring and
+#: DEVELOPER.md "The top-level nav tab, and why the ticker moved to the
+#: Approvals page".
 menu = PluginMenu(
     label='Change Approvals',
     icon_class='mdi mdi-check-decagram-outline',

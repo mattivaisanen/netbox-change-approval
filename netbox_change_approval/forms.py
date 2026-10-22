@@ -11,8 +11,7 @@ from utilities.forms.rendering import FieldSet
 
 from .discovery import iter_gated_models
 from .models import (
-    ActionChoices, ApprovalRoutingRule, ApprovalRule, AutoApprovalActionChoices, AutoApprovalRule, ChangeRequest,
-    ExemptModel, RuleOutcomeChoices, StatusChoices,
+    ActionChoices, ApprovalRule, AutoApprovalActionChoices, ChangeRequest, RuleOutcomeChoices, StatusChoices,
 )
 
 
@@ -99,94 +98,6 @@ class ApprovalRuleFilterForm(NetBoxModelFilterSetForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['content_type'].queryset = _gated_object_types()
-
-
-class ApprovalRoutingRuleForm(BaseRuleForm):
-    approver_group = DynamicModelChoiceField(
-        queryset=Group.objects.all(),
-    )
-
-    fieldsets = (
-        FieldSet('description', 'priority', 'enabled', name=_('Rule')),
-        FieldSet('content_type', 'constraint', name=_('Match')),
-        FieldSet('approver_group', name=_('Routes to')),
-    )
-
-    class Meta:
-        model = ApprovalRoutingRule
-        fields = (
-            'priority', 'content_type', 'constraint', 'approver_group', 'enabled', 'description', 'tags',
-        )
-
-
-class AutoApprovalRuleForm(BaseRuleForm):
-    fieldsets = (
-        FieldSet('description', 'priority', 'enabled', name=_('Rule')),
-        FieldSet('content_type', 'constraint', 'action', name=_('Match')),
-    )
-
-    class Meta:
-        model = AutoApprovalRule
-        fields = (
-            'priority', 'content_type', 'constraint', 'action', 'enabled', 'description', 'tags',
-        )
-
-
-class ExemptModelForm(NetBoxModelForm):
-    content_type = ContentTypeChoiceField(
-        queryset=ObjectType.objects.none(),
-        label=_('Object type'),
-        help_text=_('Changes to this object type will not require approval while this exemption is enabled.'),
-    )
-    constraint = JSONField(
-        required=False,
-        label=_('Constraint'),
-        help_text=_(
-            'Optional filter in the same format as NetBox permission constraints. '
-            'Leave blank to exempt all objects of this type.'
-        ),
-    )
-
-    fieldsets = (
-        FieldSet('content_type', 'constraint', 'enabled', 'description', name=_('Exemption')),
-    )
-
-    class Meta:
-        model = ExemptModel
-        fields = ('content_type', 'constraint', 'enabled', 'description', 'tags')
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields['content_type'].queryset = _gated_object_types()
-
-
-class ExemptModelFilterForm(NetBoxModelFilterSetForm):
-    model = ExemptModel
-    content_type = ContentTypeChoiceField(queryset=ObjectType.objects.none(), required=False)
-    enabled = forms.NullBooleanField(required=False, widget=forms.Select(choices=(
-        ('', '---------'), ('true', _('Yes')), ('false', _('No')),
-    )))
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields['content_type'].queryset = _gated_object_types()
-
-
-class ApprovalRoutingRuleFilterForm(NetBoxModelFilterSetForm):
-    model = ApprovalRoutingRule
-    content_type = ContentTypeChoiceField(queryset=ObjectType.objects.none(), required=False)
-    enabled = forms.NullBooleanField(required=False, widget=forms.Select(choices=(
-        ('', '---------'), ('true', _('Yes')), ('false', _('No')),
-    )))
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields['content_type'].queryset = _gated_object_types()
-
-
-class AutoApprovalRuleFilterForm(ApprovalRoutingRuleFilterForm):
-    model = AutoApprovalRule
-    action = forms.ChoiceField(required=False, choices=ActionChoices.choices)
 
 
 class ChangeRequestFilterForm(NetBoxModelFilterSetForm):

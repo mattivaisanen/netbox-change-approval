@@ -19,8 +19,8 @@ def _skipped(instance, action):
     return rule is not None and rule.outcome == 'skip'
 
 
-class ExemptConstraintTests(TestCase):
-    """Exempt Models with a constraint: e.g. cables in the Tampere region skip approval."""
+class SkipRuleConstraintTests(TestCase):
+    """Skip approval rules with a constraint: e.g. cables in the Tampere region skip approval."""
 
     @classmethod
     def setUpTestData(cls):

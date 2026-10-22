@@ -32,6 +32,10 @@
   lists them.
 
 ### Improvements
+- Removed the old Approval Routing Rules, Auto-Approval Rules and Exempt
+  Models pages, which Approval Rules replaced earlier. Upgrading deletes
+  their old database tables and change log entries; their rules were
+  already copied into Approval Rules.
 - The Approvals list, Approval Inbox and Pending Approvals widget no longer
   run extra database queries for every request shown, so they stay fast
   with many pending requests.

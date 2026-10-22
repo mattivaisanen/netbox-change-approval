@@ -1,7 +1,6 @@
 """
-Shared constraint-matching engine used by both ApprovalRoutingRule and
-AutoApprovalRule (see models.py). A rule's `constraint` field uses the exact same
-shape as NetBox's own ObjectPermission.constraints: a Django ORM filter dict, or a
+Constraint-matching engine for ApprovalRule (see models.py). A rule's
+`constraint` field uses the exact same shape as NetBox's own ObjectPermission.constraints: a Django ORM filter dict, or a
 list of such dicts which are OR'd together. An empty/null constraint matches
 unconditionally. This is a deliberate reuse of a format NetBox admins already know
 from the stock Permissions UI, rather than a plugin-specific rule language.
@@ -199,7 +198,7 @@ def _matches_saved_state(model, instance, constraints):
 
 def rule_matches(rule, instance, check_new_state=False):
     """
-    Return True if `rule` (an ApprovalRoutingRule or AutoApprovalRule instance, or
+    Return True if `rule` (an ApprovalRule, or
     anything exposing .content_type_id / .content_type / .constraint) matches the
     given model instance.
 

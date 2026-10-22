@@ -18,10 +18,7 @@ from . import amend, approvals, components, filtersets, forms, inbox, notificati
 from .exceptions import AlreadyDecided, ChangeConflict
 from .rule_access import RuleReadMixin, RuleWriteMixin
 from .object_actions import BulkApprove, BulkReject
-from .models import (
-    ActionChoices, ApprovalRoutingRule, ApprovalRule, AutoApprovalRule, ChangeRequest, ChangeRequestComment,
-    ExemptModel, StatusChoices,
-)
+from .models import ActionChoices, ApprovalRule, ChangeRequest, ChangeRequestComment, StatusChoices
 
 #
 # Approval rules (the one rule table)
@@ -59,105 +56,6 @@ class ApprovalRuleBulkDeleteView(RuleWriteMixin, generic.BulkDeleteView):
     queryset = ApprovalRule.objects.all()
     filterset = filtersets.ApprovalRuleFilterSet
     table = tables.ApprovalRuleTable
-
-
-#
-# Legacy rule tables (replaced by ApprovalRule; kept reachable so old links
-# and change log entries still open, but not in the menu)
-#
-
-
-#
-# Exempt models
-#
-
-
-@register_model_view(ExemptModel, 'list', path='', detail=False)
-class ExemptModelListView(RuleReadMixin, generic.ObjectListView):
-    queryset = ExemptModel.objects.all()
-    filterset = filtersets.ExemptModelFilterSet
-    filterset_form = forms.ExemptModelFilterForm
-    table = tables.ExemptModelTable
-
-
-@register_model_view(ExemptModel)
-class ExemptModelView(RuleReadMixin, generic.ObjectView):
-    queryset = ExemptModel.objects.all()
-    template_name = 'netbox_change_approval/exemptmodel.html'
-
-
-@register_model_view(ExemptModel, 'add', detail=False)
-@register_model_view(ExemptModel, 'edit')
-class ExemptModelEditView(RuleWriteMixin, generic.ObjectEditView):
-    queryset = ExemptModel.objects.all()
-    form = forms.ExemptModelForm
-
-
-@register_model_view(ExemptModel, 'delete')
-class ExemptModelDeleteView(RuleWriteMixin, generic.ObjectDeleteView):
-    queryset = ExemptModel.objects.all()
-
-
-#
-# Approval routing rules
-#
-
-
-@register_model_view(ApprovalRoutingRule, 'list', path='', detail=False)
-class ApprovalRoutingRuleListView(RuleReadMixin, generic.ObjectListView):
-    queryset = ApprovalRoutingRule.objects.all()
-    filterset = filtersets.ApprovalRoutingRuleFilterSet
-    filterset_form = forms.ApprovalRoutingRuleFilterForm
-    table = tables.ApprovalRoutingRuleTable
-
-
-@register_model_view(ApprovalRoutingRule)
-class ApprovalRoutingRuleView(RuleReadMixin, generic.ObjectView):
-    queryset = ApprovalRoutingRule.objects.all()
-    template_name = 'netbox_change_approval/approvalroutingrule.html'
-
-
-@register_model_view(ApprovalRoutingRule, 'add', detail=False)
-@register_model_view(ApprovalRoutingRule, 'edit')
-class ApprovalRoutingRuleEditView(RuleWriteMixin, generic.ObjectEditView):
-    queryset = ApprovalRoutingRule.objects.all()
-    form = forms.ApprovalRoutingRuleForm
-
-
-@register_model_view(ApprovalRoutingRule, 'delete')
-class ApprovalRoutingRuleDeleteView(RuleWriteMixin, generic.ObjectDeleteView):
-    queryset = ApprovalRoutingRule.objects.all()
-
-
-#
-# Auto-approval rules
-#
-
-
-@register_model_view(AutoApprovalRule, 'list', path='', detail=False)
-class AutoApprovalRuleListView(RuleReadMixin, generic.ObjectListView):
-    queryset = AutoApprovalRule.objects.all()
-    filterset = filtersets.AutoApprovalRuleFilterSet
-    filterset_form = forms.AutoApprovalRuleFilterForm
-    table = tables.AutoApprovalRuleTable
-
-
-@register_model_view(AutoApprovalRule)
-class AutoApprovalRuleView(RuleReadMixin, generic.ObjectView):
-    queryset = AutoApprovalRule.objects.all()
-    template_name = 'netbox_change_approval/autoapprovalrule.html'
-
-
-@register_model_view(AutoApprovalRule, 'add', detail=False)
-@register_model_view(AutoApprovalRule, 'edit')
-class AutoApprovalRuleEditView(RuleWriteMixin, generic.ObjectEditView):
-    queryset = AutoApprovalRule.objects.all()
-    form = forms.AutoApprovalRuleForm
-
-
-@register_model_view(AutoApprovalRule, 'delete')
-class AutoApprovalRuleDeleteView(RuleWriteMixin, generic.ObjectDeleteView):
-    queryset = AutoApprovalRule.objects.all()
 
 
 #

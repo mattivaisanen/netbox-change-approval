@@ -4,7 +4,7 @@ from django.utils.translation import gettext as _
 from netbox.filtersets import NetBoxModelFilterSet
 from utilities.filters import ContentTypeFilter
 
-from .models import ApprovalRoutingRule, ApprovalRule, AutoApprovalRule, ChangeRequest, ExemptModel
+from .models import ApprovalRule, ChangeRequest
 
 
 class ApprovalRuleFilterSet(NetBoxModelFilterSet):
@@ -16,48 +16,6 @@ class ApprovalRuleFilterSet(NetBoxModelFilterSet):
     class Meta:
         model = ApprovalRule
         fields = ('id', 'priority', 'content_type', 'approver_group', 'enabled')
-
-    def search(self, queryset, name, value):
-        if not value.strip():
-            return queryset
-        return queryset.filter(description__icontains=value)
-
-
-class ExemptModelFilterSet(NetBoxModelFilterSet):
-    q = django_filters.CharFilter(method='search', label=_('Search'))
-    content_type = ContentTypeFilter()
-
-    class Meta:
-        model = ExemptModel
-        fields = ('id', 'content_type', 'enabled')
-
-    def search(self, queryset, name, value):
-        if not value.strip():
-            return queryset
-        return queryset.filter(description__icontains=value)
-
-
-class ApprovalRoutingRuleFilterSet(NetBoxModelFilterSet):
-    q = django_filters.CharFilter(method='search', label=_('Search'))
-    content_type = ContentTypeFilter()
-
-    class Meta:
-        model = ApprovalRoutingRule
-        fields = ('id', 'priority', 'content_type', 'approver_group', 'enabled')
-
-    def search(self, queryset, name, value):
-        if not value.strip():
-            return queryset
-        return queryset.filter(description__icontains=value)
-
-
-class AutoApprovalRuleFilterSet(NetBoxModelFilterSet):
-    q = django_filters.CharFilter(method='search', label=_('Search'))
-    content_type = ContentTypeFilter()
-
-    class Meta:
-        model = AutoApprovalRule
-        fields = ('id', 'priority', 'content_type', 'action', 'enabled')
 
     def search(self, queryset, name, value):
         if not value.strip():

@@ -9,7 +9,7 @@ from ..models import ActionChoices, ApprovalRule, ChangeRequest
 from .utils import fake_request
 
 
-class ExemptModelGatingTests(TestCase):
+class SkipRuleGatingTests(TestCase):
     """
     "Skip approval" rules are checked live inside gate(), not at
     process-start registration time like PLUGINS_CONFIG['exempt_models'] — so

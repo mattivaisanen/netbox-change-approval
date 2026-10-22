@@ -83,8 +83,8 @@ PLUGINS = [
 
 PLUGINS_CONFIG = {
     'netbox_change_approval': {
-        # Fallback approver group used when no ApprovalRoutingRule matches.
-        # Must be an existing Django Group (Admin -> Groups).
+        # Approver group used when no "Needs approval" rule names its own.
+        # Must be an existing NetBox group (Admin -> Groups).
         'default_approver_group': 'Change Approvers',
         # Optional: models to exclude from gating entirely, as 'app_label.model' strings.
         'exempt_models': [],
@@ -367,7 +367,9 @@ is enough.
 
 **Upgrading:** earlier versions had three separate pages (Approval Routing
 Rules, Auto-Approval Rules, Exempt Models). Migration 0005 copies all of them
-into Approval Rules, keeping the order the old code checked them in.
+into Approval Rules, keeping the order the old code checked them in. Newer
+versions remove the old tables and their change log entries (migrations 0008
+and 0009).
 
 ### Turning the plugin off for a model entirely
 
