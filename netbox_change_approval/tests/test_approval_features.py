@@ -251,3 +251,17 @@ class NotificationTests(_Base):
         with self.captureOnCommitCallbacks(execute=True):
             expiry.expire_overdue(now=timezone.now() + timedelta(days=2))
         self.assertEqual(self._notes(self.submitter, change_request).get().event_type, notifications.EXPIRED)
+
+
+class WidgetQuickViewTests(_Base):
+    def test_widget_rows_have_quick_view_of_changes(self):
+        from django.test import RequestFactory
+
+        from ..widgets import ApprovalsWidget
+
+        change_request = self._update_request()
+        request = RequestFactory().get('/')
+        request.user = self.alice
+        html = ApprovalsWidget().render(request)
+        self.assertIn(f'nbca-wq-{change_request.pk}', html)
+        self.assertIn('changed', html)

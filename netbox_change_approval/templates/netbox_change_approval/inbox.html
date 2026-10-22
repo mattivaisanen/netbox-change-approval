@@ -117,22 +117,7 @@
                     {% endif %}
                   </div>
                 {% endif %}
-                {% if member.quick_rows %}
-                <table class="table table-sm">
-                  <thead><tr><th>{% trans "Field" %}</th><th>{% trans "Old" %}</th><th>{% trans "New" %}</th></tr></thead>
-                  <tbody>
-                  {% for row in member.quick_rows %}
-                    <tr>
-                      <th scope="row" class="fw-normal">{{ row.label|capfirst }}</th>
-                      <td class="text-danger">{% if row.old is not None %}{{ row.old }}{% else %}&mdash;{% endif %}</td>
-                      <td class="text-success">{% if row.new is not None %}{{ row.new }}{% else %}&mdash;{% endif %}</td>
-                    </tr>
-                  {% endfor %}
-                  </tbody>
-                </table>
-                {% else %}
-                  <div class="text-muted small">{% trans "No field-level diff recorded." %}</div>
-                {% endif %}
+                {% include 'netbox_change_approval/inc/quick_diff.html' with rows=member.quick_rows %}
               </div>
             {% endfor %}
           </td>

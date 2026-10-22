@@ -1,6 +1,14 @@
 {% load i18n %}
 {% if change_requests or sent_back %}
-<table class="table table-hover mb-0">
+<style>
+  .nbca-widget .nbca-quick > td { background: var(--tblr-bg-surface-secondary); }
+  .nbca-widget .nbca-quick table { margin-bottom: 0; }
+  .nbca-widget .nbca-quick table td,
+  .nbca-widget .nbca-quick table th { padding: .25rem .5rem; font-size: .8125rem; }
+  .nbca-widget .nbca-toggle .mdi { transition: transform .15s; }
+  .nbca-widget .nbca-toggle[aria-expanded="true"] .mdi { transform: rotate(180deg); }
+</style>
+<table class="table table-hover mb-0 nbca-widget">
   <tbody>
     {% for cr in sent_back %}
     <tr>
@@ -13,11 +21,17 @@
         </div>
       </td>
       <td class="text-end text-nowrap">
+        <button type="button" class="btn btn-sm btn-ghost-secondary nbca-toggle" data-bs-toggle="collapse"
+                data-bs-target="#nbca-wq-{{ cr.pk }}" aria-expanded="false" aria-controls="nbca-wq-{{ cr.pk }}"
+                title="{% trans 'Show details' %}"><i class="mdi mdi-chevron-down"></i></button>
         <a href="{% url 'plugins:netbox_change_approval:changerequest_revise' pk=cr.pk %}"
            class="btn btn-sm btn-primary" title="{% trans "Revise and resubmit" %}"><i class="mdi mdi-pencil"></i> {% trans "Revise" %}</a>
         <a href="{% url 'plugins:netbox_change_approval:changerequest_discard' pk=cr.pk %}"
            class="btn btn-sm btn-primary" title="{% trans "Discard" %}" aria-label="{% trans "Discard" %}"><i class="mdi mdi-delete-outline"></i></a>
       </td>
+    </tr>
+    <tr class="collapse nbca-quick" id="nbca-wq-{{ cr.pk }}">
+      <td colspan="2">{% include 'netbox_change_approval/inc/quick_diff.html' with rows=cr.quick_rows %}</td>
     </tr>
     {% endfor %}
     {% for cr, can_decide in change_requests %}
@@ -30,6 +44,9 @@
         </div>
       </td>
       <td class="text-end text-nowrap">
+        <button type="button" class="btn btn-sm btn-ghost-secondary nbca-toggle" data-bs-toggle="collapse"
+                data-bs-target="#nbca-wq-{{ cr.pk }}" aria-expanded="false" aria-controls="nbca-wq-{{ cr.pk }}"
+                title="{% trans 'Show details' %}"><i class="mdi mdi-chevron-down"></i></button>
         {% if can_decide %}
         <a href="{% url 'plugins:netbox_change_approval:changerequest_approve' pk=cr.pk %}"
            class="btn btn-sm btn-success" title="{% trans "Approve" %}"><i class="mdi mdi-check"></i></a>
@@ -39,6 +56,9 @@
            class="btn btn-sm btn-danger" title="{% trans "Reject" %}"><i class="mdi mdi-close"></i></a>
         {% endif %}
       </td>
+    </tr>
+    <tr class="collapse nbca-quick" id="nbca-wq-{{ cr.pk }}">
+      <td colspan="2">{% include 'netbox_change_approval/inc/quick_diff.html' with rows=cr.quick_rows %}</td>
     </tr>
     {% endfor %}
   </tbody>

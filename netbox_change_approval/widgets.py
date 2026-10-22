@@ -57,4 +57,10 @@ class ApprovalsWidget(DashboardWidget):
         sent_back = ChangeRequest.objects.filter(
             submitted_by=user, status=StatusChoices.RETURNED,
         ).order_by('-decided_at')[:10]
+        # Field changes for each row's quick view (the arrow), as in the inbox.
+        from .views import _diff_rows
+
+        sent_back = list(sent_back)
+        for cr in [cr for cr, _can in rows] + sent_back:
+            cr.quick_rows = _diff_rows(cr)
         return render_to_string(self.template_name, {'change_requests': rows, 'sent_back': sent_back})
