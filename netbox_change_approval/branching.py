@@ -17,8 +17,11 @@ sync is applied as is: it is the branch's own review point, controlled by
 netbox-branching's permissions. This plugin's own tables (rules, change
 requests) always stay in main.
 """
+import logging
 from contextvars import ContextVar
 from functools import wraps
+
+logger = logging.getLogger('netbox_change_approval.branching')
 
 #: True while netbox-branching merges, reverts or syncs a branch.
 _branch_operation = ContextVar('netbox_change_approval.branch_operation', default=False)
@@ -34,7 +37,7 @@ def outside_main():
         return True
     try:
         from netbox_branching.contextvars import active_branch
-    except ImportError:
+    except Exception:
         return False
     return active_branch.get() is not None
 
@@ -63,10 +66,18 @@ def _mark_replay(method):
 
 
 def connect():
-    """Called from ready(). Does nothing if netbox-branching isn't installed."""
+    """Called from ready(). Does nothing unless netbox-branching is enabled as
+    a NetBox plugin. Its package can be installed (and its database router
+    configured) without the plugin being enabled; importing its models then
+    crashes NetBox at startup, so check the app registry first."""
+    from django.apps import apps
+
+    if not apps.is_installed('netbox_branching'):
+        return
     try:
         from netbox_branching.models import Branch
-    except ImportError:
+    except Exception:
+        logger.exception('netbox-branching is enabled but could not be loaded; branch merges may be gated')
         return
     try:
         from netbox_branching.utilities import register_branching_resolver

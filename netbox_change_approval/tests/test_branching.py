@@ -47,3 +47,12 @@ class BranchingTests(TestCase):
     def test_own_models_never_branch(self):
         self.assertIs(branching._own_models_stay_in_main(ChangeRequest), False)
         self.assertIsNone(branching._own_models_stay_in_main(Manufacturer))
+
+
+class BranchingNotEnabledTests(TestCase):
+    def test_connect_skips_when_plugin_not_enabled(self):
+        # The package may be installed without the plugin being enabled;
+        # importing its models then raises at startup. connect() must not.
+        with mock.patch('django.apps.apps.is_installed', return_value=False), \
+                mock.patch.dict('sys.modules', {'netbox_branching.models': None}):
+            branching.connect()  # no exception

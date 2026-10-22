@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.1 (2026-10-22)
+
+Fixed:
+- NetBox failed to start when the netbox-branching package was installed
+  but not enabled as a plugin.
+
 ## 0.2.0 (2026-10-22)
 
 Upgrade: see README "Upgrading". Run `manage.py migrate`: this release adds
