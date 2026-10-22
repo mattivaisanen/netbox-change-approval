@@ -41,7 +41,7 @@ class ApprovalsWidget(DashboardWidget):
 
         queryset = permissions.approver_queue(
             request.user, ChangeRequest.objects.filter(status=StatusChoices.PENDING),
-        ).order_by('-submitted_at')[:10]
+        ).select_related('content_type', 'submitted_by', 'approver_group').order_by('-submitted_at')[:10]
 
         user = request.user
         group_ids = set(user.groups.values_list('pk', flat=True))
@@ -56,11 +56,13 @@ class ApprovalsWidget(DashboardWidget):
         # Your own requests sent back to you (or retracted to edit), with Revise.
         sent_back = ChangeRequest.objects.filter(
             submitted_by=user, status=StatusChoices.RETURNED,
-        ).order_by('-decided_at')[:10]
+        ).select_related('content_type', 'submitted_by', 'approver_group').order_by('-decided_at')[:10]
         # Field changes for each row's quick view (the arrow), as in the inbox.
-        from .views import _diff_rows
+        from .views import _diff_rows, prefetch_display_names
 
         sent_back = list(sent_back)
-        for cr in [cr for cr, _can in rows] + sent_back:
-            cr.quick_rows = _diff_rows(cr)
+        shown = [cr for cr, _can in rows] + sent_back
+        names = prefetch_display_names(shown)
+        for cr in shown:
+            cr.quick_rows = _diff_rows(cr, names=names)
         return render_to_string(self.template_name, {'change_requests': rows, 'sent_back': sent_back})

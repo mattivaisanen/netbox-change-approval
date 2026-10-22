@@ -174,7 +174,54 @@ class _AnyLoggedInUserCanView:
 _can_decide = permissions.can_decide
 
 
-def _resolve_display(model, key, value):
+def _relation_for_key(model, key):
+    field_name = key[:-3] if key.endswith('_id') else key
+    try:
+        field = model._meta.get_field(field_name)
+    except FieldDoesNotExist:
+        return None
+    if not field.is_relation or field.related_model is None:
+        return None
+    return field
+
+
+def prefetch_display_names(change_requests):
+    """
+    {(related model, pk): str} for every related object named in these
+    requests' diffs, fetched with one query per related model. _diff_rows()
+    uses it instead of one query per field per request (the inbox and the
+    dashboard widget show many requests at once).
+    """
+    wanted = {}
+    for change_request in change_requests:
+        diff = change_request.diff
+        model = change_request.content_type.model_class()
+        if model is None or not isinstance(diff, dict):
+            continue
+        for key, value in diff.items():
+            field = _relation_for_key(model, key)
+            if field is None:
+                continue
+            values = (
+                [value.get('old'), value.get('new')]
+                if change_request.action == ActionChoices.UPDATE and isinstance(value, dict) else [value]
+            )
+            pks = wanted.setdefault(field.related_model, set())
+            for item in values:
+                for pk in (item if isinstance(item, (list, tuple)) else [item]):
+                    if isinstance(pk, (int, str)) and not isinstance(pk, bool):
+                        pks.add(pk)
+    names = {}
+    for related_model, pks in wanted.items():
+        try:
+            for obj in related_model.objects.filter(pk__in=pks):
+                names[(related_model, obj.pk)] = str(obj)
+        except (ValueError, TypeError):
+            continue
+    return names
+
+
+def _resolve_display(model, key, value, names=None):
     """
     Diff values are stored as raw PKs for FK/M2M fields (that's what apply()
     needs to reconstruct the object) — but a bare integer tells an approver
@@ -194,6 +241,13 @@ def _resolve_display(model, key, value):
         return value
 
     related_model = field.related_model
+    if names is not None:
+        if field.many_to_many:
+            if not isinstance(value, (list, tuple)):
+                return value
+            return [names.get((related_model, pk), f'#{pk} (not found)') for pk in value]
+        if (related_model, value) in names:
+            return names[(related_model, value)]
     if field.many_to_many:
         if not isinstance(value, (list, tuple)):
             return value
@@ -218,7 +272,7 @@ def _field_label(model, key):
     return str(field.verbose_name)
 
 
-def _diff_rows(change_request, conflict_fields=()):
+def _diff_rows(change_request, conflict_fields=(), names=None):
     diff = change_request.diff
     if not isinstance(diff, dict):
         return []
@@ -229,20 +283,20 @@ def _diff_rows(change_request, conflict_fields=()):
             {
                 'field': field,
                 'label': _field_label(model, field),
-                'old': _resolve_display(model, field, change.get('old')),
-                'new': _resolve_display(model, field, change.get('new')),
+                'old': _resolve_display(model, field, change.get('old'), names),
+                'new': _resolve_display(model, field, change.get('new'), names),
                 'conflict': field in conflict_fields,
             }
             for field, change in sorted(diff.items())
         ]
     if change_request.action == ActionChoices.CREATE:
         return [
-            {'field': field, 'label': _field_label(model, field), 'old': None, 'new': _resolve_display(model, field, value)}
+            {'field': field, 'label': _field_label(model, field), 'old': None, 'new': _resolve_display(model, field, value, names)}
             for field, value in sorted(diff.items())
         ]
     # delete: diff is a full snapshot of what's being removed
     return [
-        {'field': field, 'label': _field_label(model, field), 'old': _resolve_display(model, field, value), 'new': _('(deleted)')}
+        {'field': field, 'label': _field_label(model, field), 'old': _resolve_display(model, field, value, names), 'new': _('(deleted)')}
         for field, value in sorted(diff.items())
     ]
 
@@ -690,10 +744,11 @@ class InboxView(ConditionalLoginRequiredMixin, View):
         sections = []
         for key, title, queryset, counted in inbox.inbox_sections(user):
             items = inbox.group_items(queryset)
-            for item in items:
-                for member in item['members']:
-                    # Shown by the row's quick-view toggle.
-                    member.quick_rows = _diff_rows(member)
+            members = [member for item in items for member in item['members']]
+            names = prefetch_display_names(members)
+            for member in members:
+                # Shown by the row's quick-view toggle.
+                member.quick_rows = _diff_rows(member, names=names)
             sections.append({
                 'key': key,
                 'title': title,

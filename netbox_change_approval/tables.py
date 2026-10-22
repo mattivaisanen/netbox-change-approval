@@ -84,7 +84,7 @@ class AutoApprovalRuleTable(NetBoxTable):
 #: Retract to the submitter.
 _DECISION_BUTTONS = """
 {% if record.status == "pending" %}
-{% if record.submitted_by_id != request.user.pk %}{% if request.user.is_superuser or record.approver_group and record.approver_group in request.user.groups.all %}
+{% if record.submitted_by_id != request.user.pk %}{% if record.nbca_can_decide %}
 <a href="{% url 'plugins:netbox_change_approval:changerequest_approve' pk=record.pk %}?return_url={{ request.get_full_path|urlencode }}"
    class="btn btn-sm btn-success" title="Approve"><i class="mdi mdi-check"></i></a>
 <a href="{% url 'plugins:netbox_change_approval:changerequest_sendback' pk=record.pk %}?return_url={{ request.get_full_path|urlencode }}"
@@ -105,8 +105,24 @@ _DECISION_BUTTONS = """
 """
 
 
+class _DecisionActionsColumn(columns.ActionsColumn):
+    """Marks each row with whether the viewer can decide it, looking up the
+    viewer's groups once per table instead of once per row."""
+    def render(self, record, table, **kwargs):
+        group_ids = getattr(table, '_nbca_group_ids', None)
+        request = getattr(table, 'context', {}).get('request') if hasattr(table, 'context') else None
+        user = getattr(request, 'user', None)
+        if group_ids is None:
+            group_ids = set(user.groups.values_list('pk', flat=True)) if user is not None and user.is_authenticated else set()
+            table._nbca_group_ids = group_ids
+        record.nbca_can_decide = bool(user is not None and (
+            user.is_superuser or (record.approver_group_id and record.approver_group_id in group_ids)
+        ))
+        return super().render(record, table, **kwargs)
+
+
 class ChangeRequestTable(NetBoxTable):
-    actions = columns.ActionsColumn(actions=('changelog',), extra_buttons=_DECISION_BUTTONS)
+    actions = _DecisionActionsColumn(actions=('changelog',), extra_buttons=_DECISION_BUTTONS)
     id = tables.Column(linkify=True, verbose_name=_('Request'))
     content_type = columns.ContentTypeColumn(verbose_name=_('Object type'))
     object_repr = tables.Column(verbose_name=_('Object'))
