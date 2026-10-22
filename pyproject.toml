@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "netbox-change-approval"
-version = "0.1.0"
+version = "0.2.0"
 description = "Require approval-group sign-off on NetBox object changes before they take effect, with auto-approval rules and bypass permissions."
 readme = "README.md"
 license = { text = "Apache-2.0" }
