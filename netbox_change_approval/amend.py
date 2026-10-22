@@ -44,6 +44,23 @@ def amendable(change_request, user, request=None):
     return True
 
 
+def amending_here(change_request, request):
+    """
+    Whether this save comes from the "Update request" edit page for this
+    request (our parameter is on the URL; the edit form posts back to it).
+
+    For a pending edit the new values *replace* the request, so any other
+    save of the object by the submitter (e.g. another object's form that also
+    saves this one) must not count as an update: it would silently drop what
+    the request asked for. Such saves stay blocked, as before. A pending new
+    object records its full state either way, so nothing can be lost there.
+    """
+    if change_request.action != ActionChoices.UPDATE:
+        return True
+    params = getattr(request, 'GET', None)
+    return params is not None and params.get(AMEND_PARAM) == str(change_request.pk)
+
+
 def _is_bulk_or_api(request):
     from .context import batch_collector
 

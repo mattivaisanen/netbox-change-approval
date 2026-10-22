@@ -31,9 +31,10 @@ class AmendOwnRequestTests(TestCase):
     def _edit_url(self):
         return reverse('dcim:manufacturer_edit', kwargs={'pk': self.vendor.pk})
 
-    def _post_edit(self, user, description):
+    def _post_edit(self, user, description, amend_pk=None):
         self.client.force_login(user)
-        return self.client.post(self._edit_url(), {
+        url = self._edit_url() + (f'?nbca_amend={amend_pk}' if amend_pk else '')
+        return self.client.post(url, {
             'name': 'Acme', 'slug': 'acme', 'description': description, '_update': '',
         })
 
@@ -48,7 +49,7 @@ class AmendOwnRequestTests(TestCase):
             change_request=change_request, user=self.approver, revision=change_request.revision,
         )
 
-        self._post_edit(self.alice, 'second try')
+        self._post_edit(self.alice, 'second try', amend_pk=change_request.pk)
 
         change_request.refresh_from_db()
         self.assertEqual(change_request.status, StatusChoices.PENDING)
@@ -61,14 +62,25 @@ class AmendOwnRequestTests(TestCase):
 
     def test_other_user_still_blocked(self):
         change_request = self._pending_update()
-        self._post_edit(self.bob, 'bob was here')
+        self._post_edit(self.bob, 'bob was here', amend_pk=change_request.pk)
         change_request.refresh_from_db()
         self.assertEqual(change_request.revision, 1)
         self.assertEqual(change_request.diff['description']['new'], 'first try')
 
+    def test_other_save_by_submitter_does_not_replace_request(self):
+        # A save that doesn't come from the "Update request" page (no amend
+        # parameter) must not overwrite what the pending edit asks for.
+        change_request = self._pending_update()
+        self._post_edit(self.alice, 'from somewhere else')
+        change_request.refresh_from_db()
+        self.assertEqual(change_request.revision, 1)
+        self.assertEqual(change_request.diff['description']['new'], 'first try')
+        self.vendor.refresh_from_db()
+        self.assertEqual(self.vendor.description, 'original')
+
     def test_reverting_everything_withdraws_request(self):
         change_request = self._pending_update()
-        self._post_edit(self.alice, 'original')
+        self._post_edit(self.alice, 'original', amend_pk=change_request.pk)
         change_request.refresh_from_db()
         self.assertEqual(change_request.status, StatusChoices.RETRACTED)
 
