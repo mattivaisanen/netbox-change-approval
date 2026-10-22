@@ -5,20 +5,21 @@
   .nbca-widget .nbca-quick table { margin-bottom: 0; }
   .nbca-widget .nbca-quick table td,
   .nbca-widget .nbca-quick table th { padding: .25rem .5rem; font-size: .8125rem; }
+  .nbca-widget .nbca-who { max-width: 16rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 </style>
 {% include 'netbox_change_approval/inc/quick_toggle.html' %}
-<table class="table table-hover mb-0 nbca-widget">
+<table class="table table-sm table-hover mb-0 align-middle nbca-widget">
   <tbody>
     {% for cr in sent_back %}
     <tr>
       <td>
         <a href="{{ cr.get_absolute_url }}">{{ cr.get_action_display }} {{ cr.object_repr }}</a>
         <span class="badge text-bg-orange ms-1">{% trans "Sent back" %}</span>
-        <div class="text-muted small">
-          {% if cr.decided_by_id == cr.submitted_by_id %}{% trans "You retracted this to edit it" %}{% else %}{{ cr.decided_by|default:_("An approver") }}{% if cr.decision_comment %}: &ldquo;{{ cr.decision_comment|truncatechars:120 }}&rdquo;{% endif %}{% endif %}
-          &middot; {{ cr.decided_at|timesince }} {% trans "ago" %}
-        </div>
       </td>
+      <td class="small text-muted nbca-who" title="{{ cr.decision_comment }}">
+        {% if cr.decided_by_id == cr.submitted_by_id %}{% trans "You retracted this to edit it" %}{% else %}{{ cr.decided_by|default:_("An approver") }}{% if cr.decision_comment %}: &ldquo;{{ cr.decision_comment|truncatechars:80 }}&rdquo;{% endif %}{% endif %}
+      </td>
+      <td class="small text-muted text-nowrap">{{ cr.decided_at|timesince }}</td>
       <td class="text-end text-nowrap">
         <button type="button" class="btn btn-sm btn-ghost-secondary nbca-toggle" data-bs-toggle="collapse"
                 data-bs-target="#nbca-wq-{{ cr.pk }}" aria-expanded="false" aria-controls="nbca-wq-{{ cr.pk }}"
@@ -30,18 +31,14 @@
       </td>
     </tr>
     <tr class="collapse nbca-quick" id="nbca-wq-{{ cr.pk }}">
-      <td colspan="2">{% include 'netbox_change_approval/inc/quick_diff.html' with rows=cr.quick_rows %}</td>
+      <td colspan="4">{% include 'netbox_change_approval/inc/quick_diff.html' with rows=cr.quick_rows %}</td>
     </tr>
     {% endfor %}
     {% for cr, can_decide in change_requests %}
     <tr>
-      <td>
-        <a href="{{ cr.get_absolute_url }}">{{ cr.get_action_display }} {{ cr.object_repr }}</a>
-        <div class="text-muted small">
-          {% if cr.submitted_by %}{{ cr.submitted_by }}{% else %}{% trans "unknown user" %}{% endif %}
-          &middot; {{ cr.submitted_at|timesince }} {% trans "ago" %}
-        </div>
-      </td>
+      <td><a href="{{ cr.get_absolute_url }}">{{ cr.get_action_display }} {{ cr.object_repr }}</a></td>
+      <td class="small text-muted nbca-who">{% if cr.submitted_by %}{{ cr.submitted_by }}{% else %}{% trans "unknown user" %}{% endif %}</td>
+      <td class="small text-muted text-nowrap">{{ cr.submitted_at|timesince }}</td>
       <td class="text-end text-nowrap">
         <button type="button" class="btn btn-sm btn-ghost-secondary nbca-toggle" data-bs-toggle="collapse"
                 data-bs-target="#nbca-wq-{{ cr.pk }}" aria-expanded="false" aria-controls="nbca-wq-{{ cr.pk }}"
@@ -57,7 +54,7 @@
       </td>
     </tr>
     <tr class="collapse nbca-quick" id="nbca-wq-{{ cr.pk }}">
-      <td colspan="2">{% include 'netbox_change_approval/inc/quick_diff.html' with rows=cr.quick_rows %}</td>
+      <td colspan="4">{% include 'netbox_change_approval/inc/quick_diff.html' with rows=cr.quick_rows %}</td>
     </tr>
     {% endfor %}
   </tbody>

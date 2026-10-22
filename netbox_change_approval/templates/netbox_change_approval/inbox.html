@@ -21,6 +21,8 @@
     .nbca-inbox .nbca-quick table { margin-bottom: 0; }
     .nbca-inbox .nbca-quick table td,
     .nbca-inbox .nbca-quick table th { padding: .25rem .5rem; font-size: .8125rem; }
+    .nbca-inbox .nbca-rows > thead th { font-weight: normal; border-bottom-width: 1px; }
+    .nbca-inbox .nbca-rows .nbca-who { max-width: 22rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   </style>
   {% include 'netbox_change_approval/inc/quick_toggle.html' %}
 {% endblock %}
@@ -50,34 +52,50 @@
         </form>
       {% endif %}
     </h2>
-    <table class="table table-hover mb-0">
+    <table class="table table-sm table-hover mb-0 align-middle nbca-rows">
+      <thead>
+        <tr class="text-muted small">
+          <th>{% trans "Request" %}</th>
+          <th class="d-none d-md-table-cell">{% trans "Type" %}</th>
+          <th class="d-none d-md-table-cell">
+            {% if section.key == 'decide' %}{% trans "From" %}{% elif section.key == 'waiting' %}{% trans "Waiting on" %}{% elif section.key == 'approved' %}{% trans "Approved by" %}{% else %}{% trans "Decision" %}{% endif %}
+          </th>
+          <th class="text-nowrap">{% trans "When" %}</th>
+          <th></th>
+        </tr>
+      </thead>
       <tbody>
         {% for item in section.items %}
         {% with cr=item.lead count=item.members|length %}
         <tr>
-          <td>
+          <td class="nbca-request">
             {% if count > 1 %}
               <a href="{{ cr.get_absolute_url }}">{% blocktrans with action=cr.get_action_display %}{{ action }} {{ count }} objects{% endblocktrans %}</a>
               <span class="badge text-bg-blue ms-1" title="{% trans 'One bulk action. Deciding it decides all of them.' %}">{% trans "batch" %}</span>
-              <span class="text-muted small">&middot; {{ cr.content_type.name|capfirst }}: {{ cr.object_repr }}{% if count > 1 %}, &hellip;{% endif %}</span>
             {% else %}
               <a href="{{ cr.get_absolute_url }}">#{{ cr.pk }} {{ cr.get_action_display }} {{ cr.object_repr }}</a>
-              <span class="text-muted small">&middot; {{ cr.content_type.name|capfirst }}</span>
             {% endif %}
-            {% if cr.revision > 1 %}<span class="badge text-bg-secondary ms-1">{% blocktrans with n=cr.revision %}revision {{ n }}{% endblocktrans %}</span>{% endif %}
+            {% if cr.revision > 1 %}<span class="badge text-bg-secondary ms-1">{% blocktrans with n=cr.revision %}rev {{ n }}{% endblocktrans %}</span>{% endif %}
             {% if cr.auto_approved %}<span class="badge text-bg-blue ms-1">{% trans "auto-approved" %}</span>{% endif %}
-            <div class="text-muted small">
-              {% if section.key == 'decide' %}
-                {% trans "from" %} {{ cr.submitted_by|default:_("unknown user") }} &middot; {{ cr.submitted_at|timesince }} {% trans "ago" %}
-              {% elif section.key == 'waiting' %}
-                {% trans "waiting on" %} {{ cr.approver_group|default:_("the default approver group") }} &middot; {{ cr.submitted_at|timesince }} {% trans "ago" %}
-              {% elif section.key == 'approved' %}
-                {% if cr.decided_by %}{% trans "approved by" %} {{ cr.decided_by }} &middot; {% endif %}{{ cr.applied_at|timesince }} {% trans "ago" %}
-              {% else %}
-                {% if cr.status == 'expired' %}{% trans "Expired: nobody decided it in time" %}{% elif cr.decided_by_id and cr.decided_by_id == cr.submitted_by_id %}{% trans "You retracted this to edit it" %}{% else %}{{ cr.decided_by|default:_("An approver") }}{% if cr.decision_comment %}: &ldquo;{{ cr.decision_comment|truncatechars:200 }}&rdquo;{% endif %}{% endif %}
-                &middot; {{ cr.decided_at|timesince }} {% trans "ago" %}
-              {% endif %}
-            </div>
+          </td>
+          <td class="d-none d-md-table-cell text-muted small text-nowrap">{{ cr.content_type.name|capfirst }}</td>
+          <td class="d-none d-md-table-cell small nbca-who">
+            {% if section.key == 'decide' %}
+              {{ cr.submitted_by|default:_("unknown user") }}
+            {% elif section.key == 'waiting' %}
+              {{ cr.approver_group|default:_("the default approver group") }}
+            {% elif section.key == 'approved' %}
+              {% if cr.decided_by %}{{ cr.decided_by }}{% else %}&mdash;{% endif %}
+            {% elif cr.status == 'expired' %}
+              <span class="text-muted">{% trans "Expired: nobody decided it in time" %}</span>
+            {% elif cr.decided_by_id and cr.decided_by_id == cr.submitted_by_id %}
+              <span class="text-muted">{% trans "You retracted this to edit it" %}</span>
+            {% else %}
+              <span title="{{ cr.decision_comment }}">{{ cr.decided_by|default:_("An approver") }}{% if cr.decision_comment %}: &ldquo;{{ cr.decision_comment|truncatechars:80 }}&rdquo;{% endif %}</span>
+            {% endif %}
+          </td>
+          <td class="text-muted small text-nowrap">
+            {% if section.key == 'decide' or section.key == 'waiting' %}{{ cr.submitted_at|timesince }}{% elif section.key == 'approved' %}{{ cr.applied_at|timesince }}{% else %}{{ cr.decided_at|timesince }}{% endif %}
           </td>
           <td class="text-end text-nowrap align-middle">
             <button type="button" class="btn btn-sm btn-ghost-secondary nbca-toggle" data-bs-toggle="collapse"
@@ -110,7 +128,7 @@
           </td>
         </tr>
         <tr class="collapse nbca-quick" id="nbca-quick-{{ section.key }}-{{ cr.pk }}">
-          <td colspan="2">
+          <td colspan="5">
             {% for member in item.members %}
               <div class="{% if not forloop.last %}mb-2{% endif %}">
                 {% if count > 1 %}
