@@ -22,9 +22,9 @@ from .models import ActionChoices, ChangeRequest, ChangeRequestApproval, RuleOut
 
 
 def default_expiry_days():
-    from netbox.plugins.utils import get_plugin_config
+    from .plugin_settings import get_setting
 
-    value = get_plugin_config('netbox_change_approval', 'expire_pending_after_days')
+    value = get_setting('expire_pending_after_days')
     try:
         return int(value) if value else None
     except (TypeError, ValueError):

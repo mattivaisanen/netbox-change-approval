@@ -22,6 +22,7 @@ __all__ = (
     'ChangeRequest',
     'ChangeRequestApproval',
     'ChangeRequestComment',
+    'PluginSetting',
     'ApproverAbsence',
     'WorkTask',
     'ChangeSet',
@@ -803,3 +804,21 @@ class ChangeSet(models.Model):
     def requests(self):
         return ChangeRequest.objects.filter(batch_id=self.batch_id)
 
+
+class PluginSetting(models.Model):
+    """A plugin setting saved on the settings page, overriding configuration.py
+    until reset. See plugin_settings.py."""
+    key = models.CharField(max_length=100, unique=True)
+    value = models.JSONField(null=True, blank=True)
+    updated = models.DateTimeField(auto_now=True)
+    updated_by = models.ForeignKey(
+        to=settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='+',
+    )
+
+    class Meta:
+        ordering = ['key']
+        verbose_name = _('plugin setting')
+        verbose_name_plural = _('plugin settings')
+
+    def __str__(self):
+        return self.key

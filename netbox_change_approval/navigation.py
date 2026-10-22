@@ -57,6 +57,11 @@ menu = PluginMenu(
                 link_text='Approval Rules',
                 permissions=['netbox_change_approval.view_approvalrule'],
             ),
+            PluginMenuItem(
+                link='plugins:netbox_change_approval:settings',
+                link_text='Settings',
+                staff_only=True,  # superusers only, see above
+            ),
         )),
     ),
 )

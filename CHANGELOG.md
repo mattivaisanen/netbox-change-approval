@@ -7,6 +7,12 @@
   rack A3", optional ticket), make your changes as usual, then submit them
   as one item that approvers decide together. Drafts stay hidden from
   approvers until submitted. `change_sets: False` turns it off.
+- Settings page (Change Approvals → Settings, superusers only): change the
+  plugin's settings in NetBox instead of `configuration.py`. Each setting
+  shows whether its value comes from `configuration.py`, the default or the
+  page, and a saved value can be switched back to `configuration.py`.
+  Changes apply at once, without a restart. `exempt_models`, the emergency
+  off switch, stays `configuration.py`-only and is shown read-only.
 - Field work sheet (Change Approvals → Work Sheet): approved changes that
   need hands on site become plain tasks ("Mount sw1 in rack A3, U20–21",
   "Patch sw1 eth1 → pp1 port 3", moves, removals, modules), grouped by site

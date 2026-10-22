@@ -10,6 +10,7 @@ NetBox `configuration.py`.
 | `expire_pending_after_days` | `int` or `None` | `None` | Days after which a pending request nobody decided expires: nothing is applied and a pending new object is removed. Applies to rules that don't set their own expiry. `None` or `0` means never. NetBox's background worker checks every hour. |
 | `pending_row_style` | `str` | `'by_action'` | How pending objects look in object lists and rack elevations: `'by_action'` (green new, blue edit, red delete, with the requested values) or `'outline'` (a single yellow outline). |
 | `group_components_with_parent` | `bool` | `True` | While a new device or VM waits for approval, its interfaces, ports, bays, modules, inventory items, VM disks and IP/MAC addresses on its interfaces belong to its request instead of getting their own. `False` gives each its own request again. |
+| `work_sheets` | `bool` | `True` | Field work sheet (Change Approvals → Work Sheet): approved changes that need work on site become tasks. `False` turns it off. |
 
 Example:
 
@@ -26,6 +27,33 @@ PLUGINS_CONFIG = {
     },
 }
 ```
+
+## Changing settings in NetBox
+
+Superusers can change every setting above except `exempt_models` on
+**Change Approvals → Settings**, without editing `configuration.py` or
+restarting NetBox:
+
+- `configuration.py` (or the plugin default) gives each setting its value.
+- A value saved on the page overrides it. The page labels each setting
+  *Saved here*, *From configuration.py* or *Default*, and for a saved value
+  shows who saved it, when, and what `configuration.py` says.
+- **Use configuration.py** next to a saved value removes it, so the setting
+  follows `configuration.py` again. Saving a value that means the same as
+  `configuration.py`'s also removes the saved value, so only real differences
+  are kept.
+- Changes take effect at once in every NetBox process and the background
+  worker. Saved values are read when used (once per web request), not at
+  startup.
+- Changing a setting doesn't itself need approval.
+- Changing the default approver group updates who sees the "Approvals" menu
+  right away.
+
+`exempt_models` stays `configuration.py`-only. It is the emergency off switch:
+it decides at startup which models the plugin touches at all, and it has to
+work even when the plugin, its database table or its pages are what's broken.
+A value saved in the database must never be able to override it. The settings
+page shows it read-only.
 
 ## Things configured in the NetBox UI, not here
 

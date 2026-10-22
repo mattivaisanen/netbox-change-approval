@@ -15,10 +15,11 @@ from .models import ActionChoices, ApprovalRule, ChangeRequest, RuleOutcomeChoic
 
 
 def _default_approver_group():
-    from netbox.plugins.utils import get_plugin_config
     from users.models import Group
 
-    default_name = get_plugin_config('netbox_change_approval', 'default_approver_group')
+    from .plugin_settings import get_setting
+
+    default_name = get_setting('default_approver_group')
     try:
         return Group.objects.get(name=default_name)
     except Group.DoesNotExist:

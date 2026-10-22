@@ -101,6 +101,12 @@ PLUGINS_CONFIG = {
 }
 ```
 
+Superusers can also change these settings in NetBox, under **Change
+Approvals → Settings** (all except `exempt_models`). A value saved there
+overrides `configuration.py` until you press **Use configuration.py** next to
+it, and takes effect at once, without a restart. See
+[docs/configuration.md](docs/configuration.md#changing-settings-in-netbox).
+
 Then, from your NetBox install:
 
 ```bash
@@ -377,6 +383,8 @@ and 0009).
 `app_label.model_name` strings, e.g. `['dcim.cable']`. Listed models aren't
 touched by the plugin at all. It needs a NetBox restart, so for day-to-day
 use prefer a **Skip approval** rule; this setting is an emergency off switch.
+Because it is the emergency off switch, only `configuration.py` sets it: the
+settings page shows it but can't change it.
 
 ### Activity log
 

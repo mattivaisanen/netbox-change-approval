@@ -1,0 +1,68 @@
+{% extends 'generic/_base.html' %}
+{% load form_helpers %}
+{% load i18n %}
+
+{% block title %}{% trans "Change Approval Settings" %}{% endblock %}
+
+{% block subtitle %}
+  <div class="text-secondary">{% trans "configuration.py sets each value. A value saved here overrides it until you switch back. Changes apply at once, without a restart." %}</div>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-12 col-lg-8">
+    <form method="post" class="card">
+      {% csrf_token %}
+      <h2 class="card-header">{% trans "Settings" %}</h2>
+      <div class="card-body">
+        {% for row in rows %}
+        <div class="mb-4 pb-2{% if not forloop.last %} border-bottom{% endif %}" id="setting-{{ row.field.name }}">
+          {% render_field row.field %}
+          <div class="row">
+            <div class="offset-sm-3 col small text-secondary d-flex flex-wrap align-items-center gap-2">
+              {% if row.source == 'saved' %}
+                <span class="badge text-bg-primary">{% trans "Saved here" %}</span>
+                {% if row.saved %}
+                  {% if row.saved.updated_by %}{% blocktrans with who=row.saved.updated_by when=row.saved.updated|date:"SHORT_DATETIME_FORMAT" %}by {{ who }}, {{ when }}{% endblocktrans %}{% else %}{{ row.saved.updated|date:"SHORT_DATETIME_FORMAT" }}{% endif %}.
+                {% endif %}
+                {% blocktrans with value=row.config_display %}configuration.py says: {{ value }}.{% endblocktrans %}
+                <button type="submit" name="reset" value="{{ row.field.name }}" formnovalidate class="btn btn-sm btn-outline-secondary">
+                  {% trans "Use configuration.py" %}
+                </button>
+              {% elif row.source == 'config' %}
+                <span class="badge text-bg-secondary">{% trans "From configuration.py" %}</span>
+              {% else %}
+                <span class="badge text-bg-light">{% trans "Default" %}</span>
+              {% endif %}
+              {% if row.missing_group %}
+                <span class="text-warning">{% blocktrans with name=row.missing_group %}No group named "{{ name }}" exists, so only superusers can decide these changes.{% endblocktrans %}</span>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      <div class="card-footer d-flex justify-content-end">
+        <button type="submit" class="btn btn-primary">{% trans "Save" %}</button>
+      </div>
+    </form>
+  </div>
+  <div class="col-12 col-lg-4">
+    <div class="card">
+      <h2 class="card-header">{% trans "Models left alone (exempt_models)" %}</h2>
+      <div class="card-body">
+        {% if exempt_models %}
+        <ul class="mb-3">
+          {% for label in exempt_models %}<li><code>{{ label }}</code></li>{% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-secondary">{% trans "None. Every NetBox model is gated." %}</p>
+        {% endif %}
+        <p class="small text-secondary mb-0">
+          {% trans "This is the emergency off switch, so only configuration.py sets it and it needs a restart. It has to work even when this plugin or its database table is what's broken. For day-to-day exceptions, use a \"Skip approval\" Approval Rule." %}
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

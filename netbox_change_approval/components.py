@@ -37,9 +37,9 @@ _BUMPED_ATTR = '_nbca_parent_requests_updated'
 
 
 def enabled():
-    from netbox.plugins.utils import get_plugin_config
+    from .plugin_settings import get_setting
 
-    return get_plugin_config('netbox_change_approval', 'group_components_with_parent') is not False
+    return get_setting('group_components_with_parent') is not False
 
 
 def _parents(instance):
@@ -191,6 +191,10 @@ def _note_change(parent_request, request):
     if parent_request.pk in bumped:
         return
     bumped.add(parent_request.pk)
+    # No change log entry of its own for each bump ("Resubmitted for
+    # approval" every save was noise); the component's entries are labelled
+    # with this request instead (ChangeLogLabelMiddleware).
+    parent_request._nbca_log_quietly = True
     parent_request.revision += 1
     parent_request.save(update_fields=['revision', 'last_updated'])
     notifications.request_updated(parent_request)
@@ -278,3 +282,46 @@ def pending_parent_map(model, parent_field):
             action=ActionChoices.CREATE, object_id__isnull=False,
         ).only('pk', 'object_id', 'action', 'content_type')
     }
+
+
+class ChangeLogLabelMiddleware:
+    """
+    After a page save that changed components of a pending new device (its
+    interfaces, cables, cable ends, IPs, ...), label every change log entry
+    that save wrote with the device's request, so the change log shows they
+    are part of it and not yet approved.
+    """
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        response = self.get_response(request)
+        parents = getattr(request, _BUMPED_ATTR, None)
+        if parents:
+            try:
+                label_changes(request, parents)
+            except Exception:
+                pass  # a label is never worth breaking the response
+        return response
+
+
+def label_changes(request, parent_pks):
+    from django.contrib.contenttypes.models import ContentType
+
+    from core.models import ObjectChange
+
+    from .models import ChangeRequest, combine_activity_message
+
+    request_id = getattr(request, 'id', None)
+    if request_id is None:
+        return
+    refs = ', '.join(f'#{pk}' for pk in sorted(parent_pks))
+    text = f'Part of change request {refs}, waiting for approval'
+    entries = ObjectChange.objects.filter(request_id=request_id).exclude(
+        changed_object_type=ContentType.objects.get_for_model(ChangeRequest),
+    )
+    for entry in entries:
+        if text in (entry.message or ''):
+            continue
+        entry.message = combine_activity_message(entry.message, text)
+        entry.save(update_fields=['message'])

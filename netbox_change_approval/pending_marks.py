@@ -11,7 +11,7 @@ Colors match NetBox's own change log (and this plugin's request list). The
 chip links to the request.
 
 Set PLUGINS_CONFIG['netbox_change_approval']['pending_row_style'] = 'outline'
-to go back to the earlier look: one yellow outline for every pending row,
+(or pick it on the settings page) to go back to the earlier look: one yellow outline for every pending row,
 whatever the action.
 """
 from django.core.exceptions import FieldDoesNotExist
@@ -31,9 +31,9 @@ ACTION_COLORS = {
 
 
 def style():
-    from netbox.plugins.utils import get_plugin_config
+    from .plugin_settings import get_setting
 
-    value = get_plugin_config('netbox_change_approval', 'pending_row_style')
+    value = get_setting('pending_row_style')
     return STYLE_OUTLINE if value == STYLE_OUTLINE else STYLE_BY_ACTION
 
 

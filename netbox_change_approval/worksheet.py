@@ -25,9 +25,9 @@ logger = logging.getLogger('netbox_change_approval.worksheet')
 
 
 def enabled():
-    from netbox.plugins.utils import get_plugin_config
+    from .plugin_settings import get_setting
 
-    return get_plugin_config('netbox_change_approval', 'work_sheets') is not False
+    return get_setting('work_sheets') is not False
 
 
 # ---- Describing jobs ---------------------------------------------------------

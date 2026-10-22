@@ -252,14 +252,14 @@ def sync_is_approver_permission():
     from users.models import Group, ObjectPermission
 
     from .models import ApprovalRule, ChangeRequest, RuleOutcomeChoices
-    from netbox.plugins.utils import get_plugin_config
+    from .plugin_settings import get_setting
 
     group_ids = set(
         ApprovalRule.objects.filter(
             enabled=True, outcome=RuleOutcomeChoices.REQUIRE, approver_group__isnull=False,
         ).values_list('approver_group_id', flat=True)
     )
-    default_name = get_plugin_config('netbox_change_approval', 'default_approver_group')
+    default_name = get_setting('default_approver_group')
     if default_name:
         group_ids.update(Group.objects.filter(name=default_name).values_list('pk', flat=True))
 
