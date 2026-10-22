@@ -131,21 +131,6 @@
       <div class="card-body text-muted">{% trans "No field-level changes recorded." %}</div>
       {% endif %}
     </div>
-    {% if rack_previews %}
-    <div class="card">
-      <h2 class="card-header">{% trans "Rack" %}</h2>
-      <div class="card-body">
-        <div class="row">
-          {% for rack, face, caption in rack_previews %}
-          <div class="col text-center">
-            <div class="mb-2">{{ rack|linkify }} <span class="text-muted">&middot; {% trans caption %}</span></div>
-            {% include 'dcim/inc/rack_elevation.html' with object=rack face=face %}
-          </div>
-          {% endfor %}
-        </div>
-      </div>
-    </div>
-    {% endif %}
     {% if components %}
     <div class="card">
       <h2 class="card-header">{% trans "Included with it" %}</h2>
@@ -259,6 +244,21 @@
         </form>
       </div>
     </div>
+    {% if rack_previews %}
+    <div class="card">
+      <h2 class="card-header">{% trans "Rack" %}</h2>
+      <div class="card-body">
+        <div class="row">
+          {% for rack, face, caption in rack_previews %}
+          <div class="col-12 text-center mb-3">
+            <div class="mb-2">{{ rack|linkify }} <span class="text-muted">&middot; {% trans caption %}</span></div>
+            {% include 'dcim/inc/rack_elevation.html' with object=rack face=face %}
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    {% endif %}
     {% plugin_right_page object %}
   </div>
 </div>
