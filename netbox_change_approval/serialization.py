@@ -23,6 +23,7 @@ from uuid import UUID
 
 from django.core.exceptions import FieldDoesNotExist
 from django.core.serializers.json import DjangoJSONEncoder
+from django.db.models.fields.files import FieldFile
 
 #: Types ChangeRequest.diff's DjangoJSONEncoder already knows how to serialize
 #: (it special-cases these in its .default()) — pass them through as-is so
@@ -151,6 +152,18 @@ def _cable_terminations_diff(old_instance, new_instance):
     return diff
 
 
+def _store_upload(value):
+    """
+    A file or image just uploaded in a form (a device type's front image, a
+    plugin's document, ...) is only written to storage when the object is
+    saved, and a held edit is never saved. Store it now, under the name the
+    field would give it, so the request records a file that exists and
+    approving it links the object to that file.
+    """
+    if isinstance(value, FieldFile) and value and not getattr(value, '_committed', True):
+        value.save(value.name, value.file, save=False)
+
+
 def snapshot_update(old_instance, new_instance):
     """{field: {"old": ..., "new": ...}} for fields that actually changed."""
     model = type(new_instance)
@@ -161,6 +174,7 @@ def snapshot_update(old_instance, new_instance):
         old_value = getattr(old_instance, field.attname)
         new_value = getattr(new_instance, field.attname)
         if old_value != new_value:
+            _store_upload(new_value)
             diff[field.attname] = {'old': _json_safe(old_value), 'new': _json_safe(new_value)}
     for field in _m2m_fields(model):
         new_value = _new_m2m_value(new_instance, field)
