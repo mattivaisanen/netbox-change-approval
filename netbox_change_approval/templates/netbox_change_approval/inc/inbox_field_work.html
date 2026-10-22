@@ -7,7 +7,7 @@
       {% trans "Field work" %}
       <span class="badge text-bg-secondary ms-1">{{ field_work_total }}</span>
     </span>
-    <a href="{% url 'plugins:netbox_change_approval:worksheet' %}" class="btn btn-sm btn-ghost-secondary">
+    <a href="{% url 'plugins:netbox_change_approval:worksheet' %}" class="btn btn-sm btn-ghost-secondary" title="{% trans 'Printable work sheet, per site and rack' %}">
       <i class="mdi mdi-printer"></i> {% trans "Work sheet by rack" %}
     </a>
   </h2>
@@ -16,7 +16,8 @@
       <tr class="text-muted small">
         <th>{% trans "Task" %}</th>
         <th class="d-none d-md-table-cell">{% trans "Where" %}</th>
-        <th class="text-nowrap">{% trans "Approved" %}</th>
+        <th class="d-none d-md-table-cell">{% trans "Request" %}</th>
+        <th class="text-nowrap">{% trans "When" %}</th>
         <th></th>
       </tr>
     </thead>
@@ -24,14 +25,15 @@
       {% for task in field_work %}
       <tr>
         <td>{{ task.text }}</td>
-        <td class="d-none d-md-table-cell small text-nowrap">{{ task.site|default:"" }}{% if task.rack %} &rsaquo; {{ task.rack }}{% endif %}</td>
-        <td class="text-muted small text-nowrap"><a href="{{ task.change_request.get_absolute_url }}">#{{ task.change_request.pk }}</a> &middot; {{ task.change_request.applied_at|timesince }}</td>
-        <td class="text-end">
-          <form method="post" action="{% url 'plugins:netbox_change_approval:worksheet' %}" class="m-0">
+        <td class="d-none d-md-table-cell small nbca-who">{{ task.site|default:"" }}{% if task.rack %} &rsaquo; {{ task.rack }}{% endif %}</td>
+        <td class="d-none d-md-table-cell small"><a href="{{ task.change_request.get_absolute_url }}">#{{ task.change_request.pk }}</a></td>
+        <td class="text-muted small text-nowrap">{{ task.change_request.applied_at|timesince }}</td>
+        <td class="text-end text-nowrap align-middle">
+          <form method="post" action="{% url 'plugins:netbox_change_approval:worksheet' %}" class="m-0 d-inline">
             {% csrf_token %}
             <input type="hidden" name="task" value="{{ task.pk }}">
             <input type="hidden" name="back" value="inbox">
-            <button type="submit" class="btn btn-sm btn-outline-success" title="{% trans 'Mark done' %}"><i class="mdi mdi-check"></i></button>
+            <button type="submit" class="btn btn-sm btn-primary" title="{% trans 'Mark done' %}" aria-label="{% trans 'Mark done' %}"><i class="mdi mdi-check"></i></button>
           </form>
         </td>
       </tr>
