@@ -950,3 +950,55 @@ class AwayView(ConditionalLoginRequiredMixin, View):
             'who': form.cleaned_data['stand_in'],
         })
         return redirect(reverse('plugins:netbox_change_approval:away'))
+
+
+class WorkSheetView(ConditionalLoginRequiredMixin, View):
+    """Field work sheet (worksheet.py): physical jobs from applied requests,
+    per site and rack, to tick off on site."""
+    template_name = 'netbox_change_approval/worksheet.html'
+
+    def get(self, request):
+        from dcim.models import Rack, Site
+
+        from .models import WorkTask
+        from .worksheet import open_tasks
+
+        if not request.user.is_authenticated:
+            return redirect(f"{reverse('login')}?next={request.path}")
+        tasks = open_tasks()
+        site = Site.objects.filter(pk=request.GET.get('site') or None).first() if request.GET.get('site', '').isdigit() else None
+        rack = Rack.objects.filter(pk=request.GET.get('rack')).first() if request.GET.get('rack', '').isdigit() else None
+        done = WorkTask.objects.filter(change_request__status=StatusChoices.APPLIED, done_at__isnull=False)
+        if site is not None:
+            tasks, done = tasks.filter(site=site), done.filter(site=site)
+        if rack is not None:
+            tasks, done = tasks.filter(rack=rack), done.filter(rack=rack)
+        related = ('site', 'rack', 'change_request', 'done_by')
+        groups = {}
+        for task in tasks.select_related(*related).order_by('site__name', 'rack__name', 'pk'):
+            groups.setdefault((task.site, task.rack), []).append(task)
+        return render(request, self.template_name, {
+            'groups': [{'site': key[0], 'rack': key[1], 'tasks': value} for key, value in groups.items()],
+            'done': done.select_related(*related).order_by('-done_at')[:20],
+            'site': site,
+            'rack': rack,
+            'open_count': tasks.count(),
+        })
+
+    def post(self, request):
+        from django.utils import timezone
+
+        from .models import WorkTask
+
+        if not request.user.is_authenticated:
+            return redirect(reverse('login'))
+        task = WorkTask.objects.filter(pk=request.POST.get('task') or 0).first()
+        if task is not None:
+            if request.POST.get('undo'):
+                task.done_by, task.done_at = None, None
+            else:
+                task.done_by, task.done_at = request.user, timezone.now()
+            task.save(update_fields=['done_by', 'done_at'])
+        url = reverse('plugins:netbox_change_approval:worksheet')
+        query = request.POST.get('query', '')
+        return redirect(f'{url}?{query}' if query else url)

@@ -21,6 +21,7 @@ __all__ = (
     'ChangeRequestApproval',
     'ChangeRequestComment',
     'ApproverAbsence',
+    'WorkTask',
 )
 
 
@@ -733,3 +734,31 @@ class ApproverAbsence(models.Model):
     def is_active(self, today=None):
         today = today or timezone.localdate()
         return self.starts <= today and (self.ends is None or today <= self.ends)
+
+
+class WorkTask(models.Model):
+    """
+    One physical job on the field work sheet ("Mount sw1 in A3 U20-21"),
+    written for a request while it waits and shown once the request is
+    applied. See worksheet.py.
+    """
+    change_request = models.ForeignKey(
+        to=ChangeRequest,
+        on_delete=models.CASCADE,
+        related_name='work_tasks',
+    )
+    site = models.ForeignKey(to='dcim.Site', on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    rack = models.ForeignKey(to='dcim.Rack', on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    text = models.CharField(max_length=300)
+    done_by = models.ForeignKey(
+        to=settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='+',
+    )
+    done_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['pk']
+        verbose_name = _('work task')
+        verbose_name_plural = _('work tasks')
+
+    def __str__(self):
+        return self.text

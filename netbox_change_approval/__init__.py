@@ -34,6 +34,8 @@ class NetBoxChangeApprovalConfig(PluginConfig):
         # them, ...) belong to its request: only its submitter can change them,
         # and approving or rejecting the device covers them. False turns it off.
         'group_components_with_parent': True,
+        # Field work sheet (worksheet.py): physical jobs from approved changes.
+        'work_sheets': True,
     }
 
     middleware = [
@@ -63,6 +65,8 @@ class NetBoxChangeApprovalConfig(PluginConfig):
         if background_job_scope not in registry_request_processors():
             register_request_processor(background_job_scope)
         notifications.connect()
+        from . import worksheet
+        worksheet.connect()
         backstop.connect()
         patch_bulk_views()
         patch_netbox_table()

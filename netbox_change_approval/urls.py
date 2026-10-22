@@ -8,6 +8,7 @@ app_name = 'netbox_change_approval'
 
 urlpatterns = [
     path('away/', views.AwayView.as_view(), name='away'),
+    path('work-sheet/', views.WorkSheetView.as_view(), name='worksheet'),
     path('rules/', include(get_model_urls('netbox_change_approval', 'approvalrule', detail=False))),
     path('rules/<int:pk>/', include(get_model_urls('netbox_change_approval', 'approvalrule'))),
 

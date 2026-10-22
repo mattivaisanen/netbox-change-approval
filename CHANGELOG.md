@@ -3,6 +3,11 @@
 ## Unreleased
 
 ### New features
+- Field work sheet (Change Approvals → Work Sheet): approved changes that
+  need hands on site become plain tasks ("Mount sw1 in rack A3, U20–21",
+  "Patch sw1 eth1 → pp1 port 3", moves, removals, modules), grouped by site
+  and rack, to tick off and print. Rack and site pages show open tasks.
+  `work_sheets: False` turns it off.
 - Backup approvers: on the new "Away / Stand-in" page an approver names a
   stand-in and the days they're away. Meanwhile the stand-in can decide
   requests routed to the away approver's groups, sees them in their

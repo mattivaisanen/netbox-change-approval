@@ -1,0 +1,68 @@
+{% extends 'generic/_base.html' %}
+{% load helpers %}
+{% load i18n %}
+
+{% block title %}{% trans "Work Sheet" %}{% if rack %} &middot; {{ rack }}{% elif site %} &middot; {{ site }}{% endif %}{% endblock %}
+
+{% block subtitle %}
+  <div class="text-secondary">
+    {% blocktrans count counter=open_count %}{{ counter }} open task from approved changes.{% plural %}{{ counter }} open tasks from approved changes.{% endblocktrans %}
+    {% if site or rack %}<a href="{% url 'plugins:netbox_change_approval:worksheet' %}">{% trans "Show all" %}</a>{% endif %}
+  </div>
+{% endblock %}
+
+{% block control-buttons %}
+  <button type="button" class="btn btn-outline-primary" onclick="window.print()"><i class="mdi mdi-printer"></i> {% trans "Print" %}</button>
+{% endblock %}
+
+{% block content %}
+{% for group in groups %}
+<div class="card mb-3">
+  <h2 class="card-header">
+    {% if group.site %}<a href="?site={{ group.site.pk }}">{{ group.site }}</a>{% else %}{% trans "No site" %}{% endif %}
+    {% if group.rack %} &rsaquo; <a href="?rack={{ group.rack.pk }}">{% trans "Rack" %} {{ group.rack }}</a>{% endif %}
+  </h2>
+  <table class="table table-hover mb-0">
+    {% for task in group.tasks %}
+    <tr>
+      <td class="w-1">
+        <form method="post" class="m-0">
+          {% csrf_token %}
+          <input type="hidden" name="task" value="{{ task.pk }}">
+          <input type="hidden" name="query" value="{{ request.GET.urlencode }}">
+          <button type="submit" class="btn btn-sm btn-outline-success" title="{% trans 'Mark done' %}"><i class="mdi mdi-check"></i></button>
+        </form>
+      </td>
+      <td>{{ task.text }}</td>
+      <td class="text-muted small text-end text-nowrap"><a href="{{ task.change_request.get_absolute_url }}">#{{ task.change_request.pk }}</a> &middot; {% blocktrans with t=task.change_request.applied_at|timesince %}approved {{ t }} ago{% endblocktrans %}</td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% empty %}
+<div class="alert alert-success" role="alert"><i class="mdi mdi-check-circle-outline"></i> {% trans "Nothing to do on site." %}</div>
+{% endfor %}
+
+{% if done %}
+<div class="card mb-3 opacity-75 d-print-none">
+  <h2 class="card-header">{% trans "Recently done" %}</h2>
+  <table class="table table-hover mb-0">
+    {% for task in done %}
+    <tr>
+      <td class="text-decoration-line-through">{{ task.text }}</td>
+      <td class="text-muted small text-nowrap">{{ task.done_by|default:"" }} &middot; {{ task.done_at|timesince }} {% trans "ago" %}</td>
+      <td class="w-1">
+        <form method="post" class="m-0">
+          {% csrf_token %}
+          <input type="hidden" name="task" value="{{ task.pk }}">
+          <input type="hidden" name="undo" value="1">
+          <input type="hidden" name="query" value="{{ request.GET.urlencode }}">
+          <button type="submit" class="btn btn-sm btn-ghost-secondary" title="{% trans 'Not done after all' %}"><i class="mdi mdi-undo"></i></button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endif %}
+{% endblock %}

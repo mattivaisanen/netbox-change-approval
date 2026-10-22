@@ -162,4 +162,6 @@ class AmendEditNotice(PluginTemplateExtension):
 # just move onto the new top-level nav tab itself (NetBox's plugin API has no hook
 # for per-request-dynamic content inside the sidebar/nav tree, only the top navbar,
 # an object list's buttons, and an object detail page's various regions).
-template_extensions = [PendingChangeBanner, PendingRowStyles, InboxNavButton, AmendEditNotice]
+from .worksheet import _panel_class  # noqa: E402
+
+template_extensions = [PendingChangeBanner, PendingRowStyles, InboxNavButton, AmendEditNotice, _panel_class()]
