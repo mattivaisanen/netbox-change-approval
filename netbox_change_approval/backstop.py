@@ -155,6 +155,9 @@ def gate_plain_create(instance, request):
 def gate_plain_save(sender, instance, raw=False, update_fields=None, **kwargs):
     if raw or applying_change.get():
         return
+    from .branching import outside_main
+    if outside_main():
+        return  # see branching.py
     if _write_depth.get() > 1:
         return  # a side effect of another object's save or delete
     if instance.pk is None:

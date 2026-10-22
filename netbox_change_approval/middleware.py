@@ -102,7 +102,23 @@ class ChangeApprovalMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
 
+    #: Whether this process has synced the approver menu permission yet
+    #: (see __init__.py: not done while apps load).
+    _approver_permission_synced = False
+
+    def _sync_approver_permission_once(self):
+        if ChangeApprovalMiddleware._approver_permission_synced:
+            return
+        ChangeApprovalMiddleware._approver_permission_synced = True
+        from .permissions import sync_is_approver_permission
+        try:
+            sync_is_approver_permission()
+        except Exception:
+            import logging
+            logging.getLogger('netbox_change_approval').exception('Could not sync the approver permission')
+
     def __call__(self, request):
+        self._sync_approver_permission_once()
         match = self._resolve_match(request)
         view_class = getattr(match.func, 'view_class', None) if match else None
 

@@ -47,10 +47,6 @@ class NetBoxChangeApprovalConfig(PluginConfig):
     def ready(self):
         super().ready()
 
-        # Local import: must happen after Django's app registry is populated, which is
-        # only guaranteed once ready() runs.
-        from django.db.utils import OperationalError, ProgrammingError
-
         from . import backstop, permissions, signals  # noqa: F401  (connects pre_delete/post_save receivers)
         from . import widgets  # noqa: F401  (runs @register_widget)
         from . import expiry  # noqa: F401  (registers the hourly expiry job)
@@ -72,15 +68,26 @@ class NetBoxChangeApprovalConfig(PluginConfig):
         patch_netbox_table()
         patch_rack_elevation_svg()
 
-        try:
-            # Covers process start and default_approver_group config changes, which
-            # don't go through ApprovalRoutingRule at all (signals.py's post_save/
-            # post_delete receivers handle every *other* trigger for this). Swallow
-            # DB errors here specifically because this can run before the first
-            # `migrate` has ever created this plugin's tables.
-            permissions.sync_is_approver_permission()
-        except (OperationalError, ProgrammingError):
-            pass
+        from . import branching
+        branching.connect()
+
+        # Keeping the "Approvals" menu permission in sync with the approver
+        # groups needs the database, which Django (and netbox-branching)
+        # don't want touched while apps are still loading. So it runs after
+        # every `migrate` (part of every install and upgrade) and once per
+        # process on its first request (covers a changed
+        # default_approver_group); rule changes resync it themselves
+        # (signals.py).
+        from django.db.models.signals import post_migrate
+        post_migrate.connect(
+            _sync_after_migrate, sender=self,
+            dispatch_uid='netbox_change_approval:sync_after_migrate',
+        )
+
+
+def _sync_after_migrate(**kwargs):
+    from .permissions import sync_is_approver_permission
+    sync_is_approver_permission()
 
 
 def registry_request_processors():

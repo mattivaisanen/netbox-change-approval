@@ -66,8 +66,12 @@ field, including bulk edit's "Add tags" / "Remove tags" (and the other
 
 ## Installation
 
+The plugin isn't on PyPI; install it from GitHub into NetBox's own Python
+environment (on a standard install, `source /opt/netbox/venv/bin/activate`
+first):
+
 ```bash
-pip install netbox-change-approval
+pip install git+https://github.com/mattivaisanen/netbox-change-approval.git
 ```
 
 Add it to your NetBox `configuration.py`:
@@ -105,6 +109,30 @@ python manage.py migrate netbox_change_approval
 
 Create the `Change Approvers` group (or whatever name you configured) under
 **Admin → Groups** and add your approvers to it as members.
+
+### Upgrading
+
+`--force-reinstall --no-deps` makes pip fetch the latest code even if it
+thinks the installed version is current; then apply any new database changes
+and restart NetBox and its worker:
+
+```bash
+pip install --upgrade --force-reinstall --no-deps git+https://github.com/mattivaisanen/netbox-change-approval.git
+cd /opt/netbox/netbox && python manage.py migrate
+sudo systemctl restart netbox netbox-rq
+```
+
+**Admin → System → Plugins** shows the installed version; compare it with
+`CHANGELOG.md`.
+
+### With netbox-branching
+
+Approval covers main only. Edits inside a branch aren't gated (nothing
+reaches main until the branch is merged), and merging, reverting or syncing
+a branch is applied as is: control who may merge with netbox-branching's
+own permissions. This plugin's rules and change requests always stay in
+main. On netbox-branching releases without plugin resolvers, also add
+`'netbox_change_approval.*'` to netbox-branching's `exempt_models` setting.
 
 ## Using it
 

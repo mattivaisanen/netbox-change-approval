@@ -133,6 +133,9 @@ def _gate(instance, action, request):
     """
     if applying_change.get():
         return None
+    from .branching import outside_main
+    if outside_main():
+        return None  # netbox-branching handles it; see branching.py
 
     model = type(instance)
     content_type = ObjectType.objects.get_for_model(model)
