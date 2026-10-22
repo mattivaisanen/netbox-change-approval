@@ -40,6 +40,10 @@ menu = PluginMenu(
                 link_text='All Change Requests',
             ),
             PluginMenuItem(
+                link='plugins:netbox_change_approval:changeset_list',
+                link_text='Change Sets',
+            ),
+            PluginMenuItem(
                 link='plugins:netbox_change_approval:worksheet',
                 link_text='Work Sheet',
             ),

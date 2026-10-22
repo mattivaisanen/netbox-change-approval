@@ -1,0 +1,46 @@
+{% extends 'generic/_base.html' %}
+{% load i18n %}
+
+{% block title %}{% trans "Change Sets" %}{% endblock %}
+
+{% block subtitle %}
+  <div class="text-secondary">{% trans "Collect several changes (a device, its cables, IPs, a VM, ...) and send them for approval as one." %}</div>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-12 col-lg-5">
+    <form method="post" class="card">
+      {% csrf_token %}
+      <h2 class="card-header">{% trans "Start a change set" %}</h2>
+      <div class="card-body">
+        <div class="mb-2">{{ form.name.label_tag }} {{ form.name }}</div>
+        <div class="mb-2">{{ form.ticket.label_tag }} {{ form.ticket }}</div>
+        <div class="text-muted small">{% trans "Until you submit it, changes you make go into it and wait there; approvers don't see them yet." %}</div>
+      </div>
+      <div class="card-footer text-end">
+        <button type="submit" class="btn btn-primary"><i class="mdi mdi-play"></i> {% trans "Start" %}</button>
+      </div>
+    </form>
+  </div>
+  <div class="col-12 col-lg-7">
+    <div class="card">
+      <h2 class="card-header">{% trans "Your change sets" %}</h2>
+      {% if change_sets %}
+      <table class="table table-hover mb-0">
+        {% for cs in change_sets %}
+        <tr>
+          <td><a href="{{ cs.get_absolute_url }}">{{ cs.name }}</a>{% if cs.ticket %} <span class="text-muted">&middot; {{ cs.ticket }}</span>{% endif %}
+            {% if active and active.pk == cs.pk %}<span class="badge text-bg-blue ms-1">{% trans "active" %}</span>{% endif %}</td>
+          <td><span class="badge {% if cs.status == 'draft' %}text-bg-secondary{% else %}text-bg-yellow{% endif %}">{{ cs.get_status_display }}</span></td>
+          <td class="text-muted small text-end">{{ cs.created|timesince }} {% trans "ago" %}</td>
+        </tr>
+        {% endfor %}
+      </table>
+      {% else %}
+      <div class="card-body text-muted">{% trans "None yet." %}</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

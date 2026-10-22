@@ -14,7 +14,7 @@ from netbox.views import generic
 from utilities.forms.forms import ConfirmationForm
 from utilities.views import ConditionalLoginRequiredMixin, register_model_view
 
-from . import absence, amend, approvals, components, filtersets, forms, inbox, notifications, permissions, placement, revision, serialization, tables
+from . import absence, amend, approvals, changesets, components, filtersets, forms, inbox, notifications, permissions, placement, revision, serialization, tables
 from .exceptions import AlreadyDecided, ChangeConflict
 from .rule_access import RuleReadMixin, RuleWriteMixin
 from .object_actions import BulkApprove, BulkReject
@@ -324,6 +324,7 @@ class ChangeRequestView(_AnyLoggedInUserCanView, generic.ObjectView):
             'object_missing': object_missing,
             'placement_rows': placement.placement_rows(instance),
             'rack_previews': placement.rack_previews(instance),
+            'change_set': changesets.for_request(instance),
             # Unchanged placement (site › rack › ...) for the "Where" line;
             # changed placement fields are rows of the change table already.
             'where': [
@@ -1002,3 +1003,101 @@ class WorkSheetView(ConditionalLoginRequiredMixin, View):
         url = reverse('plugins:netbox_change_approval:worksheet')
         query = request.POST.get('query', '')
         return redirect(f'{url}?{query}' if query else url)
+
+
+class ChangeSetListView(ConditionalLoginRequiredMixin, View):
+    """Your change sets, and starting a new one (changesets.py)."""
+    def get(self, request):
+        from .changesets import active_for
+        from .models import ChangeSet
+
+        if not request.user.is_authenticated:
+            return redirect(f"{reverse('login')}?next={request.path}")
+        return render(request, 'netbox_change_approval/changeset_list.html', {
+            'form': forms.ChangeSetForm(),
+            'change_sets': ChangeSet.objects.filter(created_by=request.user)[:50],
+            'active': active_for(request),
+        })
+
+    def post(self, request):
+        from .changesets import activate
+        from .models import ChangeSet
+
+        if not request.user.is_authenticated:
+            return redirect(reverse('login'))
+        form = forms.ChangeSetForm(request.POST)
+        if not form.is_valid():
+            messages.error(request, _('Give the change set a name.'))
+            return redirect(reverse('plugins:netbox_change_approval:changeset_list'))
+        change_set = ChangeSet.objects.create(created_by=request.user, **form.cleaned_data)
+        activate(request, change_set)
+        messages.success(request, _(
+            'Change set "%(name)s" started. Changes you make now go into it; submit it when done.'
+        ) % {'name': change_set.name})
+        return redirect(request.POST.get('return_url') or change_set.get_absolute_url())
+
+
+class ChangeSetView(ConditionalLoginRequiredMixin, View):
+    """One change set: its changes, and Submit / Discard / Continue / Leave."""
+    def _get(self, request, pk):
+        from .models import ChangeSet
+
+        return get_object_or_404(ChangeSet, pk=pk)
+
+    def get(self, request, pk):
+        from . import changesets
+
+        if not request.user.is_authenticated:
+            return redirect(f"{reverse('login')}?next={request.path}")
+        change_set = self._get(request, pk)
+        members = list(change_set.requests().select_related('content_type', 'submitted_by').order_by('pk'))
+        visible = [cr for cr in members if permissions.can_view_change_request(request.user, cr)]
+        if change_set.created_by_id != request.user.pk and not visible:
+            messages.warning(request, _("You don't have access to this change set."))
+            return redirect(reverse('plugins:netbox_change_approval:changerequest_inbox'))
+        for cr in visible:
+            cr.quick_rows = _diff_rows(cr)
+        pending = [cr for cr in members if cr.status == StatusChoices.PENDING]
+        return render(request, 'netbox_change_approval/changeset.html', {
+            'object': change_set,
+            'members': visible,
+            'pending': pending,
+            'is_owner': change_set.created_by_id == request.user.pk,
+            'is_active': (changesets.active_for(request) or None) == change_set,
+            'can_decide': bool(pending) and _can_decide(request.user, pending[0]),
+        })
+
+    def post(self, request, pk):
+        from . import changesets
+
+        change_set = self._get(request, pk)
+        if change_set.created_by_id != request.user.pk:
+            messages.error(request, _('Only its author can change a change set.'))
+            return redirect(change_set.get_absolute_url())
+        action = request.POST.get('action')
+        if change_set.status != change_set.DRAFT and action != 'leave':
+            messages.warning(request, _('This change set was already submitted.'))
+            return redirect(change_set.get_absolute_url())
+        if action == 'continue':
+            changesets.activate(request, change_set)
+            messages.success(request, _('Changes you make now go into "%(name)s".') % {'name': change_set})
+        elif action == 'leave':
+            changesets.leave(request)
+            messages.info(request, _('Left "%(name)s". Your changes stay in it until you submit or discard it.') % {
+                'name': change_set,
+            })
+        elif action == 'submit':
+            if not change_set.requests().filter(status=StatusChoices.PENDING).exists():
+                messages.warning(request, _('There is nothing in this change set to submit yet.'))
+                return redirect(change_set.get_absolute_url())
+            count = changesets.submit(change_set)
+            changesets.leave(request)
+            messages.success(request, _('Submitted "%(name)s" (%(count)d changes) for approval.') % {
+                'name': change_set, 'count': count,
+            })
+        elif action == 'discard':
+            count = changesets.discard(change_set, request.user)
+            changesets.leave(request)
+            messages.success(request, _('Discarded the change set and withdrew %(count)d change(s).') % {'count': count})
+            return redirect(reverse('plugins:netbox_change_approval:changeset_list'))
+        return redirect(change_set.get_absolute_url())

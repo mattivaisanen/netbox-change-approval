@@ -164,4 +164,26 @@ class AmendEditNotice(PluginTemplateExtension):
 # an object list's buttons, and an object detail page's various regions).
 from .worksheet import _panel_class  # noqa: E402
 
-template_extensions = [PendingChangeBanner, PendingRowStyles, InboxNavButton, AmendEditNotice, _panel_class()]
+
+class ChangeSetBanner(PluginTemplateExtension):
+    """While a change set is active: a bar on every page saying so, with
+    Review & submit and Leave (changesets.py)."""
+    def head(self):
+        from django.middleware.csrf import get_token
+
+        from .changesets import active_for
+
+        request = self.context.get('request')
+        change_set = active_for(request)
+        if change_set is None:
+            return ''
+        from .models import StatusChoices
+
+        return self.render('netbox_change_approval/changeset_banner.html', {
+            'change_set': change_set,
+            'count': change_set.requests().filter(status=StatusChoices.PENDING).count(),
+            'csrf': get_token(request),
+        })
+
+
+template_extensions = [PendingChangeBanner, PendingRowStyles, InboxNavButton, AmendEditNotice, _panel_class(), ChangeSetBanner]

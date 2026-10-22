@@ -1,3 +1,5 @@
+import uuid
+
 from django.conf import settings
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.core.validators import MaxValueValidator, MinValueValidator
@@ -22,6 +24,7 @@ __all__ = (
     'ChangeRequestComment',
     'ApproverAbsence',
     'WorkTask',
+    'ChangeSet',
 )
 
 
@@ -762,3 +765,41 @@ class WorkTask(models.Model):
 
     def __str__(self):
         return self.text
+
+
+class ChangeSet(models.Model):
+    """
+    A named bundle of changes ("Install sw1 in rack A3") its author collects
+    while working, then submits to be decided as one. Its requests share its
+    batch_id, so they are approved or rejected together like a bulk edit.
+    See changesets.py.
+    """
+    DRAFT = 'draft'
+    SUBMITTED = 'submitted'
+
+    name = models.CharField(max_length=100)
+    ticket = models.CharField(max_length=100, blank=True)
+    created_by = models.ForeignKey(
+        to=settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='+',
+    )
+    created = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(
+        max_length=10, default=DRAFT, choices=((DRAFT, _('Draft')), (SUBMITTED, _('Submitted'))),
+    )
+    submitted_at = models.DateTimeField(null=True, blank=True)
+    batch_id = models.UUIDField(unique=True, default=uuid.uuid4, editable=False)
+
+    class Meta:
+        ordering = ['-created']
+        verbose_name = _('change set')
+        verbose_name_plural = _('change sets')
+
+    def __str__(self):
+        return self.name
+
+    def get_absolute_url(self):
+        return reverse('plugins:netbox_change_approval:changeset', args=[self.pk])
+
+    def requests(self):
+        return ChangeRequest.objects.filter(batch_id=self.batch_id)
+

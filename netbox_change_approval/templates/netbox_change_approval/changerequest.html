@@ -15,6 +15,7 @@
       {% blocktrans with who=object.submitted_by|default:_("unknown user") when=object.submitted_at|timesince %}by {{ who }}, {{ when }} ago{% endblocktrans %}
       {% if object.revision > 1 %}&middot; {% blocktrans with n=object.revision %}revision {{ n }}{% endblocktrans %}{% endif %}
     </span>
+    {% if change_set %}<a href="{{ change_set.get_absolute_url }}" class="badge text-bg-blue text-decoration-none"><i class="mdi mdi-package-variant-closed"></i> {{ change_set.name }}{% if change_set.status == 'draft' %} ({% trans "draft" %}){% endif %}</a>{% endif %}
   </div>
 {% endblock %}
 

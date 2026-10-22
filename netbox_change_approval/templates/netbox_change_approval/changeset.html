@@ -1,0 +1,59 @@
+{% extends 'generic/_base.html' %}
+{% load helpers %}
+{% load i18n %}
+
+{% block title %}{% trans "Change set" %}: {{ object.name }}{% endblock %}
+
+{% block subtitle %}
+  <div class="text-secondary d-flex flex-wrap align-items-center gap-2 mb-2">
+    <span class="badge {% if object.status == 'draft' %}text-bg-secondary{% else %}text-bg-yellow{% endif %}">{{ object.get_status_display }}</span>
+    {% if is_active %}<span class="badge text-bg-blue">{% trans "active" %}</span>{% endif %}
+    <span>{{ object.created_by|default:"" }} &middot; {{ object.created|timesince }} {% trans "ago" %}{% if object.ticket %} &middot; {% trans "ticket" %} {{ object.ticket }}{% endif %}</span>
+  </div>
+{% endblock %}
+
+{% block control-buttons %}
+  {% if is_owner and object.status == 'draft' %}
+  <form method="post" class="d-flex gap-2 m-0">
+    {% csrf_token %}
+    {% if is_active %}
+      <button type="submit" name="action" value="leave" class="btn btn-outline-secondary">{% trans "Leave" %}</button>
+    {% else %}
+      <button type="submit" name="action" value="continue" class="btn btn-outline-primary"><i class="mdi mdi-play"></i> {% trans "Continue working in it" %}</button>
+    {% endif %}
+    <button type="submit" name="action" value="discard" class="btn btn-outline-danger"
+            onclick="return confirm('{% trans "Withdraw every change in this change set?" %}')"><i class="mdi mdi-delete-outline"></i> {% trans "Discard" %}</button>
+    <button type="submit" name="action" value="submit" class="btn btn-primary"><i class="mdi mdi-send"></i> {% trans "Submit for approval" %}</button>
+  </form>
+  {% elif can_decide %}
+    {% with lead=pending.0 %}
+    <a href="{% url 'plugins:netbox_change_approval:changerequest_approve' pk=lead.pk %}" class="btn btn-success"><i class="mdi mdi-check"></i> {% trans "Approve all" %}</a>
+    <a href="{% url 'plugins:netbox_change_approval:changerequest_sendback' pk=lead.pk %}" class="btn btn-warning"><i class="mdi mdi-undo-variant"></i> {% trans "Send back" %}</a>
+    <a href="{% url 'plugins:netbox_change_approval:changerequest_reject' pk=lead.pk %}" class="btn btn-danger"><i class="mdi mdi-close"></i> {% trans "Reject all" %}</a>
+    {% endwith %}
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="card">
+  <h2 class="card-header">{% blocktrans count counter=members|length %}{{ counter }} change{% plural %}{{ counter }} changes{% endblocktrans %}</h2>
+  {% if members %}
+  <table class="table table-hover mb-0">
+    {% for cr in members %}
+    <tr>
+      <td class="w-1"><span class="badge text-bg-{{ cr.get_action_color }}">{{ cr.get_action_display }}</span></td>
+      <td><a href="{{ cr.get_absolute_url }}">{{ cr.content_type.name|capfirst }} {{ cr.object_repr }}</a></td>
+      <td class="text-end">{% badge cr.get_status_display bg_color=cr.get_status_color %}</td>
+    </tr>
+    {% if cr.quick_rows %}
+    <tr><td></td><td colspan="2">{% include 'netbox_change_approval/inc/quick_diff.html' with rows=cr.quick_rows %}</td></tr>
+    {% endif %}
+    {% endfor %}
+  </table>
+  {% else %}
+  <div class="card-body text-muted">
+    {% if is_owner and object.status == 'draft' %}{% trans "Nothing yet. While this change set is active, make your changes as usual; each one that needs approval lands here." %}{% else %}{% trans "No changes." %}{% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

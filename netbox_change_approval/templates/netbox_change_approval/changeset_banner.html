@@ -1,0 +1,26 @@
+{% load i18n %}
+{# Active change set bar, moved to the top of the page content once it loads (no plugin hook there). #}
+<template id="nbca-changeset-bar">
+  <div class="nbca-changeset-bar alert alert-info d-flex flex-wrap align-items-center justify-content-between gap-2 mx-3 mt-2 mb-0 py-2 d-print-none" role="status">
+    <span>
+      <i class="mdi mdi-package-variant-closed"></i>
+      {% blocktrans with name=change_set.name %}Working in change set <strong>{{ name }}</strong>{% endblocktrans %}
+      &middot; {% blocktrans count counter=count %}{{ counter }} change{% plural %}{{ counter }} changes{% endblocktrans %}
+    </span>
+    <span class="d-flex gap-2">
+      <form method="post" action="{{ change_set.get_absolute_url }}" class="m-0">
+        <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf }}">
+        <button type="submit" name="action" value="leave" class="btn btn-sm btn-outline-secondary">{% trans "Leave" %}</button>
+      </form>
+      <a href="{{ change_set.get_absolute_url }}" class="btn btn-sm btn-primary">{% trans "Review & submit" %}</a>
+    </span>
+  </div>
+</template>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    var tpl = document.getElementById('nbca-changeset-bar');
+    var target = document.querySelector('.page-wrapper') || document.querySelector('main') || document.body;
+    if (!tpl || !target || document.querySelector('.nbca-changeset-bar')) return;
+    target.insertBefore(tpl.content.cloneNode(true), target.firstChild);
+  });
+</script>

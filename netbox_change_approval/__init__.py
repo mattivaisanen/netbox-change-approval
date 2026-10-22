@@ -36,6 +36,8 @@ class NetBoxChangeApprovalConfig(PluginConfig):
         'group_components_with_parent': True,
         # Field work sheet (worksheet.py): physical jobs from approved changes.
         'work_sheets': True,
+        # Change sets (changesets.py): collect changes, submit them as one.
+        'change_sets': True,
     }
 
     middleware = [
@@ -67,6 +69,8 @@ class NetBoxChangeApprovalConfig(PluginConfig):
         notifications.connect()
         from . import worksheet
         worksheet.connect()
+        from . import changesets
+        changesets.connect()
         backstop.connect()
         patch_bulk_views()
         patch_netbox_table()

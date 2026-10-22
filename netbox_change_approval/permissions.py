@@ -198,6 +198,9 @@ def can_decide(user, change_request):
         return False
     if change_request.submitted_by_id is not None and change_request.submitted_by_id == user.pk:
         return False
+    from .changesets import is_draft
+    if is_draft(change_request):
+        return False  # its author hasn't submitted the change set yet
     if user.is_superuser:
         return True
     if change_request.approver_group_id is None:
@@ -217,6 +220,10 @@ def approver_queue(user, queryset):
     if not user.is_authenticated:
         return queryset.none()
     queryset = queryset.exclude(submitted_by=user)
+    from .changesets import draft_batch_ids
+    drafts = draft_batch_ids()
+    if drafts:
+        queryset = queryset.exclude(batch_id__in=drafts)
     # Already approved by this user, waiting for another approver: nothing
     # left for them to do.
     queryset = queryset.exclude(Exists(ChangeRequestApproval.objects.filter(
@@ -242,10 +249,10 @@ def sync_is_approver_permission():
     an admin-facing permission.
     """
     from core.models import ObjectType
-    from netbox.plugins.utils import get_plugin_config
     from users.models import Group, ObjectPermission
 
     from .models import ApprovalRule, ChangeRequest, RuleOutcomeChoices
+    from netbox.plugins.utils import get_plugin_config
 
     group_ids = set(
         ApprovalRule.objects.filter(

@@ -148,6 +148,9 @@ def _after_commit(pk, old_status):
     if status == StatusChoices.PENDING:
         if change_request.auto_approved:
             return
+        from .changesets import is_draft
+        if is_draft(change_request):
+            return  # a draft change set notifies when it is submitted
         recipients = [u for u in _approvers(change_request) if u.pk != change_request.submitted_by_id]
         notify(recipients, change_request, NEEDS_APPROVAL)
         return

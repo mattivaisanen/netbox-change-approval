@@ -173,3 +173,14 @@ class AwayForm(forms.Form):
         if data.get('starts') and data.get('ends') and data['ends'] < data['starts']:
             raise forms.ValidationError({'ends': _('Must be on or after the start date.')})
         return data
+
+
+class ChangeSetForm(forms.Form):
+    name = forms.CharField(
+        label=_('Name'), max_length=100,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': _('e.g. Install sw1 in rack A3')}),
+    )
+    ticket = forms.CharField(
+        label=_('Ticket'), max_length=100, required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': _('optional')}),
+    )
