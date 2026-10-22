@@ -193,3 +193,28 @@ class MoreTaskKindsTests(WorkSheetTests):
             finally:
                 current_request.reset(token)
         self.assertFalse(WorkTask.objects.exists())
+
+
+class WorkSheetVisibilityTests(TestCase):
+    """The work sheet only shows, and lets you tick, jobs from requests you
+    may see."""
+
+    setUpTestData = classmethod(WorkSheetTests.setUpTestData.__func__)
+    _create_device = WorkSheetTests._create_device
+
+    def test_outsider_sees_and_ticks_nothing(self):
+        device, change_request = self._create_device()
+        change_request.apply(user=self.approver)
+        task = WorkTask.objects.get(change_request=change_request)
+        outsider = User.objects.create(username='outsider')  # no view permission on devices
+
+        self.client.force_login(outsider)
+        response = self.client.get(reverse('plugins:netbox_change_approval:worksheet'))
+        self.assertNotContains(response, 'Mount sw1')
+        self.client.post(reverse('plugins:netbox_change_approval:worksheet'), {'task': task.pk})
+        task.refresh_from_db()
+        self.assertIsNone(task.done_at)
+
+        self.client.force_login(self.alice)  # the submitter
+        response = self.client.get(reverse('plugins:netbox_change_approval:worksheet'))
+        self.assertContains(response, 'Mount sw1')

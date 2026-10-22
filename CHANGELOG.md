@@ -47,6 +47,11 @@
   links. A bulk action stays one item on one page.
 
 ### Bug fixes
+- The field work sheet only shows, and lets you tick off, jobs from
+  requests you're allowed to see; before, any logged-in user saw and could
+  tick every job.
+- Starting a change set only returns to pages on this site (a crafted link
+  could send you elsewhere).
 - Rejecting several requests at once (a batch, or Reject Selected) no
   longer crashes when one new object depends on another (a new device in a
   new rack): newer objects are removed first. If an object can't be removed
