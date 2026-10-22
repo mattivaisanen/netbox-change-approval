@@ -276,3 +276,21 @@ class WidgetQuickViewTests(_Base):
         html = ApprovalsWidget().render(request)
         self.assertIn(f'nbca-wq-{change_request.pk}', html)
         self.assertIn('changed', html)
+
+
+class AllChangeRequestsLinkTests(_Base):
+    def test_inbox_links_to_all_change_requests(self):
+        self.client.force_login(self.alice)
+        all_url = reverse('plugins:netbox_change_approval:changerequest_all')
+        self.assertContains(self.client.get(reverse('plugins:netbox_change_approval:changerequest_inbox')), all_url)
+        self.assertEqual(self.client.get(all_url).status_code, 200)
+
+    def test_menu_link_is_not_a_prefix_of_other_pages(self):
+        # NetBox highlights a menu item whose address starts the current
+        # page's address; the inbox and Approvals must not light it up.
+        from ..navigation import menu
+
+        all_item = next(i for group in menu.groups for i in group.items if i.link_text == 'All Change Requests')
+        url = reverse(all_item.link)
+        for name in ('changerequest_inbox', 'changerequest_approvals'):
+            self.assertFalse(reverse(f'plugins:netbox_change_approval:{name}').startswith(url))

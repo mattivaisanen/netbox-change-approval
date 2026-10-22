@@ -8,6 +8,12 @@
   <div class="text-secondary">{% trans "Your change requests, and what is waiting on you." %}</div>
 {% endblock %}
 
+{% block control-buttons %}
+  <a href="{% url 'plugins:netbox_change_approval:changerequest_all' %}" class="btn btn-outline-primary">
+    <i class="mdi mdi-format-list-bulleted"></i> {% trans "All change requests" %}
+  </a>
+{% endblock %}
+
 {% block head %}
   {{ block.super }}
   <style>

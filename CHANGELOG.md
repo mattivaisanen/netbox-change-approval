@@ -3,12 +3,15 @@
 ## Unreleased
 
 ### New features
+- The Approval Inbox has an "All change requests" button.
 - The Pending Approvals dashboard widget has a quick view of each request's
   changes, like the Approval Inbox.
 - The Approval Inbox has pages: 50 items per section, with Previous/Next
   links. A bulk action stays one item on one page.
 
 ### Bug fixes
+- "All Change Requests" in the Change Approvals menu was highlighted on every
+  page under it (Approval Inbox, Approvals), whatever page was open.
 - Two decisions on the same request at the same moment can no longer
   overwrite each other. Before, a rejection landing just after an approval
   could mark the applied change as rejected, and for a new object delete it.

@@ -316,6 +316,14 @@ class ChangeRequestListView(_AnyLoggedInUserCanView, generic.ObjectListView):
         return permissions.visible_change_requests(request.user, super().get_queryset(request))
 
 
+@register_model_view(ChangeRequest, 'all', path='all', detail=False)
+class AllChangeRequestsView(ChangeRequestListView):
+    """The same list under its own address, for the menu. NetBox highlights a
+    menu item whose address is the start of the current page's address, so
+    linking the menu to change-requests/ lit "All Change Requests" up on the
+    inbox and Approvals pages too (both live under change-requests/)."""
+
+
 @register_model_view(ChangeRequest, 'mine', path='mine', detail=False)
 class MyChangeRequestsView(View):
     """Old "My Requests" page, replaced by the Approval Inbox. Kept as a
