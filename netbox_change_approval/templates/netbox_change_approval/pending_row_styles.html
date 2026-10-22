@@ -1,3 +1,4 @@
+{% load i18n %}
 <style>
   /* table_styling.py's PENDING_ROW_CSS_CLASS. box-shadow, not border: borders on
      <tr>/<td> interact badly with border-collapse (double/missing lines at
@@ -21,4 +22,89 @@
     border-top-right-radius: var(--tblr-border-radius-sm, 2px);
     border-bottom-right-radius: var(--tblr-border-radius-sm, 2px);
   }
+
+  /* By action (pending_marks.py): a stripe on the left in the action's color
+     instead of the yellow outline. Green = new, blue = edit, red = delete,
+     as in NetBox's own change log. */
+  tr.nbca-pending-create > td, tr.nbca-pending-update > td, tr.nbca-pending-delete > td,
+  tr.nbca-pending-create > td:last-child, tr.nbca-pending-update > td:last-child, tr.nbca-pending-delete > td:last-child {
+    box-shadow: none;
+    border-radius: 0;
+  }
+  tr.nbca-pending-create > td:first-child { box-shadow: inset 4px 0 0 0 var(--tblr-green, #2fb344); }
+  tr.nbca-pending-update > td:first-child { box-shadow: inset 4px 0 0 0 var(--tblr-blue, #206bc4); }
+  tr.nbca-pending-delete > td:first-child { box-shadow: inset 4px 0 0 0 var(--tblr-red, #d63939); }
+  tr.nbca-pending-delete > td:not(:first-child):not(.noprint) {
+    text-decoration: line-through;
+    opacity: .6;
+  }
+  .nbca-chip {
+    display: inline-block;
+    margin-left: .4rem;
+    padding: 0 .4rem;
+    border: 1px solid currentColor;
+    border-radius: 1rem;
+    font-size: .75em;
+    line-height: 1.4;
+    white-space: nowrap;
+    text-decoration: none !important;
+    vertical-align: middle;
+  }
+  .nbca-chip:hover { text-decoration: underline !important; }
+  .nbca-chip-create { color: var(--tblr-green, #2fb344) !important; }
+  .nbca-chip-update { color: var(--tblr-blue, #206bc4) !important; }
+  .nbca-chip-delete { color: var(--tblr-red, #d63939) !important; }
+  tr.nbca-pending-delete .nbca-chip { opacity: 1; }
+  .nbca-old { text-decoration: line-through; opacity: .6; margin-right: .25rem; }
+  .nbca-new { color: var(--tblr-blue, #206bc4); font-weight: 600; }
+  .nbca-new::before { content: "\2192\00a0"; font-weight: normal; opacity: .7; }
 </style>
+<script>
+  /* Adds the chip and the old -> new values to rows table_styling.py marked.
+     Runs again after NetBox swaps a table in (sorting, paging, filtering). */
+  (function () {
+    var labels = {
+      create: "{% trans '+ new, awaiting approval' %}",
+      update: "{% trans '✎ edit pending' %}",
+      'delete': "{% trans '✕ delete pending' %}"
+    };
+    function mark(root) {
+      (root || document).querySelectorAll('tr[data-nbca-action]:not([data-nbca-done])').forEach(function (row) {
+        row.setAttribute('data-nbca-done', '1');
+        var action = row.getAttribute('data-nbca-action');
+        var cells = Array.prototype.filter.call(row.children, function (td) {
+          return !td.querySelector('input[type=checkbox]') && !td.classList.contains('noprint');
+        });
+        var target = cells.find(function (td) { return td.querySelector('a'); }) || cells[0];
+        if (target) {
+          var chip = document.createElement('a');
+          chip.className = 'nbca-chip nbca-chip-' + action;
+          chip.href = row.getAttribute('data-nbca-url') || '#';
+          chip.textContent = labels[action] || action;
+          var summary = row.getAttribute('data-nbca-summary');
+          chip.title = summary ? summary : chip.textContent;
+          target.appendChild(chip);
+        }
+        if (action !== 'update') return;
+        var changes = {};
+        try { changes = JSON.parse(row.getAttribute('data-nbca-changes') || '{}'); } catch (e) { return; }
+        Object.keys(changes).forEach(function (col) {
+          var td = row.querySelector('td[data-nbca-col="' + col + '"]');
+          if (!td) return;
+          var old = document.createElement('span');
+          old.className = 'nbca-old';
+          while (td.firstChild) old.appendChild(td.firstChild);
+          var now = document.createElement('span');
+          now.className = 'nbca-new';
+          now.textContent = changes[col];
+          td.appendChild(old);
+          td.appendChild(now);
+          td.title = "{% trans 'Pending edit' %}";
+        });
+      });
+    }
+    document.addEventListener('DOMContentLoaded', function () { mark(); });
+    document.addEventListener('htmx:afterSwap', function (e) { mark(e.target); });
+    if (document.readyState !== 'loading') mark();
+  })();
+</script>

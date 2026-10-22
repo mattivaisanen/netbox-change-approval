@@ -28,14 +28,15 @@ PENDING_DEVICE_STROKE = 'var(--tblr-warning, #f59f00)'
 _patched = False
 
 
-def _pending_device_pks(rack):
+def _pending_device_actions(rack):
+    """{device pk: pending action} for the devices in this rack."""
     content_type = ObjectType.objects.get_for_model(rack.devices.model)
-    return set(
+    return dict(
         ChangeRequest.objects.filter(
             content_type=content_type,
             status=StatusChoices.PENDING,
             object_id__in=rack.devices.values_list('pk', flat=True),
-        ).values_list('object_id', flat=True)
+        ).values_list('object_id', 'action')
     )
 
 
@@ -54,19 +55,29 @@ def patch_rack_elevation_svg():
 
     def _setup_drawing(self):
         drawing = original_setup_drawing(self)
-        drawing.defs.add(drawing.style(
+        from . import pending_marks
+
+        rules = (
             f'.nbca-pending-device {{ fill: none; stroke: {PENDING_DEVICE_STROKE}; '
             f'stroke-width: 2px; pointer-events: none; }}'
-        ))
+        )
+        if pending_marks.by_action():
+            # Same colors as the object lists: green new, blue edit, red
+            # (dashed) delete. See pending_marks.py.
+            for action, (_var, hex_color) in pending_marks.ACTION_COLORS.items():
+                rules += f' .nbca-pending-{action} {{ stroke: {hex_color}; stroke-width: 3px; }}'
+            rules += ' .nbca-pending-delete { stroke-dasharray: 6 3; }'
+        drawing.defs.add(drawing.style(rules))
         # Cached per-instance (not per-call): _draw_device fires once per
         # device per render(), and render() is one instance per face/request —
         # one query here beats one per device drawn.
-        self._nbca_pending_pks = _pending_device_pks(self.rack)
+        self._nbca_pending_actions = _pending_device_actions(self.rack)
         return drawing
 
     def _draw_device(self, device, coords, size, color=None, image=None):
         original_draw_device(self, device, coords, size, color=color, image=image)
-        if device.pk in getattr(self, '_nbca_pending_pks', ()):
+        action = getattr(self, '_nbca_pending_actions', {}).get(device.pk)
+        if action is not None:
             # Inset 1px and rounded to read as a slight outline sitting inside
             # the device's own slot, not a line straddling the boundary with
             # its neighbor — same look pending_row_styles.html gives table rows.
@@ -75,7 +86,7 @@ def patch_rack_elevation_svg():
                 (coords[0] + inset, coords[1] + inset),
                 (size[0] - inset * 2, size[1] - inset * 2),
                 rx=2, ry=2,
-                class_='nbca-pending-device',
+                class_=f'nbca-pending-device nbca-pending-{action}',
             ))
 
     RackElevationSVG._setup_drawing = _setup_drawing

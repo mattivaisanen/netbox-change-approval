@@ -1,5 +1,5 @@
 {% load helpers %}
-<div class="alert alert-warning d-flex align-items-center justify-content-between" role="alert">
+<div class="alert alert-warning d-flex align-items-center justify-content-between" role="alert"{% if by_action %} style="border-left: 4px solid {% if change_request.action == 'create' %}var(--tblr-green, #2fb344){% elif change_request.action == 'delete' %}var(--tblr-red, #d63939){% else %}var(--tblr-blue, #206bc4){% endif %}"{% endif %}>
   <div>
     <i class="mdi mdi-clock-alert-outline"></i>
     <strong>Waiting for approval</strong>

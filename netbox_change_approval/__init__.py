@@ -26,6 +26,10 @@ class NetBoxChangeApprovalConfig(PluginConfig):
         # Days after which a pending request nobody decided expires, for rules
         # that don't set their own. None (or 0) means never.
         'expire_pending_after_days': None,
+        # How pending objects look in lists and rack elevations: 'by_action'
+        # (green new / blue edit / red delete, with a label and the requested
+        # values) or 'outline' (the earlier single yellow outline).
+        'pending_row_style': 'by_action',
     }
 
     middleware = [

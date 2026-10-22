@@ -1,3 +1,5 @@
+from django.utils.translation import gettext as _
+
 from core.models import ObjectType
 
 from netbox.plugins import PluginTemplateExtension
@@ -30,8 +32,11 @@ class PendingChangeBanner(PluginTemplateExtension):
         if change_request is None:
             return ''
 
+        from . import pending_marks
+
         return self.render('netbox_change_approval/banner.html', {
             'change_request': change_request,
+            'by_action': pending_marks.by_action(),
         })
 
     def list_buttons(self):
@@ -60,15 +65,39 @@ class PendingChangeBanner(PluginTemplateExtension):
             return ''
 
         content_type = ObjectType.objects.get_for_model(model)
-        count = ChangeRequest.objects.filter(
-            content_type=content_type, status=StatusChoices.PENDING,
-        ).count()
+        pending = ChangeRequest.objects.filter(content_type=content_type, status=StatusChoices.PENDING)
+        count = pending.count()
         if not count:
             return ''
+
+        from django.http import QueryDict
+
+        from . import pending_marks
+        from .models import ActionChoices
+
+        # "2 new · 1 edit · 1 delete", each linking to this same list showing
+        # just those objects (or to the requests, if there are too many to
+        # put in a link).
+        kinds = []
+        if pending_marks.by_action():
+            for action, label in (
+                (ActionChoices.CREATE, _('new')), (ActionChoices.UPDATE, _('edit')), (ActionChoices.DELETE, _('delete')),
+            ):
+                ids = list(pending.filter(action=action, object_id__isnull=False).values_list('object_id', flat=True)[:101])
+                if not ids:
+                    continue
+                if len(ids) <= 100:
+                    query = QueryDict(mutable=True)
+                    query.setlist('id', [str(pk) for pk in ids])
+                    url = f'{self.context["request"].path}?{query.urlencode()}'
+                else:
+                    url = None
+                kinds.append({'action': action, 'label': label, 'count': len(ids) if len(ids) <= 100 else '100+', 'url': url})
 
         return self.render('netbox_change_approval/list_pending_badge.html', {
             'count': count,
             'content_type_label': model_label(model),
+            'kinds': kinds,
         })
 
 

@@ -5,3 +5,10 @@
   <i class="mdi mdi-clock-alert-outline"></i>
   {% blocktrans count counter=count %}{{ counter }} pending approval{% plural %}{{ counter }} pending approvals{% endblocktrans %}
 </a>
+{% for kind in kinds %}
+  {% if kind.url %}
+  <a href="{{ kind.url }}" class="btn btn-ghost-secondary nbca-chip-{{ kind.action }} px-2" title="{% trans 'Show only these in the list' %}">{{ kind.count }} {{ kind.label }}</a>
+  {% else %}
+  <a href="{% url 'plugins:netbox_change_approval:changerequest_list' %}?content_type={{ content_type_label }}&status=pending&action={{ kind.action }}" class="btn btn-ghost-secondary nbca-chip-{{ kind.action }} px-2">{{ kind.count }} {{ kind.label }}</a>
+  {% endif %}
+{% endfor %}

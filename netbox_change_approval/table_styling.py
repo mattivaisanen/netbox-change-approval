@@ -25,23 +25,23 @@ def _resolve(value, **kwargs):
 
 
 def _highlight_pending_rows(table):
+    import json
+
     from core.models import ObjectType
 
+    from . import pending_marks
     from .discovery import is_gated_model
-    from .models import ChangeRequest, StatusChoices
+    from .models import ActionChoices
 
     model = getattr(table._meta, 'model', None)
     if model is None or not is_gated_model(model):
         return
 
     content_type = ObjectType.objects.get_for_model(model)
-    pending_pks = set(
-        ChangeRequest.objects.filter(
-            content_type=content_type, status=StatusChoices.PENDING,
-        ).values_list('object_id', flat=True)
-    )
-    if not pending_pks:
+    pending = pending_marks.pending_requests(content_type)
+    if not pending:
         return
+    by_action = pending_marks.by_action()
 
     # Preserve whatever row_attrs['class'] this specific table might already
     # define (rare, but several NetBox core tables do use it) rather than
@@ -58,15 +58,69 @@ def _highlight_pending_rows(table):
     # `existing_class` (never in that kwargs dict) makes it silently return None
     # instead of calling the function at all. A first version did exactly this and
     # the highlight silently never appeared. `table` is fine to keep as a
-    # parameter (computed_values does pass it) — `existing_class`/`pending_pks`
+    # parameter (computed_values does pass it) — `existing_class`/`pending`
     # must come from the closure instead.
     def _row_class(record, table):
         base = _resolve(existing_class, record=record, table=table) or ''
-        if getattr(record, 'pk', None) in pending_pks:
-            return f'{base} {PENDING_ROW_CSS_CLASS}'.strip()
-        return base
+        change_request = pending.get(getattr(record, 'pk', None))
+        if change_request is None:
+            return base
+        extra = PENDING_ROW_CSS_CLASS
+        if by_action:
+            extra = f'{extra} nbca-pending-{change_request.action}'
+        return f'{base} {extra}'.strip()
 
-    table.row_attrs = {**table.row_attrs, 'class': _row_class}
+    row_attrs = {**table.row_attrs, 'class': _row_class}
+
+    if by_action:
+        column_names = {column.name for column in table.columns}
+        changes_cache = {}
+
+        def _changes(change_request):
+            if change_request.pk not in changes_cache:
+                changes_cache[change_request.pk] = (
+                    pending_marks.column_changes(change_request, model, column_names),
+                    pending_marks.change_summary(change_request, model),
+                )
+            return changes_cache[change_request.pk]
+
+        def _action(record):
+            change_request = pending.get(getattr(record, 'pk', None))
+            return change_request.action if change_request else None
+
+        def _url(record):
+            change_request = pending.get(getattr(record, 'pk', None))
+            return change_request.get_absolute_url() if change_request else None
+
+        def _cells(record):
+            change_request = pending.get(getattr(record, 'pk', None))
+            if change_request is None or change_request.action != ActionChoices.UPDATE:
+                return None
+            return json.dumps(_changes(change_request)[0])
+
+        def _summary(record):
+            change_request = pending.get(getattr(record, 'pk', None))
+            if change_request is None or change_request.action != ActionChoices.UPDATE:
+                return None
+            return _changes(change_request)[1]
+
+        row_attrs.update({
+            'data-nbca-action': _action,
+            'data-nbca-url': _url,
+            'data-nbca-changes': _cells,
+            'data-nbca-summary': _summary,
+        })
+        # Name each cell after its column, so the page script can find the
+        # changed ones (django-tables2 renders bare <td>s).
+        if any(cr.action == ActionChoices.UPDATE for cr in pending.values()):
+            for column in table.columns:
+                attrs = dict(column.column.attrs or {})
+                td = dict(attrs.get('td') or {})
+                td['data-nbca-col'] = column.name
+                attrs['td'] = td
+                column.column.attrs = attrs
+
+    table.row_attrs = row_attrs
 
 
 def patch_netbox_table():
