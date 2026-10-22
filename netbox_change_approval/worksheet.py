@@ -183,7 +183,15 @@ def _saved(sender, instance, created, **kwargs):
         return
     # Written while the request waits (everything it names still exists), or
     # at once for an auto-approved request (saved just before its write).
-    if instance.status == StatusChoices.PENDING or (
+    # Written again when a new object is approved: whatever was added to it
+    # while it waited (cables patched to a new device, say) is all there now.
+    # A change saved outside a transaction (the edit form validates before
+    # NetBox opens one) runs the refresh at once, before the component being
+    # saved exists, so this last pass is what makes the list complete.
+    approved_create = (
+        instance.status == StatusChoices.APPLIED and instance.action == ActionChoices.CREATE
+    )
+    if instance.status == StatusChoices.PENDING or approved_create or (
         instance.status == StatusChoices.APPLIED and instance.auto_approved and created
     ):
         pk = instance.pk

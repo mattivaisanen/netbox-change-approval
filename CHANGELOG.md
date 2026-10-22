@@ -39,6 +39,8 @@
   links. A bulk action stays one item on one page.
 
 ### Bug fixes
+- A new device's work sheet only listed mounting it: cables patched to it
+  while it waited for approval got no task. Approving it now lists them too.
 - "All Change Requests" in the Change Approvals menu was highlighted on every
   page under it (Approval Inbox, Approvals), whatever page was open.
 - Two decisions on the same request at the same moment can no longer

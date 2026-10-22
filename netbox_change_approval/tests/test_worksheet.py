@@ -121,3 +121,24 @@ class InboxFieldWorkTests(WorkSheetTests):
         task.refresh_from_db()
         self.assertIsNotNone(task.done_at)
         self.assertNotContains(self.client.get(inbox_url), 'Mount sw9')
+
+
+class ComponentTasksTests(WorkSheetTests):
+    def test_cable_added_while_pending_gets_task_after_approval(self):
+        """A cable patched to the new device from the edit form (validated
+        before NetBox's transaction, so the request was refreshed before the
+        cable existed) still gets its own task once the device is approved."""
+        from django.db import transaction
+
+        device, change_request = self._create_device(name='sw7')
+        panel = Device.objects.create(name='pp7', site=self.site, device_type=self.device_type, role=self.role)
+        cable = Cable(a_terminations=[Interface.objects.get(device=device)],
+                      b_terminations=[Interface.objects.get(device=panel)])
+        with self.captureOnCommitCallbacks(execute=True):
+            gating.gate(cable, ActionChoices.CREATE, fake_request(self.alice))
+        WorkTask.objects.filter(change_request=change_request).delete()  # as if refreshed too early
+        cable.save()
+        with self.captureOnCommitCallbacks(execute=True):
+            change_request.apply(user=self.approver)
+        texts = sorted(worksheet.open_tasks().filter(change_request=change_request).values_list('text', flat=True))
+        self.assertEqual(texts, ['Mount sw7 (Switch 48) in rack A3, U20–21, front', 'Patch sw7 eth1 → pp7 eth1'])
