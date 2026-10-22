@@ -153,3 +153,25 @@ class ClusterAddDevicesTests(TestCase):
         self.assertEqual(
             ChangeRequest.objects.filter(action=ActionChoices.UPDATE, status=StatusChoices.PENDING).count(), 2,
         )
+
+
+class ChangedAfterValidationTests(TestCase):
+    """A form that changes the object after validating it (some NetBox import
+    forms set the assigned interface in save()) must not slip that change
+    through: the save is checked again."""
+
+    def test_change_after_validation_is_gated(self):
+        user = User.objects.create(username='late-changer')
+        obj = Manufacturer.objects.create(name='Acme', slug='acme')
+        obj = Manufacturer.objects.get(pk=obj.pk)
+        request = fake_request(user)
+        token = current_request.set(request)
+        self.addCleanup(current_request.reset, token)
+
+        ApprovalGateValidator().validate(obj, request)  # nothing changed yet: passes
+        obj.description = 'set after validation'
+        obj.save()
+
+        obj.refresh_from_db()
+        self.assertEqual(obj.description, '')
+        self.assertTrue(ChangeRequest.objects.filter(object_id=obj.pk, status='pending').exists())

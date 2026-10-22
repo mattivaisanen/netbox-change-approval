@@ -29,6 +29,7 @@ update, ...) is a consequence of that outer change, which was gated itself.
 Creates are not gated here: NetBox creates many objects internally with a
 plain save() (components from device type templates, for example).
 """
+import copy
 from contextvars import ContextVar
 from functools import wraps
 
@@ -50,32 +51,57 @@ _write_depth = ContextVar('netbox_change_approval.write_depth', default=0)
 VALIDATED_ATTR = '_nbca_validated'
 
 
+def _editable_values(instance):
+    """The values _changed_editable_fields() compares, as they are now."""
+    values = {}
+    for field in instance._meta.concrete_fields:
+        if not field.editable or field.primary_key or field.name.startswith('_'):
+            continue
+        value = getattr(instance, field.attname)
+        try:
+            value = copy.deepcopy(value)
+        except Exception:
+            pass
+        values[field.attname] = value
+    return values
+
+
 def mark_validated(instance, request):
-    """Called by the validator after gate() let an update through."""
-    setattr(instance, VALIDATED_ATTR, True)
-    # The REST API validates a copy of the instance and saves the original, so
+    """
+    Called by the validator after gate() let an update through. Remembers the
+    values it approved: a form may still change the object after validating
+    it (several NetBox import forms set the assigned interface in save(), for
+    example), and such a change must not ride along ungated.
+    """
+    values = _editable_values(instance)
+    setattr(instance, VALIDATED_ATTR, values)
+    # The REST API may validate a copy of the instance and save another, so
     # also remember it on the request.
     if request is not None:
         seen = getattr(request, '_nbca_validated', None)
         if seen is None:
-            seen = set()
+            seen = {}
             try:
                 request._nbca_validated = seen
             except AttributeError:
                 return
-        seen.add((instance._meta.label_lower, instance.pk))
+        seen[(instance._meta.label_lower, instance.pk)] = values
 
 
 def _consume_validated(instance, request):
-    if getattr(instance, VALIDATED_ATTR, False):
+    """True if the validator already let exactly this state through."""
+    values = getattr(instance, VALIDATED_ATTR, None)
+    if values is not None:
         delattr(instance, VALIDATED_ATTR)
-        return True
     seen = getattr(request, '_nbca_validated', None) if request is not None else None
     key = (instance._meta.label_lower, instance.pk)
     if seen and key in seen:
-        seen.discard(key)
-        return True
-    return False
+        request_values = seen.pop(key)
+        if values is None:
+            values = request_values
+    if values is None:
+        return False
+    return values == _editable_values(instance)
 
 
 def _changed_editable_fields(old, new, update_fields):
