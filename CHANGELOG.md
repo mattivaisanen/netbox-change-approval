@@ -91,6 +91,11 @@ moved to Approval Rules in 0.2.0).
   lists them.
 
 ### Improvements
+- Field work: device, rack, interface, IP and other names in each task link
+  to their NetBox pages; marking a task done asks to confirm first; the
+  inbox's "Your field work" shows only the jobs from your own requests
+  (approvers no longer see everyone's). The work sheet page still lists all
+  jobs you may see.
 - Notifications say who did what ("rejected by bob: wrong rack", "bob: why
   this VLAN?"). Comment notifications go only to the submitter and the
   approver group, no longer to everyone who commented before.

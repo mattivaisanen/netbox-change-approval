@@ -765,7 +765,10 @@ class InboxView(ConditionalLoginRequiredMixin, View):
 
         field_work = field_work_total = None
         if worksheet.enabled():
-            open_tasks = worksheet.open_tasks()
+            # The people who do the work: the submitter of each approved
+            # request. Approvers don't need it in their inbox; the work
+            # sheet page still lists everything a user may see.
+            open_tasks = worksheet.open_tasks().filter(change_request__submitted_by=user)
             field_work_total = open_tasks.count()
             field_work = list(open_tasks.select_related('site', 'rack', 'change_request').order_by('site__name', 'rack__name', 'pk')[:50])
         return render(request, 'netbox_change_approval/inbox.html', {

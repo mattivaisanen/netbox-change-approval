@@ -1,4 +1,4 @@
-{% load i18n %}
+{% load i18n nbca_tasks %}
 {# Approval Inbox: open field work from approved changes (worksheet.py). #}
 {% if field_work %}
 <style>
@@ -12,7 +12,7 @@
 <div class="card mb-3" id="nbca-section-field-work">
   <h2 class="card-header d-flex align-items-center">
     <span class="flex-grow-1">
-      {% trans "Field work" %}
+      {% trans "Your field work" %}
       <span class="badge text-bg-secondary ms-1">{{ field_work_total }}</span>
     </span>
     <a href="{% url 'plugins:netbox_change_approval:worksheet' %}" class="btn btn-sm btn-ghost-secondary" title="{% trans 'Printable work sheet, per site and rack' %}">
@@ -37,7 +37,7 @@
     <tbody>
       {% for task in field_work %}
       <tr>
-        <td class="nbca-task">{{ task.text }}</td>
+        <td class="nbca-task">{{ task|task_text }}</td>
         <td class="d-none d-md-table-cell small"><a href="{{ task.change_request.get_absolute_url }}">#{{ task.change_request.pk }}</a></td>
         <td class="d-none d-md-table-cell small" title="{{ task.site|default:'' }}{% if task.rack %} › {{ task.rack }}{% endif %}">{{ task.site|default:"" }}{% if task.rack %} &rsaquo; {{ task.rack }}{% endif %}</td>
         <td class="text-muted small text-nowrap">{{ task.change_request.applied_at|timesince }}</td>
@@ -46,7 +46,7 @@
             {% csrf_token %}
             <input type="hidden" name="task" value="{{ task.pk }}">
             <input type="hidden" name="back" value="inbox">
-            <button type="submit" class="btn btn-sm btn-primary" title="{% trans 'Mark done' %}" aria-label="{% trans 'Mark done' %}"><i class="mdi mdi-check"></i></button>
+            <button type="submit" class="btn btn-sm btn-primary" title="{% trans 'Mark done' %}" onclick="return confirm('{% filter escapejs %}{% blocktrans with text=task.text %}Mark done: {{ text }}?{% endblocktrans %}{% endfilter %}')" aria-label="{% trans 'Mark done' %}"><i class="mdi mdi-check"></i></button>
           </form>
         </td>
       </tr>

@@ -791,6 +791,10 @@ class WorkTask(models.Model):
     site = models.ForeignKey(to='dcim.Site', on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
     rack = models.ForeignKey(to='dcim.Rack', on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
     text = models.CharField(max_length=300)
+    links = models.JSONField(
+        default=list, blank=True,
+        help_text=_('Names in the text to link, as [text, url] pairs in order.'),
+    )
     done_by = models.ForeignKey(
         to=settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='+',
     )

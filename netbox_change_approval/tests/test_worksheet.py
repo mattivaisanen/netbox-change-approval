@@ -91,7 +91,7 @@ class WorkSheetTests(TestCase):
         task = WorkTask.objects.get(change_request=change_request)
         self.client.force_login(self.alice)
         url = reverse('plugins:netbox_change_approval:worksheet')
-        self.assertContains(self.client.get(url), 'Mount sw1')
+        self.assertContains(self.client.get(url), 'sw1</a> (Switch 48)')
         self.client.post(url, {'task': task.pk})
         task.refresh_from_db()
         self.assertEqual(task.done_by, self.alice)
@@ -115,12 +115,12 @@ class InboxFieldWorkTests(WorkSheetTests):
         task = WorkTask.objects.get(change_request=change_request)
         self.client.force_login(self.alice)
         inbox_url = reverse('plugins:netbox_change_approval:changerequest_inbox')
-        self.assertContains(self.client.get(inbox_url), 'Mount sw9')
+        self.assertContains(self.client.get(inbox_url), 'sw9</a> (Switch 48)')
         response = self.client.post(reverse('plugins:netbox_change_approval:worksheet'), {'task': task.pk, 'back': 'inbox'})
         self.assertTrue(response.url.startswith(inbox_url))
         task.refresh_from_db()
         self.assertIsNotNone(task.done_at)
-        self.assertNotContains(self.client.get(inbox_url), 'Mount sw9')
+        self.assertNotContains(self.client.get(inbox_url), 'sw9</a> (Switch 48)')
 
 
 class ComponentTasksTests(WorkSheetTests):
@@ -218,3 +218,24 @@ class WorkSheetVisibilityTests(TestCase):
         self.client.force_login(self.alice)  # the submitter
         response = self.client.get(reverse('plugins:netbox_change_approval:worksheet'))
         self.assertContains(response, 'Mount sw1')
+
+
+class FieldWorkLinksAndAudienceTests(WorkSheetTests):
+    def test_names_are_links(self):
+        device, change_request = self._create_device(name='sw5')
+        task = WorkTask.objects.get(change_request=change_request)
+        self.assertIn(['sw5', device.get_absolute_url()], task.links)
+        self.assertIn(['A3', self.rack.get_absolute_url()], task.links)
+        from ..templatetags.nbca_tasks import task_text
+        html = task_text(task)
+        self.assertIn(f'<a href="{device.get_absolute_url()}">sw5</a>', html)
+        self.assertIn(f'<a href="{self.rack.get_absolute_url()}">A3</a>', html)
+
+    def test_inbox_field_work_only_for_submitter(self):
+        device, change_request = self._create_device(name='sw6')
+        change_request.apply(user=self.approver)
+        inbox_url = reverse('plugins:netbox_change_approval:changerequest_inbox')
+        self.client.force_login(self.alice)
+        self.assertContains(self.client.get(inbox_url), 'Your field work')
+        self.client.force_login(self.approver)
+        self.assertNotContains(self.client.get(inbox_url), 'Your field work')

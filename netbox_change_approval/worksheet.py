@@ -34,6 +34,22 @@ def enabled():
 # ---- Describing jobs ---------------------------------------------------------
 
 
+#: Objects named in the task being described, as (text, url), so the page
+#: can link them (see refresh()).
+_refs = None
+
+
+def _r(obj):
+    """Name `obj` in a task, remembering its link."""
+    text = str(obj)
+    if _refs is not None and obj is not None and hasattr(obj, 'get_absolute_url'):
+        try:
+            _refs.append((text, obj.get_absolute_url()))
+        except Exception:
+            pass
+    return text
+
+
 def _units(position, device_type):
     try:
         start = int(float(position))
@@ -44,7 +60,7 @@ def _units(position, device_type):
 
 
 def _place(rack, position, face, device_type):
-    text = f'rack {rack}'
+    text = f'rack {_r(rack)}'
     if position not in (None, ''):
         text += f', {_units(position, device_type)}'
     if face:
@@ -54,8 +70,12 @@ def _place(rack, position, face, device_type):
 
 def _end_label(termination):
     device = getattr(termination, 'device', None)
-    name = getattr(termination, 'name', None) or str(termination)
-    return f'{device} {name}' if device is not None else str(termination)
+    if device is None:
+        return _r(termination)
+    name = getattr(termination, 'name', None)
+    if name and _refs is not None and hasattr(termination, 'get_absolute_url'):
+        _refs.append((name, termination.get_absolute_url()))
+    return f'{_r(device)} {name or termination}'
 
 
 def _ends(objects):
@@ -83,9 +103,9 @@ def _device_tasks(change_request, device):
     device_type = device.device_type
     if change_request.action == ActionChoices.CREATE:
         if device.rack_id:
-            text = f'Mount {device} ({device_type}) in {_place(device.rack, device.position, device.face, device_type)}'
+            text = f'Mount {_r(device)} ({device_type}) in {_place(device.rack, device.position, device.face, device_type)}'
         else:
-            text = f'Install {device} ({device_type}) at {device.site}'
+            text = f'Install {_r(device)} ({device_type}) at {_r(device.site)}'
         tasks = [(device.site, device.rack, text)]
         # Cables patched to it while it waited came with it (components.py).
         from dcim.models import Cable
@@ -95,8 +115,8 @@ def _device_tasks(change_request, device):
         tasks += _ips_on(device.interfaces.all(), device.site, device.rack)
         return tasks
     if change_request.action == ActionChoices.DELETE:
-        where = _place(device.rack, device.position, device.face, device_type) if device.rack_id else str(device.site)
-        return [(device.site, device.rack, f'Remove {device} from {where}')]
+        where = _place(device.rack, device.position, device.face, device_type) if device.rack_id else _r(device.site)
+        return [(device.site, device.rack, f'Remove {_r(device)} from {where}')]
 
     if not ({'rack_id', 'position', 'face'} & set(diff)):
         return []
@@ -110,7 +130,7 @@ def _device_tasks(change_request, device):
     old = _place(device.rack, device.position, device.face, device_type) if device.rack_id else 'no rack'
     new = _place(new_rack, requested('position', device.position), requested('face', device.face), device_type) \
         if new_rack else 'no rack'
-    return [(device.site, new_rack or device.rack, f'Move {device} from {old} to {new}')]
+    return [(device.site, new_rack or device.rack, f'Move {_r(device)} from {old} to {new}')]
 
 
 def _cable_tasks(action, cable, diff=None):
@@ -119,7 +139,7 @@ def _cable_tasks(action, cable, diff=None):
     if action == ActionChoices.CREATE:
         return [(site, rack, f'Patch {_ends(a_ends)} → {_ends(b_ends)}{_cable_detail(cable)}')]
     if action == ActionChoices.DELETE:
-        return [(site, rack, f'Unpatch and remove cable {cable}: {_ends(a_ends)} ↔ {_ends(b_ends)}')]
+        return [(site, rack, f'Unpatch and remove cable {_r(cable)}: {_ends(a_ends)} ↔ {_ends(b_ends)}')]
     diff = diff or {}
     if not ({'a_terminations', 'b_terminations'} & set(diff)):
         return []
@@ -142,7 +162,11 @@ def _cable_tasks(action, cable, diff=None):
 def _assigned_label(obj):
     """'sw1 eth0' for an interface an IP is on."""
     parent = getattr(obj, 'device', None) or getattr(obj, 'virtual_machine', None)
-    return f'{parent} {obj.name}' if parent is not None else str(obj)
+    if parent is None:
+        return _r(obj)
+    if _refs is not None and hasattr(obj, 'get_absolute_url'):
+        _refs.append((obj.name, obj.get_absolute_url()))
+    return f'{_r(parent)} {obj.name}'
 
 
 def _assigned_location(obj):
@@ -166,7 +190,7 @@ def _ips_on(interfaces, site, rack):
         assigned_object_type=ContentType.objects.get_for_model(interfaces[0]),
         assigned_object_id__in=[i.pk for i in interfaces],
     )
-    return [(site, rack, f'Configure {ip} on {_assigned_label(ip.assigned_object)}') for ip in ips]
+    return [(site, rack, f'Configure {_r(ip)} on {_assigned_label(ip.assigned_object)}') for ip in ips]
 
 
 def _ip_tasks(change_request, ip):
@@ -176,12 +200,12 @@ def _ip_tasks(change_request, ip):
         if current is None:
             return []  # a reserved address: nothing to configure yet
         site, rack = _assigned_location(current)
-        return [(site, rack, f'Configure {ip} on {_assigned_label(current)}')]
+        return [(site, rack, f'Configure {_r(ip)} on {_assigned_label(current)}')]
     if change_request.action == ActionChoices.DELETE:
         if current is None:
             return []
         site, rack = _assigned_location(current)
-        return [(site, rack, f'Remove {ip} from {_assigned_label(current)}')]
+        return [(site, rack, f'Remove {_r(ip)} from {_assigned_label(current)}')]
     if not ({'assigned_object_id', 'assigned_object_type_id'} & set(diff)):
         return []
     from django.contrib.contenttypes.models import ContentType
@@ -198,11 +222,11 @@ def _ip_tasks(change_request, ip):
         target = model.objects.filter(pk=object_id).first() if model else None
     site, rack = _assigned_location(target or current) if (target or current) else (None, None)
     if current is not None and target is not None:
-        text = f'Move {ip} from {_assigned_label(current)} to {_assigned_label(target)}'
+        text = f'Move {_r(ip)} from {_assigned_label(current)} to {_assigned_label(target)}'
     elif target is not None:
-        text = f'Configure {ip} on {_assigned_label(target)}'
+        text = f'Configure {_r(ip)} on {_assigned_label(target)}'
     elif current is not None:
-        text = f'Remove {ip} from {_assigned_label(current)}'
+        text = f'Remove {_r(ip)} from {_assigned_label(current)}'
     else:
         return []
     return [(site, rack, text)]
@@ -211,19 +235,19 @@ def _ip_tasks(change_request, ip):
 def _vm_tasks(change_request, vm):
     site = getattr(vm, 'site', None)
     if change_request.action == ActionChoices.CREATE:
-        where = f' on cluster {vm.cluster}' if vm.cluster_id else ''
-        return [(site, None, f'Create VM {vm}{where}')] + _ips_on(vm.interfaces.all(), site, None)
+        where = f' on cluster {_r(vm.cluster)}' if vm.cluster_id else ''
+        return [(site, None, f'Create VM {_r(vm)}{where}')] + _ips_on(vm.interfaces.all(), site, None)
     if change_request.action == ActionChoices.DELETE:
-        return [(site, None, f'Remove VM {vm}')]
+        return [(site, None, f'Remove VM {_r(vm)}')]
     return []
 
 
 def _module_tasks(change_request, module):
     site, rack = _location(module.device)
     if change_request.action == ActionChoices.CREATE:
-        return [(site, rack, f'Insert module {module.module_type} into {module.device} bay {module.module_bay}')]
+        return [(site, rack, f'Insert module {module.module_type} into {_r(module.device)} bay {_r(module.module_bay)}')]
     if change_request.action == ActionChoices.DELETE:
-        return [(site, rack, f'Remove module {module.module_type} from {module.device} bay {module.module_bay}')]
+        return [(site, rack, f'Remove module {module.module_type} from {_r(module.device)} bay {_r(module.module_bay)}')]
     return []
 
 
@@ -250,16 +274,43 @@ def describe(change_request):
 # ---- Keeping tasks up to date --------------------------------------------------
 
 
+def _links_in(text, refs):
+    """The (text, url) pairs that occur in `text`, in order, not
+    overlapping: what the page turns into links."""
+    found, seen = [], set()
+    for label, url in refs:
+        if not label or (label, url) in seen:
+            continue
+        seen.add((label, url))
+        start = text.find(label)
+        if start != -1:
+            found.append((start, label, url))
+    found.sort()
+    links, end = [], 0
+    for start, label, url in found:
+        position = text.find(label, end)
+        if position == -1:
+            continue
+        links.append([label, url])
+        end = position + len(label)
+    return links
+
+
 def refresh(change_request):
     """Rewrite a request's tasks from what it asks for now."""
+    global _refs
+    _refs = []
     try:
         tasks = describe(change_request)
+        refs = list(_refs)
     except Exception:
         logger.exception('Could not describe work for change request #%s', change_request.pk)
         return
+    finally:
+        _refs = None
     WorkTask.objects.filter(change_request=change_request, done_at__isnull=True).delete()
     WorkTask.objects.bulk_create([
-        WorkTask(change_request=change_request, site=site, rack=rack, text=text[:300])
+        WorkTask(change_request=change_request, site=site, rack=rack, text=text[:300], links=_links_in(text[:300], refs))
         for site, rack, text in tasks
     ])
 

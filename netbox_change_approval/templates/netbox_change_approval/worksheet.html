@@ -1,6 +1,6 @@
 {% extends 'generic/_base.html' %}
 {% load helpers %}
-{% load i18n %}
+{% load i18n nbca_tasks %}
 
 {% block title %}{% trans "Work Sheet" %}{% if rack %} &middot; {{ rack }}{% elif site %} &middot; {{ site }}{% endif %}{% endblock %}
 
@@ -53,10 +53,10 @@
           {% csrf_token %}
           <input type="hidden" name="task" value="{{ task.pk }}">
           <input type="hidden" name="query" value="{{ request.GET.urlencode }}">
-          <button type="submit" class="btn btn-sm btn-primary" title="{% trans 'Mark done' %}"><i class="mdi mdi-check"></i></button>
+          <button type="submit" class="btn btn-sm btn-primary" title="{% trans 'Mark done' %}" onclick="return confirm('{% filter escapejs %}{% blocktrans with text=task.text %}Mark done: {{ text }}?{% endblocktrans %}{% endfilter %}')"><i class="mdi mdi-check"></i></button>
         </form>
       </td>
-      <td>{{ task.text }}</td>
+      <td>{{ task|task_text }}</td>
       <td class="text-muted small text-end text-nowrap"><a href="{{ task.change_request.get_absolute_url }}">#{{ task.change_request.pk }}</a> &middot; {% blocktrans with t=task.change_request.applied_at|timesince %}approved {{ t }} ago{% endblocktrans %}</td>
     </tr>
     {% endfor %}
@@ -72,7 +72,7 @@
   <table class="table table-hover mb-0">
     {% for task in done %}
     <tr>
-      <td class="text-decoration-line-through">{{ task.text }}</td>
+      <td class="text-decoration-line-through">{{ task|task_text }}</td>
       <td class="text-muted small text-nowrap">{{ task.done_by|default:"" }} &middot; {{ task.done_at|timesince }} {% trans "ago" %}</td>
       <td class="w-1">
         <form method="post" class="m-0">
