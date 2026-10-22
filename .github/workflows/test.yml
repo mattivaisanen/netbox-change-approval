@@ -5,12 +5,17 @@ on:
     branches: [master]
   pull_request:
 
-env:
-  NETBOX_REF: v4.7.3
-
 jobs:
   test:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Oldest supported release (it pins an older Django) and the latest
+        # tested one.
+        netbox: [v4.7.0, v4.7.3]
+    env:
+      NETBOX_REF: ${{ matrix.netbox }}
 
     services:
       postgres:
