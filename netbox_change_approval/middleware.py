@@ -292,7 +292,7 @@ class ChangeApprovalMiddleware:
             change_request.save()
 
         if is_api_request(request):
-            return self._api_response(change_request, exception.locked)
+            return self._api_response(request, change_request, exception.locked)
 
         if exception.locked:
             messages.error(
@@ -325,7 +325,7 @@ class ChangeApprovalMiddleware:
             return redirect(change_request.get_absolute_url())
 
     @staticmethod
-    def _api_response(change_request, locked):
+    def _api_response(request, change_request, locked):
         """
         REST API clients get JSON, not a redirect to an HTML page: 202 Accepted
         when the change was submitted for approval (nothing changed yet), 409
@@ -344,7 +344,7 @@ class ChangeApprovalMiddleware:
                 'action': change_request.action,
                 'status': change_request.status,
                 'object_id': change_request.object_id,
-                'display_url': change_request.get_absolute_url(),
+                'display_url': request.build_absolute_uri(change_request.get_absolute_url()),
                 'approver_group': (
                     change_request.approver_group.name if change_request.approver_group_id else None
                 ),

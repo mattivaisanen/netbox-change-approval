@@ -54,6 +54,10 @@ class APISingleObjectTests(APIMixin, TestCase):
         self.assertEqual(change_request.action, ActionChoices.UPDATE)
         self.assertEqual(change_request.status, StatusChoices.PENDING)
         self.assertEqual(body['change_request']['status'], 'pending')
+        self.assertEqual(
+            body['change_request']['display_url'],
+            f'http://testserver{change_request.get_absolute_url()}',
+        )
         self.obj.refresh_from_db()
         self.assertEqual(self.obj.description, '')
 
