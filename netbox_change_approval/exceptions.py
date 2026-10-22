@@ -55,3 +55,8 @@ class ChangeApprovalRequired(Exception):
         self.change_request = change_request
         self.locked = locked
         super().__init__('A change approval decision is required before this delete can proceed.')
+
+
+class AlreadyDecided(Exception):
+    """The request stopped being pending (someone else decided, withdrew or
+    updated it) while this decision was on its way."""

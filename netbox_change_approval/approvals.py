@@ -17,6 +17,7 @@ from datetime import timedelta
 from django.db import transaction
 from django.utils import timezone
 
+from .exceptions import AlreadyDecided  # noqa: F401  (re-exported: approvals.AlreadyDecided)
 from .models import ActionChoices, ChangeRequest, ChangeRequestApproval, RuleOutcomeChoices, StatusChoices
 
 
@@ -39,8 +40,6 @@ def apply_rule_settings(change_request, rule):
     change_request.expires_at = timezone.now() + timedelta(days=days) if days else None
 
 
-class AlreadyDecided(Exception):
-    """The request stopped being pending while this approval was on its way."""
 
 
 class ApprovalResult:

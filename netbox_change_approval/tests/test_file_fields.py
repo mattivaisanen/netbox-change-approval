@@ -60,7 +60,8 @@ class HeldFileUploadTests(TestCase):
         ):
             change_request, stored_name = self._hold_image_upload()
             self.assertTrue(default_storage.exists(stored_name))
-            close(change_request)
+            with self.captureOnCommitCallbacks(execute=True):
+                close(change_request)
             self.assertFalse(default_storage.exists(stored_name))
 
     def test_approved_image_points_at_stored_file(self):

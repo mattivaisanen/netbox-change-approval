@@ -1,5 +1,6 @@
 from django.contrib import messages
 from django.core.exceptions import FieldDoesNotExist, ValidationError
+from django.db import transaction
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -14,7 +15,7 @@ from utilities.forms.forms import ConfirmationForm
 from utilities.views import ConditionalLoginRequiredMixin, register_model_view
 
 from . import amend, approvals, components, filtersets, forms, inbox, notifications, permissions, placement, revision, serialization, tables
-from .exceptions import ChangeConflict
+from .exceptions import AlreadyDecided, ChangeConflict
 from .rule_access import RuleReadMixin, RuleWriteMixin
 from .object_actions import BulkApprove, BulkReject
 from .models import (
@@ -437,6 +438,25 @@ def _batch_targets(change_request, user=None):
     ]
 
 
+def _close_all(request, targets, method, *args):
+    """
+    Call `method` (reject, send_back, retract) on every request in `targets`
+    (one request, or a whole batch), all or nothing. If any of them was
+    decided by someone else in the meantime, nothing is changed and the user
+    is told; returns False then.
+    """
+    from django.db import transaction
+
+    try:
+        with transaction.atomic():
+            for change_request in targets:
+                getattr(change_request, method)(request.user, *args)
+    except AlreadyDecided as e:
+        messages.warning(request, _('Nothing changed: %(error)s') % {'error': e})
+        return False
+    return True
+
+
 def _default_return_url():
     # Where a decision lands when nothing more specific was requested (e.g.
     # decided straight from the detail page) — the queue, not the just-decided
@@ -458,11 +478,21 @@ def _safe_return_url(url, fallback=None):
 class _ChangeRequestDecisionView(ConditionalLoginRequiredMixin, View):
     def setup(self, request, *args, **kwargs):
         super().setup(request, *args, **kwargs)
-        self.change_request = get_object_or_404(
-            ChangeRequest.objects.filter(status=StatusChoices.PENDING), pk=kwargs['pk'],
-        )
+        self.change_request = get_object_or_404(ChangeRequest, pk=kwargs['pk'])
+
+    def _not_open(self, request):
+        """Already decided or withdrawn (perhaps by someone else a moment
+        ago): say so instead of a bare 404."""
+        if self.change_request.status == StatusChoices.PENDING:
+            return None
+        messages.warning(request, _('Request #%(pk)s is already %(status)s; nothing changed.') % {
+            'pk': self.change_request.pk, 'status': self.change_request.get_status_display().lower(),
+        })
+        return redirect(self.change_request.get_absolute_url())
 
     def check_permission(self, request):
+        if (closed := self._not_open(request)) is not None:
+            return closed
         if self.change_request.submitted_by_id == request.user.pk:
             messages.error(request, _('You cannot decide your own request. Another approver has to.'))
             return redirect(self.change_request.get_absolute_url())
@@ -552,8 +582,8 @@ class ChangeRequestRejectView(_ChangeRequestDecisionView):
             })
 
         targets = _batch_targets(self.change_request)
-        for change_request in targets:
-            change_request.reject(request.user, form.cleaned_data['comment'])
+        if not _close_all(request, targets, 'reject', form.cleaned_data['comment']):
+            return redirect(self.change_request.get_absolute_url())
         messages.success(request, _('Rejected %(count)d change(s).') % {'count': len(targets)})
         return redirect(_safe_return_url(form.cleaned_data.get('return_url')))
 
@@ -568,6 +598,8 @@ class ChangeRequestRetractView(_ChangeRequestDecisionView):
     to explain the decision to.
     """
     def check_permission(self, request):
+        if (closed := self._not_open(request)) is not None:
+            return closed
         if self.change_request.submitted_by_id != request.user.pk:
             messages.error(request, _('You can only retract your own requests.'))
             return redirect(self.change_request.get_absolute_url())
@@ -597,13 +629,13 @@ class ChangeRequestRetractView(_ChangeRequestDecisionView):
             # Same as an approver sending it back, without a note: the
             # submitter lands on the prefilled form and saving it resubmits
             # this same request (see revision.py).
-            for change_request in targets:
-                change_request.send_back(request.user, '')
+            if not _close_all(request, targets, 'send_back', ''):
+                return redirect(self.change_request.get_absolute_url())
             return redirect(reverse(
                 'plugins:netbox_change_approval:changerequest_revise', kwargs={'pk': self.change_request.pk},
             ))
-        for change_request in targets:
-            change_request.retract(request.user)
+        if not _close_all(request, targets, 'retract'):
+            return redirect(self.change_request.get_absolute_url())
         messages.success(request, _('Retracted %(count)d change(s).') % {'count': len(targets)})
         return redirect(_safe_return_url(form.cleaned_data.get('return_url')))
 
@@ -639,8 +671,8 @@ class ChangeRequestSendBackView(_ChangeRequestDecisionView):
             return self._render(request, form, _safe_return_url(request.POST.get('return_url')))
 
         targets = _batch_targets(self.change_request)
-        for change_request in targets:
-            change_request.send_back(request.user, form.cleaned_data['comment'])
+        if not _close_all(request, targets, 'send_back', form.cleaned_data['comment']):
+            return redirect(self.change_request.get_absolute_url())
         messages.success(
             request,
             _('Sent %(count)d change(s) back to %(user)s for revision.') % {
@@ -705,8 +737,8 @@ class ChangeRequestDiscardView(_SentBackView):
                 batch_id=self.change_request.batch_id, status=StatusChoices.RETURNED,
                 submitted_by_id=request.user.pk,
             ))
-        for change_request in targets:
-            change_request.retract(request.user)
+        if not _close_all(request, targets, 'retract'):
+            return redirect(self.change_request.get_absolute_url())
         messages.success(request, _('Discarded %(count)d change(s).') % {'count': len(targets)})
         return redirect(reverse('plugins:netbox_change_approval:changerequest_inbox'))
 
@@ -852,8 +884,13 @@ class _BulkDecisionView(ConditionalLoginRequiredMixin, View):
         done, recorded, failed = 0, 0, []
         for group in self._groups(selected):
             if self.decision == 'reject':
-                for change_request in group:
-                    change_request.reject(request.user, form.cleaned_data['comment'])
+                try:
+                    with transaction.atomic():
+                        for change_request in group:
+                            change_request.reject(request.user, form.cleaned_data['comment'])
+                except AlreadyDecided as e:
+                    failed.append(f'#{group[0].pk}: {e}')
+                    continue
                 done += len(group)
                 continue
             try:
@@ -882,7 +919,7 @@ class _BulkDecisionView(ConditionalLoginRequiredMixin, View):
         if failed:
             messages.error(
                 request,
-                _('Not applied, still pending: %(errors)s') % {'errors': ' '.join(failed)},
+                _('Not changed: %(errors)s') % {'errors': ' '.join(failed)},
             )
         return redirect(return_url)
 

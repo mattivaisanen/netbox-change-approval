@@ -639,19 +639,21 @@ class ChangeRequest(NetBoxModel):
         actually delete that object; otherwise a rejected request would leave a
         permanent, un-removable object behind.
         """
-        if self.action == ActionChoices.CREATE and self.object_id:
-            from .context import applying_change_on
+        with transaction.atomic():
+            self._claim()
+            if self.action == ActionChoices.CREATE and self.object_id:
+                from .context import applying_change_on
 
-            with applying_change_on():
-                self.content_type.model_class().objects.filter(pk=self.object_id).delete()
+                with applying_change_on():
+                    self.content_type.model_class().objects.filter(pk=self.object_id).delete()
 
-        self.status = StatusChoices.REJECTED
-        self.decided_by = user
-        self.decided_at = timezone.now()
-        self.decision_comment = comment
-        self.seen_by_submitter = self.submitted_by_id == getattr(user, 'pk', None)
-        self.save()
-        self._discard_held_uploads()
+            self.status = StatusChoices.REJECTED
+            self.decided_by = user
+            self.decided_at = timezone.now()
+            self.decision_comment = comment
+            self.seen_by_submitter = self.submitted_by_id == getattr(user, 'pk', None)
+            self.save()
+            self._discard_held_uploads()
 
     def send_back(self, user, comment):
         """
@@ -659,17 +661,19 @@ class ChangeRequest(NetBoxModel):
         CREATE the object already exists (see apply()), so it is removed, the
         same as reject(); the submitter's revised form creates it again.
         """
-        if self.action == ActionChoices.CREATE and self.object_id:
-            from .context import applying_change_on
+        with transaction.atomic():
+            self._claim()
+            if self.action == ActionChoices.CREATE and self.object_id:
+                from .context import applying_change_on
 
-            with applying_change_on():
-                self.content_type.model_class().objects.filter(pk=self.object_id).delete()
+                with applying_change_on():
+                    self.content_type.model_class().objects.filter(pk=self.object_id).delete()
 
-        self.status = StatusChoices.RETURNED
-        self.decided_by = user
-        self.decided_at = timezone.now()
-        self.decision_comment = comment
-        self.save()
+            self.status = StatusChoices.RETURNED
+            self.decided_by = user
+            self.decided_at = timezone.now()
+            self.decision_comment = comment
+            self.save()
 
     def retract(self, user):
         """
@@ -681,17 +685,35 @@ class ChangeRequest(NetBoxModel):
         Same CREATE-is-different handling as reject(): the object already
         exists for real, so withdrawing the request has to delete it.
         """
-        if self.action == ActionChoices.CREATE and self.object_id:
-            from .context import applying_change_on
+        with transaction.atomic():
+            self._claim(StatusChoices.PENDING, StatusChoices.RETURNED)
+            if self.action == ActionChoices.CREATE and self.object_id:
+                from .context import applying_change_on
 
-            with applying_change_on():
-                self.content_type.model_class().objects.filter(pk=self.object_id).delete()
+                with applying_change_on():
+                    self.content_type.model_class().objects.filter(pk=self.object_id).delete()
 
-        self.status = StatusChoices.RETRACTED
-        self.decided_by = user
-        self.decided_at = timezone.now()
-        self.save()
-        self._discard_held_uploads()
+            self.status = StatusChoices.RETRACTED
+            self.decided_by = user
+            self.decided_at = timezone.now()
+            self.save()
+            self._discard_held_uploads()
+
+    def _claim(self, *allowed):
+        """
+        Inside a transaction: lock this request's row and make sure it is
+        still open (pending, unless `allowed` says otherwise), then reload it.
+        Without this, rejecting at the same moment someone else approved could
+        mark an applied change as rejected (and, for a new object, delete
+        it). Raises AlreadyDecided.
+        """
+        from .exceptions import AlreadyDecided
+
+        allowed = allowed or (StatusChoices.PENDING,)
+        status = type(self).objects.select_for_update().filter(pk=self.pk).values_list('status', flat=True).first()
+        if status not in allowed:
+            raise AlreadyDecided(str(_('Request #{pk} was already decided or withdrawn.')).format(pk=self.pk))
+        self.refresh_from_db()
 
     def _discard_held_uploads(self, keep=()):
         """Files uploaded in this held edit won't be used now; delete them
@@ -699,7 +721,10 @@ class ChangeRequest(NetBoxModel):
         if self.action != ActionChoices.UPDATE:
             return
         from .serialization import discard_held_uploads
-        discard_held_uploads(self.content_type, self.object_id, self.diff, keep=keep)
+        content_type, object_id, diff = self.content_type, self.object_id, self.diff
+        # Only once the decision is saved for good: a rolled-back decision
+        # must not lose the file.
+        transaction.on_commit(lambda: discard_held_uploads(content_type, object_id, diff, keep=keep))
 
     # ---- Several approvals (ApprovalRule.required_approvals) ----------------
 
@@ -718,19 +743,21 @@ class ChangeRequest(NetBoxModel):
         effect as a rejection, without a person: nothing is applied, and a
         pending create's object is removed.
         """
-        if self.action == ActionChoices.CREATE and self.object_id:
-            from .context import applying_change_on
+        with transaction.atomic():
+            self._claim()
+            if self.action == ActionChoices.CREATE and self.object_id:
+                from .context import applying_change_on
 
-            with applying_change_on():
-                self.content_type.model_class().objects.filter(pk=self.object_id).delete()
+                with applying_change_on():
+                    self.content_type.model_class().objects.filter(pk=self.object_id).delete()
 
-        self.status = StatusChoices.EXPIRED
-        self.decided_by = None
-        self.decided_at = timezone.now()
-        self.decision_comment = str(_('Expired: not decided in time.'))
-        self.seen_by_submitter = False
-        self.save()
-        self._discard_held_uploads()
+            self.status = StatusChoices.EXPIRED
+            self.decided_by = None
+            self.decided_at = timezone.now()
+            self.decision_comment = str(_('Expired: not decided in time.'))
+            self.seen_by_submitter = False
+            self.save()
+            self._discard_held_uploads()
 
 
 class ChangeRequestApproval(models.Model):
