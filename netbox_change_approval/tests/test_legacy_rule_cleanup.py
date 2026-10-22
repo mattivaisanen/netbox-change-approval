@@ -19,7 +19,8 @@ class LegacyRuleHistoryCleanupTests(TestCase):
 
     def setUp(self):
         self.stale_types = [
-            ContentType.objects.create(app_label='netbox_change_approval', model=name)
+            # get_or_create: a kept test database may still hold them.
+            ContentType.objects.get_or_create(app_label='netbox_change_approval', model=name)[0]
             for name in cleanup.LEGACY_MODELS
         ]
         for ct in self.stale_types:
