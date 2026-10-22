@@ -65,12 +65,6 @@
 {% else %}
 <div class="card-body text-muted">{% trans "Nothing waiting on you right now." %}</div>
 {% endif %}
-<div class="card-footer py-2 small d-flex justify-content-between">
-  <a href="{% url 'plugins:netbox_change_approval:changerequest_inbox' %}{% if change_requests %}#nbca-section-decide{% endif %}">
-    <i class="mdi mdi-inbox-outline"></i> {% trans "Open Approval Inbox" %}
-  </a>
-  <span class="text-muted">{% if change_requests %}{% trans "Requests waiting on you" %}{% else %}{% trans "Your requests" %}{% endif %}</span>
-</div>
 
 <script>
   /* The widget's title (drawn by NetBox) opens the Approval Inbox too. */
