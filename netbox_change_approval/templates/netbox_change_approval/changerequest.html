@@ -3,7 +3,23 @@
 {% load plugins %}
 {% load i18n %}
 
-{% block extra_controls %}
+{% block object_identifier %}{% endblock %}
+
+{% block title %}#{{ object.pk }} {{ object.get_action_display }} {{ object.content_type.name }} {{ object.object_repr }}{% endblock %}
+
+{% block subtitle %}
+  <div class="text-secondary d-flex flex-wrap align-items-center gap-2 mb-2">
+    {% badge object.get_status_display bg_color=object.get_status_color %}
+    {% if object.auto_approved %}<span class="badge text-bg-blue">{% trans "auto-approved" %}</span>{% endif %}
+    <span>
+      {% blocktrans with who=object.submitted_by|default:_("unknown user") when=object.submitted_at|timesince %}by {{ who }}, {{ when }} ago{% endblocktrans %}
+      {% if object.revision > 1 %}&middot; {% blocktrans with n=object.revision %}revision {{ n }}{% endblocktrans %}{% endif %}
+    </span>
+  </div>
+{% endblock %}
+
+{% block control-buttons %}
+  {# Only what you can do with this request: no generic Edit/Delete/Bookmark/Subscribe. #}
   {% if can_decide and object.status == 'pending' %}
     {% if not conflict_labels and not object_missing and not has_approved %}
     <a href="{% url 'plugins:netbox_change_approval:changerequest_approve' pk=object.pk %}" class="btn btn-success">
@@ -73,49 +89,81 @@
 </div>
 {% endif %}
 <div class="row mb-3">
-  <div class="col col-md-6">
+  <div class="col-12 col-lg-8">
     <div class="card">
-      <h2 class="card-header">{% trans "Change Request" %}</h2>
-      <table class="table table-hover attr-table">
-        <tr>
-          <th scope="row">{% trans "Object type" %}</th>
-          <td>{{ object.content_type }}</td>
-        </tr>
-        <tr>
-          <th scope="row">{% trans "Object" %}</th>
-          <td>
-            {% if object.target_object %}{{ object.target_object|linkify }}{% else %}{{ object.object_repr }}{% endif %}
-          </td>
-        </tr>
-        {% for row in placement_rows %}
-        <tr>
-          <th scope="row">{{ row.label|capfirst }}</th>
-          <td>
-            {% if row.changed %}
-              <span class="text-danger">{% if row.value is not None %}{{ row.value|linkify }}{% else %}&mdash;{% endif %}</span>
-              <i class="mdi mdi-arrow-right text-muted"></i>
-              <span class="text-success">{% if row.new is not None %}{{ row.new|linkify }}{% else %}&mdash;{% endif %}</span>
-            {% else %}
-              {{ row.value|linkify }}
-            {% endif %}
-          </td>
+      <h2 class="card-header">
+        {% if object.action == 'create' %}{% trans "New object" %}{% elif object.action == 'delete' %}{% trans "Will be deleted" %}{% else %}{% trans "What changes" %}{% endif %}
+      </h2>
+      {% if where %}
+      <div class="card-body py-2 border-bottom">
+        <span class="text-muted me-1">{% trans "Where" %}:</span>
+        {% for row in where %}{{ row.value|linkify }}{% if not forloop.last %} <i class="mdi mdi-chevron-right text-muted"></i> {% endif %}{% endfor %}
+        {% if object.target_object %}<i class="mdi mdi-chevron-right text-muted"></i> {{ object.target_object|linkify }}{% endif %}
+      </div>
+      {% elif object.target_object %}
+      <div class="card-body py-2 border-bottom">{{ object.target_object|linkify }}</div>
+      {% endif %}
+      {% if diff_rows %}
+      <table class="table table-hover attr-table mb-0">
+        <thead>
+          {% if object.action == 'update' %}
+            <tr><th>{% trans "Field" %}</th><th>{% trans "Now" %}</th><th></th><th>{% trans "Requested" %}</th></tr>
+          {% else %}
+            <tr><th>{% trans "Field" %}</th><th>{% if object.action == 'create' %}{% trans "Value" %}{% else %}{% trans "Current value" %}{% endif %}</th></tr>
+          {% endif %}
+        </thead>
+        {% for row in diff_rows %}
+        <tr{% if row.conflict %} class="table-warning" title="{% trans 'Changed since submission' %}"{% endif %}>
+          <th scope="row" title="{{ row.field }}">{{ row.label|capfirst }}{% if row.conflict %} <i class="mdi mdi-alert text-warning"></i>{% endif %}</th>
+          {% if object.action == 'update' %}
+            <td class="text-danger">{% if row.old is not None and row.old != '' %}{{ row.old }}{% else %}<span class="text-muted">{% trans "(empty)" %}</span>{% endif %}</td>
+            <td class="text-muted px-0"><i class="mdi mdi-arrow-right"></i></td>
+            <td class="text-success">{% if row.new is not None and row.new != '' %}{{ row.new }}{% else %}<span class="text-muted">{% trans "(empty)" %}</span>{% endif %}</td>
+          {% elif object.action == 'create' %}
+            <td>{% if row.new is not None and row.new != '' %}{{ row.new }}{% else %}&mdash;{% endif %}</td>
+          {% else %}
+            <td class="text-danger">{% if row.old is not None and row.old != '' %}{{ row.old }}{% else %}&mdash;{% endif %}</td>
+          {% endif %}
         </tr>
         {% endfor %}
+      </table>
+      {% else %}
+      <div class="card-body text-muted">{% trans "No field-level changes recorded." %}</div>
+      {% endif %}
+    </div>
+    {% if components %}
+    <div class="card">
+      <h2 class="card-header">{% trans "Included with it" %}</h2>
+      <div class="card-body text-muted small pb-0">{% trans "Created with this object or added by its submitter while pending. Approved or rejected together with it." %}</div>
+      <table class="table table-hover">
+        {% for label, count, url in components %}
+        <tr><td>{% if url %}<a href="{{ url }}">{{ label }}</a>{% else %}{{ label }}{% endif %}</td><td class="text-end">{{ count }}</td></tr>
+        {% endfor %}
+      </table>
+    </div>
+    {% endif %}
+    {% if batch_siblings %}
+    <div class="card">
+      <h2 class="card-header">{% blocktrans count counter=batch_siblings|length %}Decided together with 1 other object{% plural %}Decided together with {{ counter }} other objects{% endblocktrans %}</h2>
+      <table class="table table-hover">
+        {% for sibling in batch_siblings %}
+        <tr><td>{{ sibling|linkify }}</td><td class="text-end">{% badge sibling.get_status_display bg_color=sibling.get_status_color %}</td></tr>
+        {% endfor %}
+      </table>
+    </div>
+    {% endif %}
+    {% plugin_left_page object %}
+  </div>
+  <div class="col-12 col-lg-4">
+    <div class="card">
+      <h2 class="card-header">{% trans "Details" %}</h2>
+      <table class="table table-hover attr-table">
         <tr>
-          <th scope="row">{% trans "Action" %}</th>
-          <td>{{ object.get_action_display }}</td>
-        </tr>
-        <tr>
-          <th scope="row">{% trans "Status" %}</th>
-          <td>{% badge object.get_status_display bg_color=object.get_status_color %}{% if object.auto_approved %} <span class="badge text-bg-blue">{% trans "auto-approved" %}</span>{% endif %}</td>
-        </tr>
-        <tr>
-          <th scope="row">{% trans "Submitted by" %}</th>
-          <td>{{ object.submitted_by|linkify|placeholder }} &middot; {{ object.submitted_at }}</td>
-        </tr>
-        <tr>
-          <th scope="row">{% trans "Approver group" %}</th>
-          <td>{{ object.approver_group|linkify|placeholder }}</td>
+          <th scope="row">{% trans "Approvers" %}</th>
+          <td>
+            {{ object.approver_group|linkify|placeholder }}
+            {% if object.status == 'pending' and object.approver_usernames %}<div class="text-muted small">{{ object.approver_usernames|join:", " }}</div>{% endif %}
+          </td>
         </tr>
         {% if object.required_approvals > 1 or approvals_so_far %}
         <tr>
@@ -127,16 +175,14 @@
           </td>
         </tr>
         {% endif %}
+        <tr>
+          <th scope="row">{% trans "Submitted" %}</th>
+          <td>{{ object.submitted_by|linkify|placeholder }}<div class="text-muted small">{{ object.submitted_at }}</div></td>
+        </tr>
         {% if object.status == 'pending' and object.expires_at %}
         <tr>
           <th scope="row">{% trans "Expires" %}</th>
-          <td>{{ object.expires_at }} <span class="text-muted">({% blocktrans with t=object.expires_at|timeuntil %}in {{ t }}{% endblocktrans %})</span></td>
-        </tr>
-        {% endif %}
-        {% if object.decided_by or object.decided_at %}
-        <tr>
-          <th scope="row">{% trans "Decided by" %}</th>
-          <td>{{ object.decided_by|linkify|placeholder }} &middot; {{ object.decided_at|placeholder }}</td>
+          <td>{% blocktrans with t=object.expires_at|timeuntil %}in {{ t }}{% endblocktrans %}<div class="text-muted small">{{ object.expires_at }}</div></td>
         </tr>
         {% endif %}
         {% if object.revision > 1 %}
@@ -153,25 +199,20 @@
           </td>
         </tr>
         {% endif %}
-        {% if object.decision_comment %}
+        {% if object.status != 'pending' and object.status != 'returned' and object.decided_at %}
         <tr>
-          <th scope="row">{% trans "Comment" %}</th>
-          <td>{{ object.decision_comment }}</td>
+          <th scope="row">{% trans "Decided" %}</th>
+          <td>
+            {{ object.decided_by|linkify|default:_("automatically") }}
+            <div class="text-muted small">{{ object.decided_at }}</div>
+            {% if object.decision_comment %}<div>&ldquo;{{ object.decision_comment }}&rdquo;</div>{% endif %}
+          </td>
         </tr>
         {% endif %}
         {% if object.applied_at %}
         <tr>
-          <th scope="row">{% trans "Applied at" %}</th>
+          <th scope="row">{% trans "Applied" %}</th>
           <td>{{ object.applied_at }}</td>
-        </tr>
-        {% endif %}
-        {% if object.batch_id %}
-        <tr>
-          <th scope="row">{% trans "Batch" %}</th>
-          <td>
-            <code>{{ object.batch_id }}</code>
-            {% if batch_siblings %}&mdash; {% blocktrans count counter=batch_siblings.count %}1 other object in this batch{% plural %}{{ counter }} other objects in this batch{% endblocktrans %}{% endif %}
-          </td>
         </tr>
         {% endif %}
       </table>
@@ -196,56 +237,13 @@
         <form method="post" action="{% url 'plugins:netbox_change_approval:changerequest_comment' pk=object.pk %}">
           {% csrf_token %}
           {{ comment_form.text }}
-          <div class="d-flex justify-content-between align-items-center mt-2">
-            <span class="text-muted small">{% trans "Doesn't approve, reject or send back. The submitter and approvers are notified." %}</span>
-            <button type="submit" class="btn btn-sm btn-primary"><i class="mdi mdi-comment-outline"></i> {% trans "Comment" %}</button>
+          <div class="d-flex justify-content-between align-items-center gap-2 mt-2">
+            <span class="text-muted small">{% trans "Doesn't decide anything. Submitter and approvers are notified." %}</span>
+            <button type="submit" class="btn btn-sm btn-primary text-nowrap"><i class="mdi mdi-comment-outline"></i> {% trans "Comment" %}</button>
           </div>
         </form>
       </div>
     </div>
-    {% plugin_left_page object %}
-  </div>
-  <div class="col col-md-6">
-    <div class="card">
-      <h2 class="card-header">{% trans "Diff" %}</h2>
-      {% if diff_rows %}
-      <table class="table table-hover attr-table">
-        <thead>
-          <tr><th>{% trans "Field" %}</th><th>{% trans "Old" %}</th><th>{% trans "New" %}</th></tr>
-        </thead>
-        {% for row in diff_rows %}
-        <tr{% if row.conflict %} class="table-warning" title="{% trans 'Changed since submission' %}"{% endif %}>
-          <th scope="row" title="{{ row.field }}">{{ row.label|capfirst }}{% if row.conflict %} <i class="mdi mdi-alert text-warning"></i>{% endif %}</th>
-          <td class="text-danger">{% if row.old is not None %}{{ row.old }}{% else %}—{% endif %}</td>
-          <td class="text-success">{% if row.new is not None %}{{ row.new }}{% else %}—{% endif %}</td>
-        </tr>
-        {% endfor %}
-      </table>
-      {% else %}
-      <div class="card-body text-muted">{% trans "No field-level diff recorded." %}</div>
-      {% endif %}
-    </div>
-    {% if components %}
-    <div class="card">
-      <h2 class="card-header">{% trans "Included with it" %}</h2>
-      <div class="card-body text-muted small pb-0">{% trans "Created with this object or added by its submitter while pending. Approved or rejected together with it." %}</div>
-      <table class="table table-hover">
-        {% for label, count, url in components %}
-        <tr><td>{% if url %}<a href="{{ url }}">{{ label }}</a>{% else %}{{ label }}{% endif %}</td><td class="text-end">{{ count }}</td></tr>
-        {% endfor %}
-      </table>
-    </div>
-    {% endif %}
-    {% if batch_siblings %}
-    <div class="card">
-      <h2 class="card-header">{% trans "Other objects in this batch" %}</h2>
-      <table class="table table-hover">
-        {% for sibling in batch_siblings %}
-        <tr><td>{{ sibling|linkify }}</td><td>{% badge sibling.get_status_display bg_color=sibling.get_status_color %}</td></tr>
-        {% endfor %}
-      </table>
-    </div>
-    {% endif %}
     {% plugin_right_page object %}
   </div>
 </div>

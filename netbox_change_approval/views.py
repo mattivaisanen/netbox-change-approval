@@ -172,7 +172,33 @@ def _field_label(model, key):
     return str(field.verbose_name)
 
 
+def _tidy(value):
+    """Show whole numbers stored as decimals (rack position 10.0) as 10."""
+    from decimal import Decimal
+
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (Decimal, float)) and value == int(value):
+        return int(value)
+    if isinstance(value, str):
+        try:
+            number = Decimal(value)
+        except Exception:
+            return value
+        if number == number.to_integral_value() and '.' in value and value.replace('.', '', 1).lstrip('-').isdigit():
+            return str(int(number))
+    return value
+
+
 def _diff_rows(change_request, conflict_fields=(), names=None):
+    rows = _raw_diff_rows(change_request, conflict_fields, names)
+    for row in rows:
+        row['old'] = _tidy(row['old'])
+        row['new'] = _tidy(row['new'])
+    return rows
+
+
+def _raw_diff_rows(change_request, conflict_fields=(), names=None):
     diff = change_request.diff
     if not isinstance(diff, dict):
         return []
@@ -297,6 +323,13 @@ class ChangeRequestView(_AnyLoggedInUserCanView, generic.ObjectView):
             ],
             'object_missing': object_missing,
             'placement_rows': placement.placement_rows(instance),
+            # Unchanged placement (site › rack › ...) for the "Where" line;
+            # changed placement fields are rows of the change table already.
+            'where': [
+                row for row in placement.placement_rows(instance)
+                if not row.get('changed') and row.get('value') is not None
+                and hasattr(row.get('value'), 'get_absolute_url')
+            ],
             'batch_siblings': batch_siblings,
             'can_decide': _can_decide(request.user, instance),
             'has_approved': instance.has_approved(request.user),

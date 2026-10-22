@@ -32,6 +32,12 @@
   lists them.
 
 ### Improvements
+- The change request page is easier to decide from: one "What changes"
+  table (now → requested, with "(empty)" instead of a blank), a "Where" line
+  for the object's site and rack, details and comments on the side, and only
+  the buttons that act on the request (no Edit, Delete, Bookmark or
+  Subscribe). The title names the request and object; whole numbers no
+  longer show as 10.0.
 - Removed the old Approval Routing Rules, Auto-Approval Rules and Exempt
   Models pages, which Approval Rules replaced earlier. Upgrading deletes
   their old database tables and change log entries; their rules were

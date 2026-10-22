@@ -142,5 +142,5 @@ class ChangeRequestCommentForm(forms.Form):
     text = forms.CharField(
         label=_('Comment'),
         max_length=2000,
-        widget=forms.Textarea(attrs={'rows': 2, 'class': 'form-control', 'placeholder': _('Ask or answer something. This does not approve, reject or send back the request.')}),
+        widget=forms.Textarea(attrs={'rows': 2, 'class': 'form-control', 'placeholder': _('Ask or answer something…')}),
     )

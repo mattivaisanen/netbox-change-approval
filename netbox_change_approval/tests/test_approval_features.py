@@ -294,3 +294,25 @@ class AllChangeRequestsLinkTests(_Base):
         url = reverse(all_item.link)
         for name in ('changerequest_inbox', 'changerequest_approvals'):
             self.assertFalse(reverse(f'plugins:netbox_change_approval:{name}').startswith(url))
+
+
+class RequestPageLayoutTests(_Base):
+    def test_page_shows_changes_and_only_decision_buttons(self):
+        change_request = self._update_request()
+        self.client.force_login(self.alice)
+        html = self.client.get(change_request.get_absolute_url()).content.decode()
+        self.assertIn(f'#{change_request.pk} Update', html)
+        self.assertIn('What changes', html)
+        self.assertIn('(empty)', html)  # the description was blank before
+        self.assertNotIn(f'netbox_change_approval.changerequest:{change_request.pk}', html)
+        self.assertNotIn(f'/change-requests/{change_request.pk}/delete/', html)
+        self.assertIn(reverse('plugins:netbox_change_approval:changerequest_approve', kwargs={'pk': change_request.pk}), html)
+
+    def test_whole_numbers_drop_trailing_zero(self):
+        from ..views import _tidy
+        from decimal import Decimal
+
+        self.assertEqual(_tidy(Decimal('10.0')), 10)
+        self.assertEqual(_tidy('10.0'), '10')
+        self.assertEqual(_tidy('10.5'), '10.5')
+        self.assertEqual(_tidy('v1.0a'), 'v1.0a')
