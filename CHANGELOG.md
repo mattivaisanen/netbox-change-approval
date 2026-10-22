@@ -3,6 +3,13 @@
 ## Unreleased
 
 ### New features
+- Request page: "Policy Rules" (the rule, ✓/✗ with approvals so far, eligible
+  reviewers) and "Reviews" (each reviewer's Approved / Changes requested /
+  Rejected, with time and comment) panels, and an "Add a Review" menu.
+- Notifications for a partly approved request ("approved by bob (1 of 2)"),
+  and every notification fires a NetBox event with the request's details and
+  recipients, so Event Rules can e-mail or post it through a webhook.
+- The Pending Approvals widget links to the Approval Inbox.
 - Change sets (Change Approvals → Change Sets): start one ("Install sw1 in
   rack A3", optional ticket), make your changes as usual, then submit them
   as one item that approvers decide together. Drafts stay hidden from
@@ -72,6 +79,9 @@
   lists them.
 
 ### Improvements
+- Notifications say who did what ("rejected by bob: wrong rack", "bob: why
+  this VLAN?"). Comment notifications go only to the submitter and the
+  approver group, no longer to everyone who commented before.
 - Approval Inbox and dashboard widget titles say what is requested and on
   what: "Create Rack R1", "Edit Device Access switch sw1" (devices and VMs
   include their role). Site, rack and the field changes are in the quick

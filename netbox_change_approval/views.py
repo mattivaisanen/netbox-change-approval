@@ -14,7 +14,7 @@ from netbox.views import generic
 from utilities.forms.forms import ConfirmationForm
 from utilities.views import ConditionalLoginRequiredMixin, register_model_view
 
-from . import absence, amend, approvals, changesets, components, filtersets, forms, inbox, notifications, permissions, placement, revision, serialization, tables
+from . import absence, amend, approvals, changesets, components, reviews, filtersets, forms, inbox, notifications, permissions, placement, revision, serialization, tables
 from .exceptions import AlreadyDecided, ChangeConflict, CreatedObjectInUse
 from .rule_access import RuleReadMixin, RuleWriteMixin
 from .object_actions import BulkApprove, BulkReject
@@ -324,6 +324,8 @@ class ChangeRequestView(_AnyLoggedInUserCanView, generic.ObjectView):
             'object_missing': object_missing,
             'placement_rows': placement.placement_rows(instance),
             'rack_previews': placement.rack_previews(instance),
+            'policy_rules': reviews.policy_rules(instance),
+            'reviews': reviews.reviews(instance),
             'change_set': changesets.for_request(instance),
             # Unchanged placement (site › rack › ...) for the location line;
             # changed placement fields are rows of the change table already.
@@ -986,10 +988,14 @@ class WorkSheetView(ConditionalLoginRequiredMixin, View):
 
         if not request.user.is_authenticated:
             return redirect(f"{reverse('login')}?next={request.path}")
-        tasks = open_tasks()
+        # Only jobs from requests this user may see (object view permissions).
+        visible = permissions.visible_change_requests(request.user, ChangeRequest.objects.all())
+        tasks = open_tasks().filter(change_request__in=visible)
         site = Site.objects.filter(pk=request.GET.get('site') or None).first() if request.GET.get('site', '').isdigit() else None
         rack = Rack.objects.filter(pk=request.GET.get('rack')).first() if request.GET.get('rack', '').isdigit() else None
-        done = WorkTask.objects.filter(change_request__status=StatusChoices.APPLIED, done_at__isnull=False)
+        done = WorkTask.objects.filter(
+            change_request__status=StatusChoices.APPLIED, done_at__isnull=False, change_request__in=visible,
+        )
         if site is not None:
             tasks, done = tasks.filter(site=site), done.filter(site=site)
         if rack is not None:
@@ -1013,7 +1019,8 @@ class WorkSheetView(ConditionalLoginRequiredMixin, View):
 
         if not request.user.is_authenticated:
             return redirect(reverse('login'))
-        task = WorkTask.objects.filter(pk=request.POST.get('task') or 0).first()
+        visible = permissions.visible_change_requests(request.user, ChangeRequest.objects.all())
+        task = WorkTask.objects.filter(pk=request.POST.get('task') or 0, change_request__in=visible).first()
         if task is not None:
             if request.POST.get('undo'):
                 task.done_by, task.done_at = None, None
@@ -1056,7 +1063,7 @@ class ChangeSetListView(ConditionalLoginRequiredMixin, View):
         messages.success(request, _(
             'Change set "%(name)s" started. Changes you make now go into it; submit it when done.'
         ) % {'name': change_set.name})
-        return redirect(request.POST.get('return_url') or change_set.get_absolute_url())
+        return redirect(_safe_return_url(request.POST.get('return_url'), change_set.get_absolute_url()))
 
 
 class ChangeSetView(ConditionalLoginRequiredMixin, View):

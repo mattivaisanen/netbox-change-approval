@@ -478,33 +478,49 @@ request #12, waiting for approval".
 
 ### Getting notified of pending changes
 
-NetBox's own notifications (the bell in the top bar) work out of the box:
+Only the people a request concerns hear about it: its submitter and its
+approver group (a stand-in instead of an away approver). NetBox's own
+notifications (the bell in the top bar) work out of the box:
 
-- A new or resubmitted request notifies every member of its approver group
-  (except the submitter).
-- Approving, rejecting, sending back or expiry notifies the submitter.
-- A new comment notifies the submitter, the approver group and earlier
-  commenters.
-- A submitted change set is one notification for the whole set.
-- While an approver is away, their stand-in gets their notifications.
+| Event | Who | Example |
+|---|---|---|
+| New or resubmitted request | approver group, except the submitter | `#12 Update device sw1 · from alice` |
+| Approved, but needs more approvers | submitter | `… · approved by bob (1 of 2)` |
+| Approved | submitter | `… · approved by bob` |
+| Rejected | submitter | `… · rejected by bob: wrong rack` |
+| Sent back for revision | submitter | `… · sent back by bob: use U20` |
+| Expired | submitter | `… · nobody decided it in time` |
+| New comment | submitter and approver group, except the author | `… · bob: why this VLAN?` |
 
 Once a request is decided, approvers' unread "needs approval" notifications
-for it disappear. A bulk action is one notification.
+for it disappear. A bulk action or a submitted change set is one
+notification.
 
-For email, Slack or webhooks, use NetBox's own **Event Rules**, since
-`ChangeRequest` is a normal change-logged NetBox object:
+**Email, chat or anything else:** each notification also fires a NetBox
+event of the same type (they are listed as event types like "Change request
+approved" when you add an Event Rule). Its data has everything a message
+needs, including who should get it:
 
-1. Go to **Operations → Event Rules → Add**.
-2. **Object types**: Change Approval > Change Request.
-3. **Event types**: `Object created` (fires when something is newly submitted —
-   add a condition `{"attr": "status", "value": "pending"}` to skip
-   auto-approved ones) or `Object updated` (fires on every status change; add a
-   condition on `status` of `applied` or `rejected` to notify submitters of the
-   outcome).
-4. **Action**: a webhook, a script, or a notification group — whatever NetBox
-   already supports.
+- `display`, `detail`, `url`: the notification text and the request's link
+  (prefix your NetBox address).
+- `action`, `status`, `revision`, `object_type`, `object`, `changes`
+  (`[{field, old, new}]`).
+- `submitted_by`, `by` (who did it), `approvers`, `recipients`: each
+  `{username, name, email}`.
+- `comment`, `approver_group`, `approvals_needed`.
 
-See NetBox's own docs on Event Rule conditions for the exact condition syntax.
+To e-mail the right people, add **Operations → Event Rules**: object type
+Change Approval > Change Request, the event types you want, action Webhook
+pointing at your mail or chat relay, with a body template such as:
+
+```json
+{"to": [{% for r in data.recipients %}"{{ r.email }}"{% if not forloop.last %}, {% endif %}{% endfor %}],
+ "subject": "{{ data.event }}: {{ data.display }}",
+ "text": "{{ data.detail }}\nhttps://netbox.example.com{{ data.url }}"}
+```
+
+A Notification action with a notification group also works, but sends to
+that fixed group rather than to each request's own people.
 
 ## Limitations (current version)
 

@@ -81,6 +81,8 @@ def approve(members, user):
         ready = all(count >= cr.required_approvals for count, cr in zip(have_counts, locked))
         if not ready:
             _check_still_appliable(locked)
+            from .notifications import partly_approved
+            partly_approved(locked[0], user, have, need)
             return ApprovalResult(False, have, need)
 
         for change_request in locked:

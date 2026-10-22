@@ -132,6 +132,61 @@
       <div class="card-body text-muted">{% trans "No field-level changes recorded." %}</div>
       {% endif %}
     </div>
+    {% if policy_rules %}
+    <div class="card">
+      <h2 class="card-header">{% trans "Policy Rules" %}</h2>
+      <table class="table table-hover attr-table mb-0">
+        <thead>
+          <tr><th>{% trans "Rule" %}</th><th>{% trans "Status" %}</th><th>{% trans "Eligible reviewers" %}</th></tr>
+        </thead>
+        {% for rule in policy_rules %}
+        <tr>
+          <td>{% if rule.rule %}{{ rule.rule|linkify }}{% else %}{{ rule.name }}{% endif %}
+            <div class="text-muted small">{% blocktrans count counter=rule.need %}{{ counter }} approval from {% plural %}{{ counter }} approvals from {% endblocktrans %}{{ rule.group|default:_("the default approver group") }}</div></td>
+          <td class="text-nowrap">
+            {% if rule.satisfied %}<span class="text-success"><i class="mdi mdi-check-circle"></i></span>{% else %}<span class="text-danger"><i class="mdi mdi-close-circle"></i></span>{% endif %}
+            <span class="text-muted small">{{ rule.have }}/{{ rule.need }}</span>
+          </td>
+          <td>{% for user in rule.reviewers %}{{ user }}{% if not forloop.last %}, {% endif %}{% empty %}<span class="text-muted">&mdash;</span>{% endfor %}</td>
+        </tr>
+        {% endfor %}
+      </table>
+    </div>
+    <div class="card">
+      <h2 class="card-header d-flex align-items-center">
+        <span class="flex-grow-1">{% trans "Reviews" %}</span>
+        {% if can_decide and object.status == 'pending' %}
+        <div class="dropdown">
+          <button class="btn btn-sm btn-primary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="mdi mdi-plus"></i> {% trans "Add a Review" %}
+          </button>
+          <ul class="dropdown-menu dropdown-menu-end">
+            {% if not conflict_labels and not object_missing and not has_approved %}
+            <li><a class="dropdown-item" href="{% url 'plugins:netbox_change_approval:changerequest_approve' pk=object.pk %}"><i class="mdi mdi-check text-success"></i> {% trans "Approve" %}</a></li>
+            {% endif %}
+            <li><a class="dropdown-item" href="{% url 'plugins:netbox_change_approval:changerequest_sendback' pk=object.pk %}"><i class="mdi mdi-undo-variant text-warning"></i> {% trans "Request changes" %}</a></li>
+            <li><a class="dropdown-item" href="{% url 'plugins:netbox_change_approval:changerequest_reject' pk=object.pk %}"><i class="mdi mdi-close text-danger"></i> {% trans "Reject" %}</a></li>
+          </ul>
+        </div>
+        {% endif %}
+      </h2>
+      {% if reviews %}
+      <table class="table table-hover mb-0">
+        <thead><tr><th>{% trans "Reviewer" %}</th><th>{% trans "Status" %}</th><th>{% trans "Time" %}</th></tr></thead>
+        {% for review in reviews %}
+        <tr{% if review.old_revision %} class="text-muted"{% endif %}>
+          <td>{{ review.user|default:_("Rule") }}{% if review.old_revision %} <span class="small">({% trans "earlier revision" %})</span>{% endif %}
+            {% if review.comment %}<div class="small text-muted">&ldquo;{{ review.comment }}&rdquo;</div>{% endif %}</td>
+          <td><span class="badge text-bg-{{ review.color }}">{{ review.status }}</span></td>
+          <td class="text-nowrap small">{% if review.time %}{{ review.time|isodatetime:"minutes" }}{% else %}&mdash;{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </table>
+      {% else %}
+      <div class="card-body text-muted">{% trans "No reviews yet." %}</div>
+      {% endif %}
+    </div>
+    {% endif %}
     {% if components %}
     <div class="card">
       <h2 class="card-header">{% trans "Included with it" %}</h2>

@@ -316,3 +316,78 @@ class RequestPageLayoutTests(_Base):
         self.assertEqual(_tidy('10.0'), '10')
         self.assertEqual(_tidy('10.5'), '10.5')
         self.assertEqual(_tidy('v1.0a'), 'v1.0a')
+
+
+class NotificationDetailTests(_Base):
+    def _ct(self):
+        return ContentType.objects.get_for_model(ChangeRequest)
+
+    def test_texts_say_who_did_what(self):
+        with self.captureOnCommitCallbacks(execute=True):
+            change_request = self._update_request()
+        note = Notification.objects.get(user=self.alice, object_type=self._ct(), object_id=change_request.pk)
+        self.assertIn('from submitter', note.object_repr)
+        with self.captureOnCommitCallbacks(execute=True):
+            change_request.reject(self.alice, 'wrong rack')
+        note = Notification.objects.get(user=self.submitter, object_type=self._ct(), object_id=change_request.pk)
+        self.assertIn('rejected by alice: wrong rack', note.object_repr)
+
+    def test_comment_goes_only_to_submitter_and_approvers(self):
+        outsider = User.objects.create(username='outsider', is_superuser=True)
+        change_request = self._update_request()
+        from ..models import ChangeRequestComment
+        ChangeRequestComment.objects.create(change_request=change_request, author=outsider, text='earlier')
+        self.client.force_login(self.alice)
+        url = reverse('plugins:netbox_change_approval:changerequest_comment', kwargs={'pk': change_request.pk})
+        with self.captureOnCommitCallbacks(execute=True):
+            self.client.post(url, {'text': 'why?'})
+        users = set(Notification.objects.filter(object_type=self._ct(), object_id=change_request.pk,
+                                                event_type=notifications.COMMENTED).values_list('user__username', flat=True))
+        self.assertEqual(users, {'submitter', 'bob', 'carol'})
+
+    def test_partial_approval_tells_submitter(self):
+        self._rule(required_approvals=2)
+        change_request = self._update_request()
+        with self.captureOnCommitCallbacks(execute=True):
+            self._approve(self.alice, change_request)
+        note = Notification.objects.get(user=self.submitter, object_type=self._ct(), object_id=change_request.pk)
+        self.assertEqual(note.event_type, notifications.PARTLY_APPROVED)
+        self.assertIn('1 of 2', note.object_repr)
+
+    def test_event_fired_for_event_rules_with_full_data(self):
+        from unittest import mock
+
+        with mock.patch('extras.events.flush_events') as flush:
+            with self.captureOnCommitCallbacks(execute=True):
+                change_request = self._update_request()
+        event = flush.call_args[0][0][0]
+        self.assertEqual(event['event_type'], notifications.NEEDS_APPROVAL)
+        data = event['data']
+        self.assertEqual(data['id'], change_request.pk)
+        self.assertEqual(data['submitted_by']['username'], 'submitter')
+        self.assertEqual({p['username'] for p in data['recipients']}, {'alice', 'bob', 'carol'})
+        self.assertEqual(data['changes'][0]['new'], 'changed')
+
+
+class ReviewPanelTests(_Base):
+    def test_policy_rules_and_reviews_on_request_page(self):
+        self._rule(required_approvals=2, description='Two approvers for vendors')
+        change_request = self._update_request()
+        self._approve(self.alice, change_request)
+        self.client.force_login(self.bob)
+        html = self.client.get(change_request.get_absolute_url()).content.decode()
+        self.assertIn('Policy Rules', html)
+        self.assertIn('Two approvers for vendors', html)
+        self.assertIn('1/2', html)
+        self.assertIn('Add a Review', html)
+        self.assertIn('Approved', html)
+
+    def test_widget_links_to_inbox(self):
+        from django.test import RequestFactory
+
+        from ..widgets import ApprovalsWidget
+
+        request = RequestFactory().get('/')
+        request.user = self.submitter
+        html = ApprovalsWidget().render(request)
+        self.assertIn(reverse('plugins:netbox_change_approval:changerequest_inbox'), html)

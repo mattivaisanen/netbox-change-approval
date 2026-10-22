@@ -1,14 +1,23 @@
 """
-NetBox's own in-app notifications (the bell icon in the top bar) for change
-requests. No email or Slack: those stay with NetBox Event Rules (README).
+Notifications for change requests: NetBox's own in-app notifications (the
+bell icon in the top bar), and NetBox events that Event Rules can turn into
+emails, chat messages or other webhooks.
 
-Who hears about what:
-- New or resubmitted request: every active member of its approver group
-  except the submitter.
+Only the people a request concerns hear about it: its submitter and its
+approver group (stand-ins in place of away members, see absence.py).
+
+- New or resubmitted request: the approver group, except the submitter.
+- Partly approved (a rule needs more approvers): the submitter.
 - Approved, rejected, sent back or expired: the submitter (not when they did
   it themselves, e.g. retracting to edit).
-- New comment: the submitter, the approver group and earlier commenters,
-  except whoever wrote it.
+- New comment: the submitter and the approver group, except whoever wrote it.
+
+Each notification names the request, the object and who did what ("#12
+Update device sw1 · rejected by bob: wrong rack"). Each also fires a NetBox
+event of the same type on the change request, with everything a message
+needs in its data (see event_data()), including who should receive it, so
+an Event Rule with a webhook can e-mail or post it. See README "Getting
+notified".
 
 When a request stops being pending, approvers' unread "needs approval"
 notifications for it are removed: there's nothing left for them to do.
@@ -32,6 +41,7 @@ REJECTED = 'netbox_change_approval.rejected'
 SENT_BACK = 'netbox_change_approval.sent_back'
 EXPIRED = 'netbox_change_approval.expired'
 COMMENTED = 'netbox_change_approval.commented'
+PARTLY_APPROVED = 'netbox_change_approval.partly_approved'
 
 
 def register_event_types():
@@ -55,6 +65,7 @@ def register_event_types():
         (SENT_BACK, _('Change request sent back to you'), EVENT_TYPE_KIND_WARNING),
         (EXPIRED, _('Change request expired'), EVENT_TYPE_KIND_DANGER),
         (COMMENTED, _('New comment on change request'), EVENT_TYPE_KIND_INFO),
+        (PARTLY_APPROVED, _('Change request approved, needs more approvers'), EVENT_TYPE_KIND_INFO),
     ):
         if name not in registry['event_types']:
             TranslatedEventType(name, text, kind=kind).register()
@@ -71,19 +82,102 @@ def _label(change_request):
     return text[:200]
 
 
-def notify(users, change_request, event_type):
+def _person(user):
+    if user is None:
+        return None
+    return {
+        'id': user.pk,
+        'username': user.username,
+        'name': user.get_full_name() or user.username,
+        'email': user.email or '',
+    }
+
+
+def event_data(change_request, event_type, recipients, detail='', actor=None, comment=''):
+    """
+    The data of the NetBox event fired with a notification: everything a
+    message about it needs, for Event Rules (conditions) and webhooks (body
+    templates as {{ data.<key> }}).
+    """
+    from netbox.registry import registry
+
+    from .views import _diff_rows
+
+    event = registry['event_types'].get(event_type)
+    try:
+        changes = [
+            {'field': str(row['label']), 'old': None if row['old'] is None else str(row['old']),
+             'new': None if row['new'] is None else str(row['new'])}
+            for row in _diff_rows(change_request)
+        ]
+    except Exception:
+        changes = []
+    group = change_request.approver_group
+    return {
+        'id': change_request.pk,
+        'display': _label(change_request),
+        'url': change_request.get_absolute_url(),
+        'event': str(event) if event else event_type,
+        'detail': detail,
+        'action': change_request.action,
+        'status': change_request.status,
+        'revision': change_request.revision,
+        'object_type': f'{change_request.content_type.app_label}.{change_request.content_type.model}',
+        'object_id': change_request.object_id,
+        'object': change_request.object_repr,
+        'changes': changes,
+        'submitted_by': _person(change_request.submitted_by),
+        'submitted_at': change_request.submitted_at.isoformat() if change_request.submitted_at else None,
+        'approver_group': group.name if group is not None else None,
+        'approvers': [_person(u) for u in _approvers(change_request)],
+        'approvals_needed': change_request.required_approvals,
+        'by': _person(actor),
+        'comment': comment,
+        'recipients': [_person(u) for u in recipients],
+    }
+
+
+def fire_event(change_request, event_type, recipients, detail='', actor=None, comment=''):
+    """Run NetBox Event Rules for this notification (webhooks, scripts, ...)."""
+    import logging
+
+    try:
+        from core.models import ObjectType
+        from extras.events import EventContext, flush_events
+
+        context = EventContext(
+            object_type=ObjectType.objects.get_for_model(ChangeRequest),
+            object_id=change_request.pk,
+            object=change_request,
+            event_type=event_type,
+            snapshots=None,
+            user=actor or change_request.submitted_by,
+            data=event_data(change_request, event_type, recipients, detail, actor, comment),
+        )
+        flush_events([context])
+    except Exception:
+        logging.getLogger('netbox_change_approval.notifications').exception(
+            'Event rules for change request #%s failed', change_request.pk,
+        )
+
+
+def notify(users, change_request, event_type, detail='', actor=None, comment=''):
     """Give each user (once, skipping inactive ones) a notification about
-    `change_request`, replacing any earlier one they have for it."""
+    `change_request`, replacing any earlier one they have for it, and fire
+    the matching NetBox event for Event Rules."""
     from django.contrib.contenttypes.models import ContentType
     from extras.models import Notification
 
     content_type = ContentType.objects.get_for_model(ChangeRequest)
     label = _label(change_request)
-    seen = set()
+    if detail:
+        label = f'{label} \u00b7 {detail}'[:200]
+    recipients, seen = [], set()
     for user in users:
         if user is None or user.pk in seen or not user.is_active:
             continue
         seen.add(user.pk)
+        recipients.append(user)
         Notification.objects.filter(object_type=content_type, object_id=change_request.pk, user=user).delete()
         notification = Notification.objects.create(
             user=user, object_type=content_type, object_id=change_request.pk, event_type=event_type,
@@ -91,6 +185,15 @@ def notify(users, change_request, event_type):
         # Notification.save() always stores str(object); ours reads better
         # without the status, which would soon be out of date.
         Notification.objects.filter(pk=notification.pk).update(object_repr=label)
+    if recipients:
+        fire_event(change_request, event_type, recipients, detail, actor, comment)
+
+
+def _said(who, text, limit=120):
+    text = (text or '').strip().replace('\n', ' ')
+    if len(text) > limit:
+        text = text[:limit - 1] + '\u2026'
+    return f'{who}: {text}' if text else str(who)
 
 
 def _approvers(change_request):
@@ -152,19 +255,28 @@ def _after_commit(pk, old_status):
         if is_draft(change_request):
             return  # a draft change set notifies when it is submitted
         recipients = [u for u in _approvers(change_request) if u.pk != change_request.submitted_by_id]
-        notify(recipients, change_request, NEEDS_APPROVAL)
+        who = change_request.submitted_by or _('unknown user')
+        detail = (_('resubmitted by {who}') if change_request.revision > 1 else _('from {who}')).format(who=who)
+        notify(recipients, change_request, NEEDS_APPROVAL, detail=str(detail), actor=change_request.submitted_by)
         return
 
     if submitter is None or change_request.decided_by_id == submitter.pk:
         return  # nobody to tell, or they did it themselves
+    decider = change_request.decided_by
+    comment = change_request.decision_comment
     if status == StatusChoices.APPLIED and not change_request.auto_approved:
-        notify([submitter], change_request, APPROVED)
+        notify([submitter], change_request, APPROVED,
+               detail=str(_('approved by {who}').format(who=decider or _('an approver'))), actor=decider)
     elif status == StatusChoices.REJECTED:
-        notify([submitter], change_request, REJECTED)
+        notify([submitter], change_request, REJECTED,
+               detail=_said(_('rejected by {who}').format(who=decider or _('an approver')), comment),
+               actor=decider, comment=comment)
     elif status == StatusChoices.RETURNED:
-        notify([submitter], change_request, SENT_BACK)
+        notify([submitter], change_request, SENT_BACK,
+               detail=_said(_('sent back by {who}').format(who=decider or _('an approver')), comment),
+               actor=decider, comment=comment)
     elif status == StatusChoices.EXPIRED:
-        notify([submitter], change_request, EXPIRED)
+        notify([submitter], change_request, EXPIRED, detail=str(_('nobody decided it in time')))
 
 
 def change_request_saved(sender, instance, created, **kwargs):
@@ -185,19 +297,36 @@ def request_updated(change_request):
 
 
 def comment_added(comment):
+    """Tell the submitter and the approver group (not other commenters, and
+    not the author)."""
     change_request = comment.change_request
     recipients = []
     if change_request.submitted_by_id:
         recipients.append(change_request.submitted_by)
     recipients.extend(_approvers(change_request))
-    recipients.extend(c.author for c in change_request.comments.select_related('author') if c.author_id)
     recipients = [u for u in recipients if u is not None and u.pk != comment.author_id]
     pk = comment.pk
+    detail = _said(comment.author or _('deleted user'), comment.text)
 
     def send():
         from .models import ChangeRequestComment
         if ChangeRequestComment.objects.filter(pk=pk).exists():
-            notify(recipients, change_request, COMMENTED)
+            notify(recipients, change_request, COMMENTED, detail=detail, actor=comment.author, comment=comment.text)
+    transaction.on_commit(send)
+
+
+def partly_approved(change_request, user, have, need):
+    """An approval that doesn't yet apply the request (it needs more
+    approvers): tell the submitter."""
+    if change_request.submitted_by_id is None or change_request.submitted_by_id == getattr(user, 'pk', None):
+        return
+    pk = change_request.pk
+    detail = str(_('approved by {who} ({have} of {need})').format(who=user, have=have, need=need))
+
+    def send():
+        current = ChangeRequest.objects.filter(pk=pk, status=StatusChoices.PENDING).select_related('submitted_by').first()
+        if current is not None:
+            notify([current.submitted_by], current, PARTLY_APPROVED, detail=detail, actor=user)
     transaction.on_commit(send)
 
 
