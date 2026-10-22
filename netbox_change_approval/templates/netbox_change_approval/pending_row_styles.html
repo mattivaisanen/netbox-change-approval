@@ -38,19 +38,17 @@
     text-decoration: line-through;
     opacity: .6;
   }
+  /* A small icon in front of the name: compact, so narrow (split-screen)
+     tables don't grow taller. The tooltip says what it is. */
   .nbca-chip {
     display: inline-block;
-    margin-left: .4rem;
-    padding: 0 .4rem;
-    border: 1px solid currentColor;
-    border-radius: 1rem;
-    font-size: .75em;
-    line-height: 1.4;
-    white-space: nowrap;
+    margin-right: .3rem;
+    font-size: 1.05em;
+    line-height: 1;
     text-decoration: none !important;
-    vertical-align: middle;
+    vertical-align: -.05em;
   }
-  .nbca-chip:hover { text-decoration: underline !important; }
+  .nbca-chip:hover { opacity: .75; }
   .nbca-chip-create { color: var(--tblr-green, #2fb344) !important; }
   .nbca-chip-update { color: var(--tblr-blue, #206bc4) !important; }
   .nbca-chip-delete { color: var(--tblr-red, #d63939) !important; }
@@ -64,10 +62,11 @@
      Runs again after NetBox swaps a table in (sorting, paging, filtering). */
   (function () {
     var labels = {
-      create: "{% trans '+ new, awaiting approval' %}",
-      update: "{% trans '✎ edit pending' %}",
-      'delete': "{% trans '✕ delete pending' %}"
+      create: "{% trans 'New, awaiting approval' %}",
+      update: "{% trans 'Edit awaiting approval' %}",
+      'delete': "{% trans 'Delete awaiting approval' %}"
     };
+    var icons = {create: 'mdi-plus-circle', update: 'mdi-pencil-circle', 'delete': 'mdi-minus-circle'};
     function mark(root) {
       (root || document).querySelectorAll('tr[data-nbca-action]:not([data-nbca-done])').forEach(function (row) {
         row.setAttribute('data-nbca-done', '1');
@@ -78,12 +77,13 @@
         var target = cells.find(function (td) { return td.querySelector('a'); }) || cells[0];
         if (target) {
           var chip = document.createElement('a');
-          chip.className = 'nbca-chip nbca-chip-' + action;
+          chip.className = 'nbca-chip nbca-chip-' + action + ' mdi ' + (icons[action] || 'mdi-clock-outline');
           chip.href = row.getAttribute('data-nbca-url') || '#';
-          chip.textContent = labels[action] || action;
+          var label = labels[action] || action;
           var summary = row.getAttribute('data-nbca-summary');
-          chip.title = summary ? summary : chip.textContent;
-          target.appendChild(chip);
+          chip.title = summary ? label + ': ' + summary : label;
+          chip.setAttribute('aria-label', label);
+          target.insertBefore(chip, target.firstChild);
         }
         if (action !== 'update') return;
         var changes = {};

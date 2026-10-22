@@ -68,12 +68,10 @@ class PendingMarksTests(TestCase):
         self.assertEqual(changes, {'description': 'new text'})
         self.assertIn('data-nbca-col="description"', html)
 
-    def test_badge_counts_each_kind(self):
+    def test_badge_shows_total_only(self):
         html = self._list()
         self.assertIn('3 pending approvals', html)
-        for label in ('1 new', '1 edit', '1 delete'):
-            self.assertIn(label, html)
-        self.assertIn(f'?id={self.doomed.pk}', html)
+        self.assertNotIn('1 edit<', html)
 
     @override_settings(PLUGINS_CONFIG=PLUGINS_CONFIG_OUTLINE)
     def test_outline_setting_restores_old_look(self):
@@ -82,7 +80,6 @@ class PendingMarksTests(TestCase):
         self.assertIn('nbca-pending-row', rows[self.edited.pk])
         self.assertNotIn('nbca-pending-update', rows[self.edited.pk])
         self.assertNotIn('data-nbca-action="', html)
-        self.assertNotIn('1 edit', html)
 
     def test_rack_elevation_colors_by_action(self):
         site = Site.objects.create(name='S1', slug='s1')
