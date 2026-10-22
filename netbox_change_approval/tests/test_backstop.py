@@ -26,8 +26,26 @@ class PlainSaveBackstopTests(TestCase):
     def tearDown(self):
         current_request.reset(self.token)
 
+    @staticmethod
+    def _existing(**kwargs):
+        """An object that already exists (created outside any approval)."""
+        with applying_change_on():
+            return Manufacturer.objects.create(**({'name': 'Acme', 'slug': 'acme'} | kwargs))
+
+    def test_plain_create_is_pending(self):
+        obj = Manufacturer.objects.create(name='Script made', slug='script-made')
+
+        cr = ChangeRequest.objects.get(object_id=obj.pk, action=ActionChoices.CREATE)
+        self.assertEqual(cr.status, StatusChoices.PENDING)
+        self.assertEqual(cr.submitted_by, self.user)
+
+    def test_plain_create_with_bypass_is_not_recorded(self):
+        grant_bypass(self.user, Manufacturer)
+        Manufacturer.objects.create(name='Script made', slug='script-made')
+        self.assertFalse(ChangeRequest.objects.exists())
+
     def test_plain_save_is_queued_and_not_written(self):
-        obj = Manufacturer.objects.create(name='Acme', slug='acme')
+        obj = self._existing()
         obj.description = 'sneaky'
         obj.save()
 
@@ -39,7 +57,7 @@ class PlainSaveBackstopTests(TestCase):
 
     def test_validated_save_is_not_gated_twice(self):
         grant_bypass(self.user, Manufacturer)
-        obj = Manufacturer.objects.create(name='Acme', slug='acme')
+        obj = self._existing()
         obj.description = 'allowed'
         ApprovalGateValidator().validate(obj, current_request.get())
         obj.save()
@@ -50,7 +68,7 @@ class PlainSaveBackstopTests(TestCase):
 
     def test_bypass_user_plain_save_goes_through(self):
         grant_bypass(self.user, Manufacturer)
-        obj = Manufacturer.objects.create(name='Acme', slug='acme')
+        obj = self._existing()
         obj.description = 'allowed'
         obj.save()
 
@@ -58,7 +76,7 @@ class PlainSaveBackstopTests(TestCase):
         self.assertEqual(obj.description, 'allowed')
 
     def test_applying_change_is_not_gated(self):
-        obj = Manufacturer.objects.create(name='Acme', slug='acme')
+        obj = self._existing()
         obj.description = 'approved'
         with applying_change_on():
             obj.save()
@@ -67,12 +85,12 @@ class PlainSaveBackstopTests(TestCase):
         self.assertEqual(obj.description, 'approved')
 
     def test_internal_field_only_save_is_not_gated(self):
-        obj = Manufacturer.objects.create(name='Acme', slug='acme')
+        obj = self._existing()
         obj.save()  # nothing editable changed
         self.assertFalse(ChangeRequest.objects.exists())
 
     def test_second_change_to_locked_object_is_dropped(self):
-        obj = Manufacturer.objects.create(name='Acme', slug='acme')
+        obj = self._existing()
         obj.description = 'first'
         obj.save()
         obj.description = 'second'

@@ -26,8 +26,10 @@ is being saved or deleted (child devices following their parent, a device's
 primary IP cleared because the IP was unassigned, a virtual chassis master
 update, ...) is a consequence of that outer change, which was gated itself.
 
-Creates are not gated here: NetBox creates many objects internally with a
-plain save() (components from device type templates, for example).
+Creates are gated here only when they are the outermost write (see
+gate_plain_create): NetBox creates many objects internally with a plain
+save() as part of another save (components from device type templates, for
+example), and those follow the outer object.
 """
 import copy
 from contextvars import ContextVar
@@ -123,11 +125,41 @@ def _revert(instance, old, fields):
             field.delete_cached_value(instance)
 
 
+def gate_plain_create(instance, request):
+    """
+    A create that reaches save() without the validator, as the outermost
+    write: a script, or a form that creates a second object in its save()
+    (the FHRP group form's "Virtual IP Address", say). Before, such objects
+    simply appeared with no request at all. Now they're pending creates like
+    any other (or let through by bypass/rules), via the same gate() call.
+
+    Objects NetBox creates as part of another save (a new device's
+    interfaces, ...) aren't outermost and stay ungated. So are creates with
+    no logged-in user behind them (management commands, data migrations),
+    as before.
+    """
+    user = getattr(request, 'user', None) if request is not None else None
+    if user is None or not user.is_authenticated:
+        return
+    if getattr(instance, '_nbca_create_checked', False) or hasattr(instance, '_nbca_pending_create'):
+        return  # the validator already handled this create
+    from .gating import PENDING_CREATES_ATTR, gate
+
+    queued = (getattr(request, PENDING_CREATES_ATTR, None) or {}).get(instance._meta.label_lower) \
+        if request is not None else None
+    if queued:
+        return  # a REST API create the validator handled on a copy
+    gate(instance, ActionChoices.CREATE, request)
+
+
 def gate_plain_save(sender, instance, raw=False, update_fields=None, **kwargs):
-    if raw or instance.pk is None or applying_change.get():
+    if raw or applying_change.get():
         return
     if _write_depth.get() > 1:
         return  # a side effect of another object's save or delete
+    if instance.pk is None:
+        gate_plain_create(instance, current_request.get())
+        return
 
     request = current_request.get()
     if _consume_validated(instance, request):

@@ -87,6 +87,8 @@ def gate(instance, action, request):
     """See _gate() below. An UPDATE that may proceed is marked, so the save()
     that follows isn't gated a second time by backstop.py."""
     result = _gate(instance, action, request)
+    if action == ActionChoices.CREATE:
+        instance._nbca_create_checked = True  # see backstop.gate_plain_create
     if result is None and action == ActionChoices.UPDATE:
         from .backstop import mark_validated
         mark_validated(instance, request)

@@ -353,8 +353,11 @@ See NetBox's own docs on Event Rule conditions for the exact condition syntax.
   constraints are checked against whatever's already set in memory on the
   unsaved instance (this covers the common case — e.g. a `tenant` picked in the
   form — but can't follow relations that aren't assigned yet).
-- **Management commands and scripts bypass gating.** Only requests that carry
-  NetBox's `current_request` context (i.e. made through the web UI) are gated.
+- **Management commands bypass gating.** Changes need a logged-in user
+  behind them to be gated: the web UI, the REST API, background jobs and
+  custom scripts run from NetBox are gated (a script's edits and new objects
+  become requests from the user who ran it). `manage.py` commands and
+  `nbshell` have no user and are not gated.
 - **No retention policy.** Every change request — approved, rejected, auto-
   approved — stays in the database forever; there's no built-in pruning. Also
   worth knowing before years of use: approver groups become permanently
