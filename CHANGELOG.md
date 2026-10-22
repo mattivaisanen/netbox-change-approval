@@ -2,17 +2,38 @@
 
 ## Unreleased
 
-New:
-- The Approval Inbox has pages (50 items per section).
+### New features
+- The Pending Approvals dashboard widget has a quick view of each request's
+  changes, like the Approval Inbox.
+- The Approval Inbox has pages: 50 items per section, with Previous/Next
+  links. A bulk action stays one item on one page.
 
-Fixed:
-- Files and images uploaded in an edit that waits for approval are stored,
-  so approving it no longer links the object to a missing file; unused
-  uploads are deleted when the request is rejected, withdrawn or expires.
-- The Approvals menu shows for a default approver group created after
-  NetBox started.
-- Approvals list, Approval Inbox and the Pending Approvals widget no longer
-  run extra database queries for every request shown.
+### Bug fixes
+- Two decisions on the same request at the same moment can no longer
+  overwrite each other. Before, a rejection landing just after an approval
+  could mark the applied change as rejected, and for a new object delete it.
+  The second decision now changes nothing and says the request is already
+  decided. Deciding a batch is all or nothing.
+- The Changelog and Journal tabs of a change request showed what it asks for
+  to users who can't open the request itself. They now follow the same rule
+  as the request page.
+- Files and images uploaded in an edit that waits for approval (a device
+  type's images, a plugin's documents) were never stored, so approving the
+  edit linked the object to a missing file. They are stored now, and deleted
+  again if the request is rejected, withdrawn or expires, or the upload is
+  replaced.
+- The Approvals menu didn't show for members of a default approver group
+  created (or renamed) after NetBox started, until a restart.
+
+### Improvements
+- The Approvals list, Approval Inbox and Pending Approvals widget no longer
+  run extra database queries for every request shown, so they stay fast
+  with many pending requests.
+- Opening the approve or reject page of a request that was already decided
+  explains that instead of showing "not found".
+- The configuration reference lists every setting; README covers inbox
+  pages and file uploads in held edits.
+- Tests run on NetBox 4.7.0 as well as 4.7.3.
 
 ## 0.2.2 (2026-10-22)
 
