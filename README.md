@@ -240,6 +240,10 @@ Go to **Admin → Permissions → Add**:
 Anyone with this permission for a given object type has their changes to that
 type applied immediately, same as if no approval gate existed.
 
+**Superusers always have it**: NetBox gives superusers every permission, so
+their changes are never queued. To have an admin's changes reviewed, give
+them a regular account with the permissions they need instead.
+
 ### Approval rules
 
 Everything about *which* changes need approval, from *whom*, lives on one
