@@ -70,6 +70,9 @@ class ActivityTests(TestCase):
         self.assertEqual(len(entries), 1)
         self.assertEqual(entries[0].changed_object_type_id, self.mfr_type.pk)
         self.assertEqual(entries[0].message, f'Approved by approver (change request #{cr.pk})')
+        # The change is the submitter's; the message names the approver.
+        self.assertEqual(entries[0].user, self.alice)
+        self.assertEqual(entries[0].user_name, self.alice.username)
 
     def test_approved_create_logs_the_request(self):
         self._as(self.alice)
@@ -85,6 +88,7 @@ class ActivityTests(TestCase):
         self.assertEqual(len(entries), 1)
         self.assertEqual(entries[0].changed_object_type_id, self.cr_type.pk)
         self.assertEqual(entries[0].message, f'Approved by approver (change request #{cr.pk})')
+        self.assertEqual(entries[0].user, self.alice)
 
     def test_rejected_create_logs_only_the_delete(self):
         self._as(self.alice)
@@ -100,6 +104,7 @@ class ActivityTests(TestCase):
         self.assertEqual(len(entries), 1)
         self.assertEqual(entries[0].changed_object_type_id, self.mfr_type.pk)
         self.assertEqual(entries[0].message, f'Rejected by approver (change request #{cr.pk}): duplicate')
+        self.assertEqual(entries[0].user, self.alice)
 
     def test_typed_message_is_kept(self):
         request = self._as(self.alice)

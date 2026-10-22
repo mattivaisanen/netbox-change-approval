@@ -425,7 +425,24 @@ class ChangeRequest(NetBoxModel):
         message = self.activity_message()
         for entry in entries:
             entry.message = combine_activity_message(entry.message, message)
-            entry.save(update_fields=['message'])
+            fields = ['message'] + self._attribute_to_submitter(entry)
+            entry.save(update_fields=fields)
+
+    def _attribute_to_submitter(self, entry):
+        """
+        A decision (approved, rejected, sent back, expired) writes its activity
+        entry in the approver's request, so NetBox names the approver as its
+        user. The change is the submitter's, and the message already names
+        who decided ("Approved by matti"), so the entry's user is set to the
+        submitter. Returns the fields changed.
+        """
+        if self.status == StatusChoices.PENDING or self.submitted_by_id is None:
+            return []
+        if entry.user_id == self.submitted_by_id:
+            return []
+        entry.user = self.submitted_by
+        entry.user_name = self.submitted_by.username
+        return ['user', 'user_name']
 
     def to_objectchange(self, action):
         from core.choices import ObjectChangeActionChoices
@@ -440,9 +457,14 @@ class ChangeRequest(NetBoxModel):
         typed = self._changelog_message
         self._changelog_message = combine_activity_message(typed, message)
         try:
-            return super().to_objectchange(action)
+            entry = super().to_objectchange(action)
         finally:
             self._changelog_message = typed
+        if entry is not None and self.status != StatusChoices.PENDING and self.submitted_by_id:
+            # NetBox sets the entry's user after this returns; see
+            # _attribute_change_to_submitter below.
+            entry._nbca_submitter = self.submitted_by
+        return entry
     to_objectchange.alters_data = True
 
     @property
@@ -822,3 +844,18 @@ class PluginSetting(models.Model):
 
     def __str__(self):
         return self.key
+
+
+def _attribute_change_to_submitter(sender, instance, **kwargs):
+    """A change request's own activity entry for a decision names the
+    submitter as its user (see ChangeRequest._attribute_to_submitter)."""
+    submitter = getattr(instance, '_nbca_submitter', None)
+    if submitter is not None:
+        instance.user = submitter
+        instance.user_name = submitter.username
+
+
+models.signals.pre_save.connect(
+    _attribute_change_to_submitter, sender='core.ObjectChange',
+    dispatch_uid='netbox_change_approval:attribute_change_to_submitter',
+)

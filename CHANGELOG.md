@@ -40,6 +40,9 @@
   links. A bulk action stays one item on one page.
 
 ### Bug fixes
+- NetBox's change log named the approver as the user of an approved,
+  rejected, sent-back or expired change. It now names the person who asked
+  for the change; the message already says who decided ("Approved by ...").
 - A new device's work sheet only listed mounting it: cables patched to it
   while it waited for approval got no task. Approving it now lists them too.
 - "All Change Requests" in the Change Approvals menu was highlighted on every
