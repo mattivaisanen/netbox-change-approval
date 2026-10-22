@@ -92,11 +92,11 @@
   <div class="col-12 col-lg-8">
     <div class="card">
       <h2 class="card-header">
-        {% if object.action == 'create' %}{% trans "New object" %}{% elif object.action == 'delete' %}{% trans "Will be deleted" %}{% else %}{% trans "What changes" %}{% endif %}
+        {% if object.action == 'create' %}{% trans "New object" %}{% elif object.action == 'delete' %}{% trans "Deletion" %}{% else %}{% trans "Changes" %}{% endif %}
       </h2>
       {% if where %}
       <div class="card-body py-2 border-bottom">
-        <span class="text-muted me-1">{% trans "Where" %}:</span>
+        <i class="mdi mdi-map-marker-outline text-muted me-1" title="{% trans "Location" %}"></i>
         {% for row in where %}{{ row.value|linkify }}{% if not forloop.last %} <i class="mdi mdi-chevron-right text-muted"></i> {% endif %}{% endfor %}
         {% if object.target_object %}<i class="mdi mdi-chevron-right text-muted"></i> {{ object.target_object|linkify }}{% endif %}
       </div>

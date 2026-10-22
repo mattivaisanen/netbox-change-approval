@@ -302,7 +302,7 @@ class RequestPageLayoutTests(_Base):
         self.client.force_login(self.alice)
         html = self.client.get(change_request.get_absolute_url()).content.decode()
         self.assertIn(f'#{change_request.pk} Update', html)
-        self.assertIn('What changes', html)
+        self.assertIn('>Changes<', html.replace('\n', '').replace('  ', ''))
         self.assertIn('(empty)', html)  # the description was blank before
         self.assertNotIn(f'netbox_change_approval.changerequest:{change_request.pk}', html)
         self.assertNotIn(f'/change-requests/{change_request.pk}/delete/', html)
