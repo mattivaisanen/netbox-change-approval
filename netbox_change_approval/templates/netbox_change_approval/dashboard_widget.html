@@ -5,9 +5,8 @@
   .nbca-widget .nbca-quick table { margin-bottom: 0; }
   .nbca-widget .nbca-quick table td,
   .nbca-widget .nbca-quick table th { padding: .25rem .5rem; font-size: .8125rem; }
-  .nbca-widget .nbca-toggle .mdi { transition: transform .15s; }
-  .nbca-widget .nbca-toggle[aria-expanded="true"] .mdi { transform: rotate(180deg); }
 </style>
+{% include 'netbox_change_approval/inc/quick_toggle.html' %}
 <table class="table table-hover mb-0 nbca-widget">
   <tbody>
     {% for cr in sent_back %}

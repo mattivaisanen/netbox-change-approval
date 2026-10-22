@@ -50,6 +50,9 @@
   lists them.
 
 ### Improvements
+- Approval Inbox and dashboard widget: clicking anywhere on a request's
+  row (except its links and buttons) opens its quick view, and the arrow
+  points up while it's open (it never turned before).
 - The small change tables (batch pages, Approval Inbox quick view,
   dashboard widget) line up: same column widths in every table, every
   empty value shown as the same grey dash, and new objects show just their

@@ -27,3 +27,11 @@ class QuickDiffTableTests(SimpleTestCase):
         self.assertEqual(html.count('<span class="text-muted">&mdash;</span>'), 3)
         self.assertNotIn('text-danger">&mdash;', html)
         self.assertIn('<span class="text-danger">y</span>', html)
+
+
+class QuickToggleIncludedTests(SimpleTestCase):
+    def test_widget_includes_row_click_and_arrow(self):
+        html = render_to_string('netbox_change_approval/inc/quick_toggle.html')
+        self.assertIn('nbcaQuickRows', html)
+        # Transforms don't apply to inline elements; without this the arrow never turned.
+        self.assertIn('display: inline-block', html)

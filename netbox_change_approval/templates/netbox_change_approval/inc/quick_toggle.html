@@ -1,0 +1,21 @@
+{# Quick view rows (Approval Inbox, dashboard widget): clicking anywhere on a  #}
+{# row except its links and buttons opens or closes its quick view, and the   #}
+{# arrow points up while it is open. Included once per page; safe to repeat. #}
+<style>
+  tr:has(> td > .nbca-toggle) { cursor: pointer; }
+  .nbca-toggle .mdi { display: inline-block; transition: transform .15s; }
+  .nbca-toggle[aria-expanded="true"] .mdi { transform: rotate(180deg); }
+</style>
+<script>
+  (function () {
+    if (window.nbcaQuickRows) return;
+    window.nbcaQuickRows = true;
+    document.addEventListener('click', function (event) {
+      var target = event.target;
+      if (target.closest('a, button, input, select, textarea, label, form, .nbca-quick')) return;
+      var row = target.closest('tr');
+      var toggle = row && row.querySelector(':scope > td > .nbca-toggle');
+      if (toggle) toggle.click();
+    });
+  })();
+</script>

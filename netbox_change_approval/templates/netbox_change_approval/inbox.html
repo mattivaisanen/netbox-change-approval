@@ -21,9 +21,8 @@
     .nbca-inbox .nbca-quick table { margin-bottom: 0; }
     .nbca-inbox .nbca-quick table td,
     .nbca-inbox .nbca-quick table th { padding: .25rem .5rem; font-size: .8125rem; }
-    .nbca-inbox .nbca-toggle .mdi { transition: transform .15s; }
-    .nbca-inbox .nbca-toggle[aria-expanded="true"] .mdi { transform: rotate(180deg); }
   </style>
+  {% include 'netbox_change_approval/inc/quick_toggle.html' %}
 {% endblock %}
 
 {% block content %}
