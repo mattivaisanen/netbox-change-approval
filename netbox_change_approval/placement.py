@@ -149,3 +149,48 @@ def placement_rows(change_request):
                 continue
             rows.append({'label': label, 'value': value, 'new': None, 'changed': False})
     return rows
+
+
+def rack_previews(change_request):
+    """
+    Racks to show on a device request's page, when the request puts a device
+    into a rack, takes one out, or moves it: [(rack, face, caption)].
+    Empty for anything else (a rename, say), so the page stays short.
+    """
+    from dcim.models import Device, Rack
+
+    model = change_request.content_type.model_class() if change_request.content_type_id else None
+    if model is not Device:
+        return []
+    diff = change_request.diff if isinstance(change_request.diff, dict) else {}
+    device = change_request.target_object
+
+    if change_request.action in (ActionChoices.CREATE, ActionChoices.DELETE):
+        source = device if device is not None else None
+        rack_id = getattr(source, 'rack_id', None) or diff.get('rack_id')
+        position = getattr(source, 'position', None) if source is not None else diff.get('position')
+        face = getattr(source, 'face', None) or diff.get('face') or 'front'
+        rack = Rack.objects.filter(pk=rack_id).first() if rack_id else None
+        if rack is None or position in (None, ''):
+            return []
+        caption = 'Goes here' if change_request.action == ActionChoices.CREATE else 'Removed from here'
+        return [(rack, face, caption)]
+
+    if not ({'rack_id', 'position', 'face'} & set(diff)) or device is None:
+        return []
+
+    def requested(key, current):
+        change = diff.get(key)
+        return change.get('new') if isinstance(change, dict) else current
+
+    previews = []
+    new_rack_id = requested('rack_id', device.rack_id)
+    new_face = requested('face', device.face) or 'front'
+    if device.rack_id and device.position is not None:
+        caption = 'Now' if new_rack_id != device.rack_id else 'Now and requested'
+        previews.append((device.rack, device.face or 'front', caption))
+    if new_rack_id and new_rack_id != device.rack_id and requested('position', device.position) not in (None, ''):
+        rack = Rack.objects.filter(pk=new_rack_id).first()
+        if rack is not None:
+            previews.append((rack, new_face, 'Requested'))
+    return previews

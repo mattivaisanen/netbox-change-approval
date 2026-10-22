@@ -3,6 +3,10 @@
 ## Unreleased
 
 ### New features
+- A device request that puts a device in a rack, takes it out or moves it
+  shows the rack on the request page. For a move, the rack elevation marks
+  the requested spot with a dashed outline, so the approver sees the fit and
+  the neighbours.
 - A new cable with an end on a new device that is still waiting for approval
   joins that device's request: its submitter can patch it freely, everyone
   else waits, and approving the device approves the cables. Its request page

@@ -67,6 +67,13 @@ def patch_rack_elevation_svg():
             for action, (_var, hex_color) in pending_marks.ACTION_COLORS.items():
                 rules += f' .nbca-pending-{action} {{ stroke: {hex_color}; stroke-width: 3px; }}'
             rules += ' .nbca-pending-delete { stroke-dasharray: 6 3; }'
+            blue = pending_marks.ACTION_COLORS['update'][1]
+            rules += (
+                f' .nbca-requested-move {{ fill: {blue}22; stroke: {blue}; stroke-width: 2px;'
+                f' stroke-dasharray: 4 3; pointer-events: none; }}'
+                f' .nbca-requested-label {{ fill: {blue}; font-size: 12px; font-weight: 600;'
+                f' text-anchor: middle; dominant-baseline: middle; pointer-events: none; }}'
+            )
         drawing.defs.add(drawing.style(rules))
         # Cached per-instance (not per-call): _draw_device fires once per
         # device per render(), and render() is one instance per face/request —
@@ -89,6 +96,76 @@ def patch_rack_elevation_svg():
                 class_=f'nbca-pending-device nbca-pending-{action}',
             ))
 
+    original_draw_face = RackElevationSVG.draw_face
+
+    def draw_face(self, face, opposite=False):
+        original_draw_face(self, face, opposite=opposite)
+        try:
+            _draw_requested_moves(self, face, Rect)
+        except Exception:
+            pass  # never break the elevation over a preview
+
     RackElevationSVG._setup_drawing = _setup_drawing
     RackElevationSVG._draw_device = _draw_device
+    RackElevationSVG.draw_face = draw_face
     _patched = True
+
+
+def requested_moves(rack):
+    """
+    Pending edits that move a device into `rack` (or to another position or
+    face in it): [(device, position, face)] with the requested values.
+    """
+    from dcim.models import Device
+
+    content_type = ObjectType.objects.get_for_model(Device)
+    moves = []
+    for change_request in ChangeRequest.objects.filter(
+        content_type=content_type, status=StatusChoices.PENDING, action='update',
+    ):
+        diff = change_request.diff if isinstance(change_request.diff, dict) else {}
+        if not ({'rack_id', 'position', 'face'} & set(diff)):
+            continue
+        device = Device.objects.filter(pk=change_request.object_id).select_related('device_type').first()
+        if device is None:
+            continue
+
+        def requested(key, current):
+            change = diff.get(key)
+            return change.get('new') if isinstance(change, dict) else current
+
+        rack_id = requested('rack_id', device.rack_id)
+        position = requested('position', device.position)
+        if rack_id != rack.pk or position in (None, ''):
+            continue
+        moves.append((device, position, requested('face', device.face)))
+    return moves
+
+
+def _draw_requested_moves(svg, face, Rect):
+    """Dashed outline where a pending edit would move a device to: the
+    approver sees where it lands next to its new neighbours."""
+    from decimal import Decimal
+
+    from svgwrite.text import Text
+
+    from . import pending_marks
+
+    if not pending_marks.by_action():
+        return
+    for device, position, requested_face in requested_moves(svg.rack):
+        full_depth = getattr(device.device_type, 'is_full_depth', False)
+        if requested_face != face and not full_depth:
+            continue
+        height = device.device_type.u_height or 1
+        coords = svg._get_device_coords(Decimal(str(position)), height)
+        size = (svg.unit_width, int(svg.unit_height * height))
+        svg.drawing.add(Rect(
+            (coords[0] + 1, coords[1] + 1), (size[0] - 2, size[1] - 2), rx=2, ry=2,
+            class_='nbca-requested-move',
+        ))
+        svg.drawing.add(Text(
+            f'{device.name or device} (requested)',
+            insert=(coords[0] + size[0] / 2, coords[1] + size[1] / 2),
+            class_='nbca-requested-label',
+        ))

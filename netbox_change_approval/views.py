@@ -323,6 +323,7 @@ class ChangeRequestView(_AnyLoggedInUserCanView, generic.ObjectView):
             ],
             'object_missing': object_missing,
             'placement_rows': placement.placement_rows(instance),
+            'rack_previews': placement.rack_previews(instance),
             # Unchanged placement (site › rack › ...) for the "Where" line;
             # changed placement fields are rows of the change table already.
             'where': [
