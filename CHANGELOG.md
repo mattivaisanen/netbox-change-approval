@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased
+
+New:
+- The Approval Inbox has pages (50 items per section).
+
+Fixed:
+- Files and images uploaded in an edit that waits for approval are stored,
+  so approving it no longer links the object to a missing file; unused
+  uploads are deleted when the request is rejected, withdrawn or expires.
+- The Approvals menu shows for a default approver group created after
+  NetBox started.
+- Approvals list, Approval Inbox and the Pending Approvals widget no longer
+  run extra database queries for every request shown.
+
 ## 0.2.2 (2026-10-22)
 
 Fixed:

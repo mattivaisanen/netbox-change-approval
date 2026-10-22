@@ -180,8 +180,9 @@ page save counts as one update of the device's request, so approvals start
 over and approvers are notified again); everyone else is blocked until it's
 decided. They show as new in lists, and the request page lists them under
 "Included with it". Approving the device approves them; rejecting it removes
-them. Cables keep their own requests. `group_components_with_parent: False`
-in `PLUGINS_CONFIG` turns this off.
+them. Cables keep their own requests. Moving an existing interface, IP or
+other object onto a pending device (or off one) still needs its own approval.
+`group_components_with_parent: False` in `PLUGINS_CONFIG` turns this off.
 
 **Want to change your request while it's waiting?** Open the object and click
 **Update request** (on the yellow banner or the request page), or just use the
@@ -191,7 +192,14 @@ for, makes it the next revision and sends it to the approvers again; any
 approvals so far start over. If your edit puts everything back the way it is
 now, the request is withdrawn. Only you can do this; for everyone else the
 object stays locked. Pending deletes can't be updated: retract them instead.
-(Bulk edit, import and the REST API still treat the object as locked.)
+Only a save from that edit page updates the request; other ways of saving the
+object (bulk edit, import, the REST API, another object's form that also saves
+it) still treat it as locked.
+
+**Files and images** (a device type's front image, say) uploaded in an edit
+that waits for approval are stored right away, so approving the edit links
+the object to them. If the request is rejected, withdrawn or expires, or you
+upload a different file with **Update request**, the unused file is deleted.
 
 **Sent back for revision?** An approver can send a request back with a note
 instead of rejecting it. Open it (from the **Approval Inbox**) and click
@@ -206,8 +214,9 @@ NetBox logo, shows how many requests are waiting on you and opens a page
 listing them: requests you need to decide, your requests sent back to you, and
 your rejected requests you haven't opened yet. Your own requests still waiting
 on others, and your approved ones, are listed there too but aren't counted.
-A bulk edit, import or delete shows as one item. The arrow on each row shows
-the field changes without leaving the page. (This page replaced the old
+A bulk edit, import or delete shows as one item. Each section shows 50 items
+per page, with Previous/Next links. The arrow on each row shows the field
+changes without leaving the page. (This page replaced the old
 **My Requests** page; old links to it open the inbox.)
 
 ### As an approver
