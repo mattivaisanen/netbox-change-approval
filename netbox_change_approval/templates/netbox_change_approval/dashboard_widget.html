@@ -72,3 +72,17 @@
   <span class="text-muted">{% if change_requests %}{% trans "Requests waiting on you" %}{% else %}{% trans "Your requests" %}{% endif %}</span>
 </div>
 
+<script>
+  /* The widget's title (drawn by NetBox) opens the Approval Inbox too. */
+  (function (script) {
+    var card = script && script.closest('.grid-stack-item-content');
+    var title = card && card.querySelector('.card-header .card-title span');
+    if (!title || title.closest('a')) return;
+    var link = document.createElement('a');
+    link.href = "{% url 'plugins:netbox_change_approval:changerequest_inbox' %}{% if change_requests %}#nbca-section-decide{% endif %}";
+    link.className = 'text-reset';
+    link.title = "{% trans 'Open Approval Inbox' %}";
+    title.parentNode.insertBefore(link, title);
+    link.appendChild(title);
+  })(document.currentScript);
+</script>

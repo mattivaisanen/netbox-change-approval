@@ -391,3 +391,15 @@ class ReviewPanelTests(_Base):
         request.user = self.submitter
         html = ApprovalsWidget().render(request)
         self.assertIn(reverse('plugins:netbox_change_approval:changerequest_inbox'), html)
+
+
+class WidgetTitleLinkTests(_Base):
+    def test_widget_script_links_title_to_inbox(self):
+        from django.test import RequestFactory
+
+        from ..widgets import ApprovalsWidget
+
+        request = RequestFactory().get('/')
+        request.user = self.submitter
+        html = ApprovalsWidget().render(request)
+        self.assertIn("closest('.grid-stack-item-content')", html)

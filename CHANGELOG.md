@@ -15,7 +15,8 @@ moved to Approval Rules in 0.2.0).
 - Notifications for a partly approved request ("approved by bob (1 of 2)"),
   and every notification fires a NetBox event with the request's details and
   recipients, so Event Rules can e-mail or post it through a webhook.
-- The Pending Approvals widget links to the Approval Inbox.
+- The Pending Approvals widget links to the Approval Inbox, from its title
+  and from a link at the bottom.
 - Change sets (Change Approvals → Change Sets): start one ("Install sw1 in
   rack A3", optional ticket), make your changes as usual, then submit them
   as one item that approvers decide together. Drafts stay hidden from
