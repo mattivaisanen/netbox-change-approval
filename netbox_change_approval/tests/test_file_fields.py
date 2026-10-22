@@ -40,7 +40,7 @@ class HeldFileUploadTests(TestCase):
         override.enable()
         self.addCleanup(override.disable)
 
-    def test_approved_image_points_at_stored_file(self):
+    def _hold_image_upload(self):
         request = fake_request(self.alice)
         token = current_request.set(request)
         try:
@@ -49,8 +49,22 @@ class HeldFileUploadTests(TestCase):
             change_request = gating.gate(device_type, ActionChoices.UPDATE, request)
         finally:
             current_request.reset(token)
-
         self.assertIsNotNone(change_request)
+        return change_request, change_request.diff['front_image']['new']
+
+    def test_rejected_withdrawn_or_expired_edit_deletes_its_file(self):
+        for close in (
+            lambda cr: cr.reject(self.approver, 'no'),
+            lambda cr: cr.retract(self.alice),
+            lambda cr: cr.expire(),
+        ):
+            change_request, stored_name = self._hold_image_upload()
+            self.assertTrue(default_storage.exists(stored_name))
+            close(change_request)
+            self.assertFalse(default_storage.exists(stored_name))
+
+    def test_approved_image_points_at_stored_file(self):
+        change_request, _name = self._hold_image_upload()
         stored_name = change_request.diff['front_image']['new']
         self.assertTrue(stored_name.startswith('devicetype-images/'), stored_name)
         self.assertTrue(default_storage.exists(stored_name))

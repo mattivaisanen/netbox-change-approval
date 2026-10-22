@@ -164,6 +164,50 @@ def _store_upload(value):
         value.save(value.name, value.file, save=False)
 
 
+def held_upload_names(model, diff):
+    """Names of files stored for a held edit (see _store_upload): the new
+    value of each file/image field in an update diff."""
+    from django.db.models import FileField
+
+    if model is None or not isinstance(diff, dict):
+        return set()
+    field_map = _field_map(model)
+    names = set()
+    for key, change in diff.items():
+        field = field_map.get(key)
+        if isinstance(field, FileField) and isinstance(change, dict):
+            name = change.get('new')
+            if isinstance(name, str) and name:
+                names.add((field, name))
+    return names
+
+
+def discard_held_uploads(content_type, object_id, diff, keep=()):
+    """
+    Delete files stored for a held edit that will never be applied (the
+    request was rejected, withdrawn or expired, or its submitter replaced
+    them with an update). A file the object itself uses now is never
+    deleted, nor one named in `keep`.
+    """
+    model = content_type.model_class()
+    held = held_upload_names(model, diff)
+    if not held:
+        return
+    current = model.objects.filter(pk=object_id).first() if object_id is not None else None
+    for field, name in held:
+        if name in keep:
+            continue
+        if current is not None and getattr(current, field.attname).name == name:
+            continue
+        storage = field.storage
+        try:
+            if storage.exists(name):
+                storage.delete(name)
+        except Exception:
+            import logging
+            logging.getLogger('netbox_change_approval').exception('Could not delete held upload %s', name)
+
+
 def snapshot_update(old_instance, new_instance):
     """{field: {"old": ..., "new": ...}} for fields that actually changed."""
     model = type(new_instance)

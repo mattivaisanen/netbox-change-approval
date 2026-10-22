@@ -113,6 +113,7 @@ def amend(change_request, instance, request):
     else:
         diff = serialization.snapshot_create(instance)
 
+    previous_diff = change_request.diff
     change_request.diff = diff
     change_request.object_repr = str(instance)[:300]
     change_request.revision += 1
@@ -120,6 +121,11 @@ def amend(change_request, instance, request):
     change_request._nbca_amended = True
     change_request.save()
     notifications.request_updated(change_request)
+    if change_request.action == ActionChoices.UPDATE:
+        # Files uploaded for the previous version and not kept by this one.
+        from .serialization import discard_held_uploads, held_upload_names
+        keep = {name for _field, name in held_upload_names(type(instance), diff)}
+        discard_held_uploads(change_request.content_type, change_request.object_id, previous_diff, keep=keep)
 
     if change_request.action == ActionChoices.CREATE:
         messages.success(request, _(

@@ -651,6 +651,7 @@ class ChangeRequest(NetBoxModel):
         self.decision_comment = comment
         self.seen_by_submitter = self.submitted_by_id == getattr(user, 'pk', None)
         self.save()
+        self._discard_held_uploads()
 
     def send_back(self, user, comment):
         """
@@ -690,6 +691,15 @@ class ChangeRequest(NetBoxModel):
         self.decided_by = user
         self.decided_at = timezone.now()
         self.save()
+        self._discard_held_uploads()
+
+    def _discard_held_uploads(self, keep=()):
+        """Files uploaded in this held edit won't be used now; delete them
+        (see serialization.discard_held_uploads)."""
+        if self.action != ActionChoices.UPDATE:
+            return
+        from .serialization import discard_held_uploads
+        discard_held_uploads(self.content_type, self.object_id, self.diff, keep=keep)
 
     # ---- Several approvals (ApprovalRule.required_approvals) ----------------
 
@@ -720,6 +730,7 @@ class ChangeRequest(NetBoxModel):
         self.decision_comment = str(_('Expired: not decided in time.'))
         self.seen_by_submitter = False
         self.save()
+        self._discard_held_uploads()
 
 
 class ChangeRequestApproval(models.Model):
