@@ -60,3 +60,21 @@ class ChangeApprovalRequired(Exception):
 class AlreadyDecided(Exception):
     """The request stopped being pending (someone else decided, withdrew or
     updated it) while this decision was on its way."""
+
+
+class CreatedObjectInUse(Exception):
+    """
+    A pending create can't be undone (rejected, sent back, withdrawn,
+    expired) because other objects now depend on it: a device placed in a
+    new rack that is being rejected, say. Nothing is changed; the dependent
+    objects have to be dealt with first, or decided in the same batch.
+    """
+    def __init__(self, object_repr, dependents):
+        self.object_repr = object_repr
+        self.dependents = list(dependents)
+        names = ', '.join(str(d) for d in self.dependents[:5])
+        more = f' and {len(self.dependents) - 5} more' if len(self.dependents) > 5 else ''
+        super().__init__(
+            f"{object_repr} can't be removed because {names}{more} use(s) it. "
+            f'Reject or change those first, or decide them together.'
+        )

@@ -554,7 +554,7 @@ class ChangeRequest(NetBoxModel):
                 from .context import applying_change_on
 
                 with applying_change_on():
-                    self.content_type.model_class().objects.filter(pk=self.object_id).delete()
+                    self._remove_created_object()
 
             self.status = StatusChoices.REJECTED
             self.decided_by = user
@@ -563,6 +563,21 @@ class ChangeRequest(NetBoxModel):
             self.seen_by_submitter = self.submitted_by_id == getattr(user, 'pk', None)
             self.save()
             self._discard_held_uploads()
+
+    def _remove_created_object(self):
+        """Delete the object a pending create wrote (rejected, sent back,
+        withdrawn, expired). Raises CreatedObjectInUse when other objects
+        depend on it through protected links (a device in a new rack)."""
+        from django.db.models import ProtectedError, RestrictedError
+
+        from .exceptions import CreatedObjectInUse
+
+        try:
+            self.content_type.model_class().objects.filter(pk=self.object_id).delete()
+        except ProtectedError as e:
+            raise CreatedObjectInUse(self.object_repr, e.protected_objects)
+        except RestrictedError as e:
+            raise CreatedObjectInUse(self.object_repr, e.restricted_objects)
 
     def send_back(self, user, comment):
         """
@@ -576,7 +591,7 @@ class ChangeRequest(NetBoxModel):
                 from .context import applying_change_on
 
                 with applying_change_on():
-                    self.content_type.model_class().objects.filter(pk=self.object_id).delete()
+                    self._remove_created_object()
 
             self.status = StatusChoices.RETURNED
             self.decided_by = user
@@ -600,7 +615,7 @@ class ChangeRequest(NetBoxModel):
                 from .context import applying_change_on
 
                 with applying_change_on():
-                    self.content_type.model_class().objects.filter(pk=self.object_id).delete()
+                    self._remove_created_object()
 
             self.status = StatusChoices.RETRACTED
             self.decided_by = user
@@ -658,7 +673,7 @@ class ChangeRequest(NetBoxModel):
                 from .context import applying_change_on
 
                 with applying_change_on():
-                    self.content_type.model_class().objects.filter(pk=self.object_id).delete()
+                    self._remove_created_object()
 
             self.status = StatusChoices.EXPIRED
             self.decided_by = None

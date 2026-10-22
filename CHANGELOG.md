@@ -40,6 +40,11 @@
   links. A bulk action stays one item on one page.
 
 ### Bug fixes
+- Rejecting several requests at once (a batch, or Reject Selected) no
+  longer crashes when one new object depends on another (a new device in a
+  new rack): newer objects are removed first. If an object can't be removed
+  because something else uses it, nothing changes and the message says what
+  is in the way.
 - NetBox's change log named the approver as the user of an approved,
   rejected, sent-back or expired change. It now names the person who asked
   for the change; the message already says who decided ("Approved by ...").

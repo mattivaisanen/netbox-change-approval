@@ -36,7 +36,7 @@ def expire_overdue(now=None):
         if change_request.batch_id:
             members = list(ChangeRequest.objects.filter(
                 batch_id=change_request.batch_id, status=StatusChoices.PENDING,
-            ).order_by('pk'))
+            ).order_by('-pk'))  # newest first: a device goes before its new rack
         try:
             with transaction.atomic():
                 for member in members:

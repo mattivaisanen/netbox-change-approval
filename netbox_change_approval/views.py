@@ -15,7 +15,7 @@ from utilities.forms.forms import ConfirmationForm
 from utilities.views import ConditionalLoginRequiredMixin, register_model_view
 
 from . import absence, amend, approvals, changesets, components, filtersets, forms, inbox, notifications, permissions, placement, revision, serialization, tables
-from .exceptions import AlreadyDecided, ChangeConflict
+from .exceptions import AlreadyDecided, ChangeConflict, CreatedObjectInUse
 from .rule_access import RuleReadMixin, RuleWriteMixin
 from .object_actions import BulkApprove, BulkReject
 from .models import ActionChoices, ApprovalRule, ChangeRequest, ChangeRequestComment, StatusChoices
@@ -390,12 +390,21 @@ def _close_all(request, targets, method, *args):
 
     try:
         with transaction.atomic():
-            for change_request in targets:
+            for change_request in removal_order(targets):
                 getattr(change_request, method)(request.user, *args)
     except AlreadyDecided as e:
         messages.warning(request, _('Nothing changed: %(error)s') % {'error': e})
         return False
+    except CreatedObjectInUse as e:
+        messages.error(request, _('Nothing changed: %(error)s') % {'error': e})
+        return False
     return True
+
+
+def removal_order(targets):
+    """Requests in the order their new objects can be removed: newest first,
+    so a device created in a new rack goes before the rack."""
+    return sorted(targets, key=lambda cr: cr.pk or 0, reverse=True)
 
 
 def _default_return_url():
@@ -836,9 +845,9 @@ class _BulkDecisionView(ConditionalLoginRequiredMixin, View):
             if self.decision == 'reject':
                 try:
                     with transaction.atomic():
-                        for change_request in group:
+                        for change_request in removal_order(group):
                             change_request.reject(request.user, form.cleaned_data['comment'])
-                except AlreadyDecided as e:
+                except (AlreadyDecided, CreatedObjectInUse) as e:
                     failed.append(f'#{group[0].pk}: {e}')
                     continue
                 done += len(group)
