@@ -160,6 +160,8 @@
     {% endif %}
   </div>
   {% endif %}
+  {# Field work (worksheet.py) after the sections that need you, before the reference ones. #}
+  {% if section.key == 'rejected' and field_work is not None %}{% include 'netbox_change_approval/inc/inbox_field_work.html' %}{% endif %}
 {% endfor %}
 </div>
 {% endblock %}

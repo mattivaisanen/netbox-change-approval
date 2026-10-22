@@ -44,10 +44,6 @@ menu = PluginMenu(
                 link_text='Change Sets',
             ),
             PluginMenuItem(
-                link='plugins:netbox_change_approval:worksheet',
-                link_text='Work Sheet',
-            ),
-            PluginMenuItem(
                 link='plugins:netbox_change_approval:away',
                 link_text='Away / Stand-in',
                 permissions=['netbox_change_approval.is_approver_changerequest'],

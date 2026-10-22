@@ -106,3 +106,18 @@ class WorkSheetTests(TestCase):
     def test_setting_off_writes_no_tasks(self):
         self._create_device()
         self.assertFalse(WorkTask.objects.exists())
+
+
+class InboxFieldWorkTests(WorkSheetTests):
+    def test_open_tasks_in_inbox_and_tick_from_there(self):
+        device, change_request = self._create_device(name='sw9')
+        change_request.apply(user=self.approver)
+        task = WorkTask.objects.get(change_request=change_request)
+        self.client.force_login(self.alice)
+        inbox_url = reverse('plugins:netbox_change_approval:changerequest_inbox')
+        self.assertContains(self.client.get(inbox_url), 'Mount sw9')
+        response = self.client.post(reverse('plugins:netbox_change_approval:worksheet'), {'task': task.pk, 'back': 'inbox'})
+        self.assertTrue(response.url.startswith(inbox_url))
+        task.refresh_from_db()
+        self.assertIsNotNone(task.done_at)
+        self.assertNotContains(self.client.get(inbox_url), 'Mount sw9')

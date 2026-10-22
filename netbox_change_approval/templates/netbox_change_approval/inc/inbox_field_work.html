@@ -1,0 +1,48 @@
+{% load i18n %}
+{# Approval Inbox: open field work from approved changes (worksheet.py). #}
+{% if field_work %}
+<div class="card mb-3" id="nbca-section-field-work">
+  <h2 class="card-header d-flex align-items-center">
+    <span class="flex-grow-1">
+      {% trans "Field work" %}
+      <span class="badge text-bg-secondary ms-1">{{ field_work_total }}</span>
+    </span>
+    <a href="{% url 'plugins:netbox_change_approval:worksheet' %}" class="btn btn-sm btn-ghost-secondary">
+      <i class="mdi mdi-printer"></i> {% trans "Work sheet by rack" %}
+    </a>
+  </h2>
+  <table class="table table-sm table-hover mb-0 align-middle nbca-rows">
+    <thead>
+      <tr class="text-muted small">
+        <th>{% trans "Task" %}</th>
+        <th class="d-none d-md-table-cell">{% trans "Where" %}</th>
+        <th class="text-nowrap">{% trans "Approved" %}</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for task in field_work %}
+      <tr>
+        <td>{{ task.text }}</td>
+        <td class="d-none d-md-table-cell small text-nowrap">{{ task.site|default:"" }}{% if task.rack %} &rsaquo; {{ task.rack }}{% endif %}</td>
+        <td class="text-muted small text-nowrap"><a href="{{ task.change_request.get_absolute_url }}">#{{ task.change_request.pk }}</a> &middot; {{ task.change_request.applied_at|timesince }}</td>
+        <td class="text-end">
+          <form method="post" action="{% url 'plugins:netbox_change_approval:worksheet' %}" class="m-0">
+            {% csrf_token %}
+            <input type="hidden" name="task" value="{{ task.pk }}">
+            <input type="hidden" name="back" value="inbox">
+            <button type="submit" class="btn btn-sm btn-outline-success" title="{% trans 'Mark done' %}"><i class="mdi mdi-check"></i></button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% if field_work_total > field_work|length %}
+  <div class="card-footer small text-muted">
+    {% blocktrans with shown=field_work|length total=field_work_total %}Showing {{ shown }} of {{ total }}.{% endblocktrans %}
+    <a href="{% url 'plugins:netbox_change_approval:worksheet' %}">{% trans "See all" %}</a>
+  </div>
+  {% endif %}
+</div>
+{% endif %}

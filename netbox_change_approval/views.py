@@ -748,9 +748,18 @@ class InboxView(ConditionalLoginRequiredMixin, View):
                 'prev_query': _with_param(request, f'{key}_page', page - 1) if page > 1 else None,
                 'next_query': _with_param(request, f'{key}_page', page + 1) if page < pages else None,
             })
+        from . import worksheet
+
+        field_work = field_work_total = None
+        if worksheet.enabled():
+            open_tasks = worksheet.open_tasks()
+            field_work_total = open_tasks.count()
+            field_work = list(open_tasks.select_related('site', 'rack', 'change_request').order_by('site__name', 'rack__name', 'pk')[:50])
         return render(request, 'netbox_change_approval/inbox.html', {
             'sections': sections,
             'inbox_count': sum(s['total'] for s in sections if s['counted']),
+            'field_work': field_work,
+            'field_work_total': field_work_total,
         })
 
     def post(self, request):
@@ -1000,6 +1009,8 @@ class WorkSheetView(ConditionalLoginRequiredMixin, View):
             else:
                 task.done_by, task.done_at = request.user, timezone.now()
             task.save(update_fields=['done_by', 'done_at'])
+        if request.POST.get('back') == 'inbox':
+            return redirect(reverse('plugins:netbox_change_approval:changerequest_inbox') + '#nbca-section-field-work')
         url = reverse('plugins:netbox_change_approval:worksheet')
         query = request.POST.get('query', '')
         return redirect(f'{url}?{query}' if query else url)
