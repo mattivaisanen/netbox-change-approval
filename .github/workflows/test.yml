@@ -82,6 +82,12 @@ jobs:
         working-directory: netbox/netbox
         run: python manage.py migrate
 
+      # Rack elevation SVGs read static/rack_elevation.css, which only exists
+      # after collectstatic.
+      - name: Collect static files
+        working-directory: netbox/netbox
+        run: python manage.py collectstatic --no-input
+
       - name: Check for migration drift
         working-directory: netbox/netbox
         run: python manage.py makemigrations netbox_change_approval --check --dry-run
