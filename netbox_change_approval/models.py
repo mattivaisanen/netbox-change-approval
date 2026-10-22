@@ -611,7 +611,13 @@ class ChangeRequest(NetBoxModel):
         # since submission), nothing is written and the request stays pending.
         with transaction.atomic(), applying_change_on():
             if self.action == ActionChoices.CREATE:
-                pass  # already written when submitted; approving just closes the request
+                # Already written when submitted; approving just closes the
+                # request. Unless the object was deleted since (by a bypass
+                # user, say): then there's nothing left to approve.
+                model = self.content_type.model_class()
+                if model is not None and not model.objects.filter(pk=self.object_id).exists():
+                    from .exceptions import ChangeConflict
+                    raise ChangeConflict(self.object_repr, [], missing=True)
             elif self.action == ActionChoices.UPDATE:
                 serialization.apply_update(self.content_type, self.object_id, self.diff)
             elif self.action == ActionChoices.DELETE:

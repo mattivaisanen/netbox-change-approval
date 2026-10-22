@@ -92,3 +92,43 @@ class ApplyConflictTests(TestCase):
 
         self.assertEqual(fields, ['description'])
         self.assertFalse(missing)
+
+
+class MissingCreateTests(TestCase):
+    def test_approving_create_of_deleted_object_fails(self):
+        from users.models import User
+
+        from .. import gating
+        from .utils import fake_request
+
+        user = User.objects.create(username='creator')
+        obj = Manufacturer(name='Gone', slug='gone')
+        gating.gate(obj, ActionChoices.CREATE, fake_request(user))
+        obj.save()
+        cr = ChangeRequest.objects.get(object_id=obj.pk)
+        with applying_change_on():
+            Manufacturer.objects.filter(pk=obj.pk).delete()
+
+        with self.assertRaises(ChangeConflict):
+            cr.apply()
+        cr.refresh_from_db()
+        self.assertEqual(cr.status, 'pending')
+
+    def test_detail_page_says_object_is_gone(self):
+        from users.models import User
+
+        from .. import gating
+        from .utils import fake_request
+
+        creator = User.objects.create(username='creator2')
+        admin = User.objects.create(username='admin2', is_superuser=True)
+        obj = Manufacturer(name='Gone2', slug='gone2')
+        gating.gate(obj, ActionChoices.CREATE, fake_request(creator))
+        obj.save()
+        cr = ChangeRequest.objects.get(object_id=obj.pk)
+        with applying_change_on():
+            Manufacturer.objects.filter(pk=obj.pk).delete()
+
+        self.client.force_login(admin)
+        response = self.client.get(cr.get_absolute_url())
+        self.assertContains(response, 'no longer exists')

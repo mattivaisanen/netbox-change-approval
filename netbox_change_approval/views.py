@@ -324,6 +324,10 @@ class ChangeRequestView(_AnyLoggedInUserCanView, generic.ObjectView):
             conflict_fields, object_missing = serialization.conflicts_for(
                 instance.content_type, instance.object_id, instance.diff,
             )
+        elif instance.status == StatusChoices.PENDING and instance.object_id is not None:
+            # A pending create or delete whose object was removed since.
+            model = instance.content_type.model_class()
+            object_missing = model is not None and not model.objects.filter(pk=instance.object_id).exists()
         return {
             'diff_rows': _diff_rows(instance, conflict_fields),
             'conflict_labels': [
