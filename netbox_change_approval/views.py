@@ -1,5 +1,6 @@
 from django.contrib import messages
 from django.core.exceptions import FieldDoesNotExist, ValidationError
+from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
@@ -894,3 +895,40 @@ class ChangeRequestBulkApproveView(_BulkDecisionView):
 @register_model_view(ChangeRequest, 'bulk_reject', path='reject', detail=False)
 class ChangeRequestBulkRejectView(_BulkDecisionView):
     decision = 'reject'
+
+
+#
+# Changelog and journal tabs of a change request
+#
+
+class _VisibleRequestOnly:
+    """NetBox adds Changelog and Journal tabs to every model. For a change
+    request they show what it asks for (the changelog keeps its diff), so
+    they follow the same visibility rule as the request page itself
+    (permissions.can_view_change_request), not only NetBox's view permission
+    on change requests."""
+    def get(self, request, model, **kwargs):
+        change_request = get_object_or_404(ChangeRequest, **kwargs)
+        if not permissions.can_view_change_request(request.user, change_request):
+            raise Http404
+        return super().get(request, model, **kwargs)
+
+
+class ChangeRequestChangeLogView(_VisibleRequestOnly, generic.ObjectChangeLogView):
+    pass
+
+
+class ChangeRequestJournalView(_VisibleRequestOnly, generic.ObjectJournalView):
+    pass
+
+
+def _guard_feature_tabs():
+    from netbox.registry import registry
+
+    replacements = {'changelog': ChangeRequestChangeLogView, 'journal': ChangeRequestJournalView}
+    for entry in registry['views'].get('netbox_change_approval', {}).get('changerequest', []):
+        if entry['name'] in replacements:
+            entry['view'] = replacements[entry['name']]
+
+
+_guard_feature_tabs()
