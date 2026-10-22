@@ -10,7 +10,8 @@ NetBox `configuration.py`.
 | `expire_pending_after_days` | `int` or `None` | `None` | Days after which a pending request nobody decided expires: nothing is applied and a pending new object is removed. Applies to rules that don't set their own expiry. `None` or `0` means never. NetBox's background worker checks every hour. |
 | `pending_row_style` | `str` | `'by_action'` | How pending objects look in object lists and rack elevations: `'by_action'` (green new, blue edit, red delete, with the requested values) or `'outline'` (a single yellow outline). |
 | `group_components_with_parent` | `bool` | `True` | While a new device or VM waits for approval, its interfaces, ports, bays, modules, inventory items, VM disks and IP/MAC addresses on its interfaces belong to its request instead of getting their own. `False` gives each its own request again. |
-| `work_sheets` | `bool` | `True` | Field work sheet (Change Approvals → Work Sheet): approved changes that need work on site become tasks. `False` turns it off. |
+| `work_sheets` | `bool` | `True` | Field work: approved changes that need work on site (mounting a device, patching a cable, configuring an IP address, ...) become tasks in the **Field work** section of the Approval Inbox, with a printable work sheet by rack. `False` turns it off. |
+| `change_sets` | `bool` | `True` | Change sets (Change Approvals → Change Sets): collect several changes and submit them for approval as one item. `False` turns them off. |
 
 Example:
 
@@ -24,6 +25,8 @@ PLUGINS_CONFIG = {
         'expire_pending_after_days': 14,
         'pending_row_style': 'by_action',
         'group_components_with_parent': True,
+        'work_sheets': True,
+        'change_sets': True,
     },
 }
 ```
@@ -46,6 +49,8 @@ restarting NetBox:
   worker. Saved values are read when used (once per web request), not at
   startup.
 - Changing a setting doesn't itself need approval.
+- Only superusers see the page (it's in the Change Approvals menu for them
+  only).
 - Changing the default approver group updates who sees the "Approvals" menu
   right away.
 
@@ -66,5 +71,8 @@ reuse infrastructure NetBox already has a UI for:
   skip approval entirely".
 - **Approval rules** — Change Approvals → Approval Rules. Who approves what,
   and what is auto-approved or skipped. Rows in the `ApprovalRule` table.
+- **Stand-ins** — Change Approvals → Away / Stand-in. Each approver names
+  their own stand-in and the days they're away. See README "Backup
+  approvers".
 - **Notifications** — Operations → Event Rules, against the `Change Request`
   object type. See README "Getting notified of pending changes".

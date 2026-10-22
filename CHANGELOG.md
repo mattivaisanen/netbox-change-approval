@@ -64,6 +64,11 @@
   lists them.
 
 ### Improvements
+- The README, configuration reference and developer guide cover change
+  sets, the Field work section of the inbox, backup approvers, the rack
+  preview, cables that follow a new device, change log labels for parts of
+  a pending device, the compact inbox and widget, the change request page
+  and the Settings page.
 - Changes to the interfaces, cables and other parts of a new device that is
   still waiting for approval are labelled in the change log ("Part of
   change request #N, waiting for approval"), and no longer add a

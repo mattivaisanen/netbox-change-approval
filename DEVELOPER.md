@@ -43,7 +43,7 @@ on all of them, and connect one `pre_delete` receiver to all of them.
 |---|---|
 | `discovery.py` | The *only* place that decides "is this model gated". Everything else (validators, delete signal, the detail-page banner) sources its model list from here. |
 | `matching.py` | `rule_matches(rule, instance)` — the constraint-matching engine behind `ApprovalRule`. Reuses `utilities.permissions.qs_filter_from_constraints`, the same helper NetBox's own `ObjectPermission` constraint evaluation uses, so the JSON filter-dict format is identical to what operators already know from the Permissions UI. |
-| `models.py` | `BaseMatchRule` (abstract), `ApprovalRule`, `ChangeRequest`, `ChangeRequestApproval`, `ChangeRequestComment`. The rule and request models are `NetBoxModel` subclasses — which is also how `ChangeRequest` gets change-logging and Event Rule support "for free" (see "Notifications" below). |
+| `models.py` | `BaseMatchRule` (abstract), `ApprovalRule`, `ChangeRequest`, `ChangeRequestApproval`, `ChangeRequestComment`, plus the plain Django models `ApproverAbsence`, `WorkTask`, `ChangeSet` and `PluginSetting` (not change-logged, never gated). The rule and request models are `NetBoxModel` subclasses — which is also how `ChangeRequest` gets change-logging and Event Rule support "for free" (see "Notifications" below). |
 | `serialization.py` | Generic field-level snapshot/diff/apply. Deliberately *not* DRF-serializer-based — see "Why field-level, not DRF serializers" below. |
 | `context.py` | Two `ContextVar`s: `applying_change` (the escape hatch so an *approved* write isn't gated again) and `current_batch` (groups one bulk action's `ChangeRequest` rows under one `batch_id`). |
 | `gating.py` | `gate(instance, action, request)` — the single decision function both the validator and the delete signal call. Locking, bypass, auto-approval, routing all live here exactly once. |
@@ -56,16 +56,51 @@ on all of them, and connect one `pre_delete` receiver to all of them.
 | `table_styling.py` | Monkeypatches `NetBoxTable.configure()` to highlight any row with a pending `ChangeRequest`, across every model's list view generically — see its own module docstring. |
 | `rack_styling.py` | Monkeypatches `dcim.svg.racks.RackElevationSVG` to draw the same pending-highlight around devices in a rack elevation. A separate patch target from `table_styling.py` because the elevation is a standalone SVG document embedded via `<object>`, not part of the host page's DOM — see its own module docstring. |
 | `pending_marks.py` | How pending objects are marked in object lists and rack elevations (the `pending_row_style` setting). |
-| `inbox.py` | The Approval Inbox: your requests and what is waiting on you, grouped into sections, with the navbar count. |
+| `inbox.py` | The Approval Inbox: your requests and what is waiting on you, grouped into sections, with the navbar count. The inbox and the dashboard widget share the compact one-line row layout and quick view. |
 | `approvals.py` | Rules needing more than one approver, and copying a rule's expiry onto a request. |
 | `expiry.py` | Expiring undecided requests (hourly job and `expire_change_requests` command). |
 | `amend.py` | The submitter editing their own pending request ("Update request"). |
 | `revision.py` | Send back for revision and resubmitting. |
 | `bulk.py`, `backstop.py` | Bulk edit/import/delete as one request per object, and gating updates that skip `full_clean()`. |
-| `components.py`, `placement.py` | Components of a pending new device belong to its request; "where does it live" rows on the request page. |
+| `components.py` | Components of a pending new device (and new cables with an end on it) belong to its request. `ChangeLogLabelMiddleware` labels the change log entries of such saves "Part of change request #N, waiting for approval". |
+| `placement.py` | The site/rack line on the request page, and `rack_previews()`: the rack elevation(s) shown for a device request that racks, unracks or moves a device. |
+| `changesets.py` | Change sets: a user's active set gives their gated changes its `batch_id`, so they are decided together like a bulk action. Drafts are hidden from approvers (`draft_batch_ids()`). |
+| `absence.py` | Backup approvers: an active `ApproverAbsence` lets the stand-in decide, list and be notified for the away approver's groups. |
+| `worksheet.py` | Field work: `describe()` turns a request into physical tasks (`WorkTask`), written while the request waits and rewritten on update; the inbox section, printable work sheet and rack/site panel. |
+| `plugin_settings.py`, `settings_page.py` | Settings superusers change in NetBox, layered over `configuration.py`; see "Plugin settings" below. |
 | `notifications.py` | NetBox in-app notifications for requests. |
 | `branching.py` | Working alongside netbox-branching, if installed. |
 | `rule_access.py` | Only superusers may change approval rules. |
+
+## Plugin settings
+
+Always read a setting with `plugin_settings.get_setting(key)`, never NetBox's
+`get_plugin_config()`: a value saved on **Change Approvals → Settings** (a
+`PluginSetting` row) overrides `configuration.py`, and only `get_setting()`
+knows that. Saved values are read when used (cached for one web request at
+most), never at startup, so a change applies at once in every process and in
+the worker. Saving a value equal to `configuration.py`'s deletes the row, so
+the table only holds real differences.
+
+To add a setting, add a `Setting` to `plugin_settings.SETTINGS` (key, label,
+help text, kind) and a default in `__init__.py`'s `default_settings`; the page
+picks it up.
+
+`exempt_models` is deliberately not in `SETTINGS`. It is read once at
+`ready()` to decide which models get wired up, and it is the emergency off
+switch, so it has to work when the plugin's table or pages are broken, and a
+database value must never override it.
+
+## Change sets reuse batches
+
+A change set is a named, user-owned `batch_id`. While a set is active for a
+user, `changesets._join` gives each of their new change requests the set's
+`batch_id`, so everything built for bulk actions (one inbox item, one
+notification, deciding all at once, `views._batch_targets()`) works for change
+sets unchanged. The only new rule is the draft: requests in a draft set are
+left out of approver queues, inboxes and notifications
+(`changesets.draft_batch_ids()`, hooked into `permissions.py` and
+`notifications.py`) until **Submit** sends them.
 
 ## Why field-level, not DRF serializers
 
@@ -487,7 +522,13 @@ python manage.py makemigrations netbox_change_approval --check --dry-run
 
 CI runs the same check. Notable history: 0005 copied the three older rule
 tables (routing rules, auto-approval rules, exempt models) into
-`ApprovalRule`, and 0008 dropped them.
+`ApprovalRule`, and 0008 dropped them. 0010 adds `ApproverAbsence`, 0011
+`WorkTask`, 0012 `ChangeSet` and 0013 `PluginSetting`.
+
+Removing a model needs care: NetBox's change log, bookmarks, notifications
+and subscriptions point at content types with `PROTECT`, so NetBox's
+`remove_stale_contenttypes` fails on startup unless a migration deletes those
+rows first (see 0009).
 
 ## Running tests
 
@@ -496,6 +537,9 @@ From within a NetBox checkout with this plugin installed in editable mode:
 ```bash
 python manage.py test netbox_change_approval
 ```
+
+Add `--keepdb` to reuse the test database between runs. Only one test run
+can use that database at a time; two at once block each other.
 
 `tests/utils.py` has two small helpers (`fake_request`, `grant_bypass`) used
 throughout — `fake_request` wraps NetBox's own `NetBoxFakeRequest` (the same

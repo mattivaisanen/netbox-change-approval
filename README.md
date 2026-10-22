@@ -97,6 +97,10 @@ PLUGINS_CONFIG = {
         # Optional: False gives each component of a pending new device/VM
         # (interface, port, IP on it, ...) its own request again.
         'group_components_with_parent': True,
+        # Optional: False hides the Field work section and work sheet.
+        'work_sheets': True,
+        # Optional: False turns off change sets.
+        'change_sets': True,
     },
 }
 ```
@@ -104,7 +108,10 @@ PLUGINS_CONFIG = {
 Superusers can also change these settings in NetBox, under **Change
 Approvals → Settings** (all except `exempt_models`). A value saved there
 overrides `configuration.py` until you press **Use configuration.py** next to
-it, and takes effect at once, without a restart. See
+it, and takes effect at once, without a restart. Each setting shows where its
+value comes from (*Saved here*, *From configuration.py* or *Default*).
+`exempt_models` is shown read-only: it is the emergency off switch and only
+`configuration.py` sets it. See
 [docs/configuration.md](docs/configuration.md#changing-settings-in-netbox).
 
 Then, from your NetBox install:
@@ -186,9 +193,14 @@ page save counts as one update of the device's request, so approvals start
 over and approvers are notified again); everyone else is blocked until it's
 decided. They show as new in lists, and the request page lists them under
 "Included with it". Approving the device approves them; rejecting it removes
-them. Cables keep their own requests. Moving an existing interface, IP or
+them. **Cables follow the device too:** a new cable with an end on the
+pending device (say, from its port to an existing patch panel) joins the
+device's request, so racking and patching a device is one decision, and the
+request page counts the cables. Moving an existing interface, IP, cable or
 other object onto a pending device (or off one) still needs its own approval.
-`group_components_with_parent: False` in `PLUGINS_CONFIG` turns this off.
+Changes to these parts are labelled in NetBox's change log ("Part of change
+request #12, waiting for approval"), so nobody mistakes them for approved
+changes. `group_components_with_parent: False` turns this off.
 
 **Want to change your request while it's waiting?** Open the object and click
 **Update request** (on the yellow banner or the request page), or just use the
@@ -220,15 +232,43 @@ NetBox logo, shows how many requests are waiting on you and opens a page
 listing them: requests you need to decide, your requests sent back to you, and
 your rejected requests you haven't opened yet. Your own requests still waiting
 on others, and your approved ones, are listed there too but aren't counted.
-A bulk edit, import or delete shows as one item. Each section shows 50 items
-per page, with Previous/Next links. The arrow on each row shows the field
-changes without leaving the page. (This page replaced the old
+Each request is one compact line: the request, its object type, who it's
+from (or who it's waiting on, or who decided it) and how long ago, with the
+age in one unit ("10 hours"; hover for the exact time). Click anywhere on a
+row to open a quick view of the field changes without leaving the page.
+A bulk edit, import, delete or change set shows as one item. Each section
+shows 50 items per page, with Previous/Next links. **All change requests**
+at the top opens the full list. If field work is on, the inbox also has a
+**Field work** section (see "Field work" below). (This page replaced the old
 **My Requests** page; old links to it open the inbox.)
+
+### Change sets
+
+Some jobs touch many objects: a new switch, its cables, its IP addresses and
+a VM. **Change Approvals → Change Sets** lets you send them for approval as
+one item instead of one request each:
+
+1. **Start a change set** with a short name ("Install sw1 in rack A3") and,
+   optionally, a ticket number.
+2. Make your changes as usual. While the change set is active, a banner on
+   every page reminds you, and every change of yours that needs approval
+   goes into the set and waits there.
+3. Open the change set (**Review & submit** on the banner) and click
+   **Submit for approval**.
+
+Approvers see the whole set as one item in their inbox, get one notification,
+and decide it together (**Approve all**, **Send back**, **Reject all**).
+Until you submit, the set is a draft: approvers don't see it and can't decide
+it. **Leave** stops adding to the set without submitting it (**Continue
+working in it** picks it up again later); **Discard** withdraws every change
+in it. `change_sets: False` turns change sets off.
 
 ### As an approver
 
 Go to **Change Approvals → Approvals** (its own top-level nav tab, not under
-Plugins) — the actionable queue: pending requests routed to a group you're in.
+Plugins) — the actionable queue: pending requests routed to a group you're in
+(or to a group of someone you're standing in for, see "Backup approvers"
+below).
 A red badge next to the page title shows how many are waiting on you right
 now. The **Approval Inbox** shows what you've submitted yourself; **All Change
 Requests** is the full history (scoped the same way as everywhere else — see
@@ -239,7 +279,8 @@ NetBox homepage (**Add Widget → Pending Approvals**). Unlike pointing NetBox's
 generic Object List widget at Change Request (which works, but shows every
 request unfiltered with no way to act on them), this one shows only what's
 routed to you and still pending, with Approve/Reject buttons right there —
-decide without leaving the homepage.
+decide without leaving the homepage. Like the inbox, it shows one compact
+line per request, and clicking a row opens a quick view of its changes.
 
 Each entry shows the object, the action (Create/Update/Delete, color-coded
 green/blue/red in the list — matching NetBox's own change-log convention),
@@ -251,6 +292,15 @@ shown by name, not a bare database ID. Approve applies the change immediately;
 reject requires a short comment and discards it permanently. **Send back**
 also requires a comment, but returns the request to its submitter to fix and
 resubmit, as the same request.
+
+**The change request page** is laid out for deciding. Its title names the
+request and the object. A line under it shows the object's site and rack.
+One **Changes** table lists each field as it is now and as requested, with
+"(empty)" for a blank value. Details and comments sit on the side, and only
+the buttons that act on the request are shown. A device request that puts a
+device in a rack, takes it out or moves it also shows the rack elevation, so
+you see the fit and the neighbours; for a move, the requested spot has a
+dashed outline.
 
 **Approvals never overwrite newer edits.** If any field in an update request
 was changed after it was submitted (through the API, a script, or a user with
@@ -283,6 +333,34 @@ Approvals list and inbox; rejecting or sending back still works at any point
 and ends it for everyone. The submitter never counts, so the group needs at
 least one more member than approvals needed (the rule form checks this).
 Resubmitting after a send-back starts the count over.
+
+### Backup approvers
+
+Going on holiday? Open **Change Approvals → Away / Stand-in**, pick a
+stand-in, and enter the first and last day you're away (leave the last day
+empty to stay away until you press **I'm back**). While you're away, your
+stand-in can decide requests routed to your approver groups as if they were
+a member: the requests appear in their Approvals list, inbox and dashboard
+widget, and they get the "needs approval" notifications instead of you. The
+same page shows whom you're standing in for. Nobody can decide their own
+request, stand-in or not.
+
+### Field work
+
+Approved changes often need someone on site: mounting a device, patching a
+cable, configuring an IP address. The plugin turns these into plain tasks,
+such as "Mount sw1 in rack A3, U20–21, front" or "Patch sw1 eth1 → pp1 port
+3". Tasks cover racking, unracking and moving devices, adding and removing
+cables, inserting and removing modules, configuring, moving and removing IP
+addresses, and creating and removing VMs. A new device's cables and IP
+addresses added while it waited get their own tasks.
+
+A task appears once its request is approved, in the **Field work** section of
+the Approval Inbox (columns Task, Request, Location, Approved). Tick a task
+off when it's done; that records who and when. **Work sheet by rack** opens
+a printable page grouped by site and rack, in black and white with boxes to
+tick. Rack and site pages show how many tasks are still open there.
+`work_sheets: False` turns this off.
 
 ### Comments
 
@@ -394,7 +472,9 @@ the Message column saying what happened, e.g. "Waiting for approval (change
 request #12)" or "Approved by anna (change request #12)". The change request
 gets its own entry only when nothing else was written, such as an edit or
 delete that is still waiting, or approving a new object. A message the user
-typed is kept, with ours added after it.
+typed is kept, with ours added after it. Changes to the parts of a pending
+new device (its interfaces, cables, IP addresses, ...) say "Part of change
+request #12, waiting for approval".
 
 ### Getting notified of pending changes
 
@@ -405,6 +485,8 @@ NetBox's own notifications (the bell in the top bar) work out of the box:
 - Approving, rejecting, sending back or expiry notifies the submitter.
 - A new comment notifies the submitter, the approver group and earlier
   commenters.
+- A submitted change set is one notification for the whole set.
+- While an approver is away, their stand-in gets their notifications.
 
 Once a request is decided, approvers' unread "needs approval" notifications
 for it disappear. A bulk action is one notification.
