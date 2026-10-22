@@ -22,7 +22,9 @@
     .nbca-inbox .nbca-quick table td,
     .nbca-inbox .nbca-quick table th { padding: .25rem .5rem; font-size: .8125rem; }
     .nbca-inbox .nbca-rows > thead th { font-weight: normal; border-bottom-width: 1px; }
-    .nbca-inbox .nbca-rows .nbca-who { max-width: 22rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .nbca-inbox .nbca-rows { table-layout: fixed; width: 100%; }
+    .nbca-inbox .nbca-rows > tbody > tr:not(.nbca-quick) > td { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    @media (max-width: 767.98px) { .nbca-inbox .nbca-rows col.nbca-col-md { width: 0 !important; } }
   </style>
   {% include 'netbox_change_approval/inc/quick_toggle.html' %}
 {% endblock %}
@@ -53,6 +55,11 @@
       {% endif %}
     </h2>
     <table class="table table-sm table-hover mb-0 align-middle nbca-rows">
+      {# Fixed widths: opening a quick view must not move the other columns. #}
+      <colgroup>
+        <col><col class="nbca-col-md" style="width: 10rem;"><col class="nbca-col-md" style="width: 14rem;">
+        <col style="width: 7rem;"><col style="width: 11rem;">
+      </colgroup>
       <thead>
         <tr class="text-muted small">
           <th>{% trans "Request" %}</th>

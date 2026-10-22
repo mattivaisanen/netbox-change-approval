@@ -5,10 +5,13 @@
   .nbca-widget .nbca-quick table { margin-bottom: 0; }
   .nbca-widget .nbca-quick table td,
   .nbca-widget .nbca-quick table th { padding: .25rem .5rem; font-size: .8125rem; }
-  .nbca-widget .nbca-who { max-width: 16rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .nbca-widget { table-layout: fixed; width: 100%; }
+  .nbca-widget > tbody > tr:not(.nbca-quick) > td { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 </style>
 {% include 'netbox_change_approval/inc/quick_toggle.html' %}
 <table class="table table-sm table-hover mb-0 align-middle nbca-widget">
+  {# Fixed widths: opening a quick view must not move the other columns. #}
+  <colgroup><col><col style="width: 9rem;"><col style="width: 7rem;"><col style="width: 9.5rem;"></colgroup>
   <tbody>
     {% for cr in sent_back %}
     <tr>
