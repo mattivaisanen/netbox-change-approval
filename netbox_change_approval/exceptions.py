@@ -1,11 +1,11 @@
 class ObjectLocked(Exception):
     """Raised when an object already has a pending ChangeRequest against it."""
-    def __init__(self, change_request):
+    def __init__(self, change_request, message=None):
         self.change_request = change_request
-        super().__init__(
+        super().__init__(message or (
             f'This object has a pending change (request #{change_request.pk}) '
             f'awaiting approval — resolve it before making another change.'
-        )
+        ))
 
 
 class ChangeConflict(Exception):

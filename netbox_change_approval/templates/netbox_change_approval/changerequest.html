@@ -225,6 +225,17 @@
       <div class="card-body text-muted">{% trans "No field-level diff recorded." %}</div>
       {% endif %}
     </div>
+    {% if components %}
+    <div class="card">
+      <h2 class="card-header">{% trans "Included with it" %}</h2>
+      <div class="card-body text-muted small pb-0">{% trans "Created with this object or added by its submitter while pending. Approved or rejected together with it." %}</div>
+      <table class="table table-hover">
+        {% for label, count, url in components %}
+        <tr><td>{% if url %}<a href="{{ url }}">{{ label }}</a>{% else %}{{ label }}{% endif %}</td><td class="text-end">{{ count }}</td></tr>
+        {% endfor %}
+      </table>
+    </div>
+    {% endif %}
     {% if batch_siblings %}
     <div class="card">
       <h2 class="card-header">{% trans "Other objects in this batch" %}</h2>

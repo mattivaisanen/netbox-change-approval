@@ -90,6 +90,9 @@ PLUGINS_CONFIG = {
         # Optional: 'outline' brings back the single yellow outline for pending
         # objects in lists and rack elevations, instead of colors per action.
         'pending_row_style': 'by_action',
+        # Optional: False gives each component of a pending new device/VM
+        # (interface, port, IP on it, ...) its own request again.
+        'group_components_with_parent': True,
     },
 }
 ```
@@ -140,6 +143,17 @@ resubmits the same request) or **Retract and discard** (drops it). No comment
 needed. For a create, the object is removed either way, the same as a
 rejection; for an update or delete, nothing was written yet. Only you (the
 submitter) can retract your own request, and only while it's still pending.
+
+**A new device's interfaces belong to its request.** While a new device or
+VM waits for approval, its interfaces, ports, bays, modules, inventory items,
+VM disks, and IP/MAC addresses on its interfaces are part of that request.
+Whoever submitted the device can add, change and remove them freely (each
+page save counts as one update of the device's request, so approvals start
+over and approvers are notified again); everyone else is blocked until it's
+decided. They show as new in lists, and the request page lists them under
+"Included with it". Approving the device approves them; rejecting it removes
+them. Cables keep their own requests. `group_components_with_parent: False`
+in `PLUGINS_CONFIG` turns this off.
 
 **Want to change your request while it's waiting?** Open the object and click
 **Update request** (on the yellow banner or the request page), or just use the

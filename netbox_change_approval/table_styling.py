@@ -39,9 +39,35 @@ def _highlight_pending_rows(table):
 
     content_type = ObjectType.objects.get_for_model(model)
     pending = pending_marks.pending_requests(content_type)
-    if not pending:
-        return
     by_action = pending_marks.by_action()
+
+    # Components of a pending new device/VM are new with it (components.py).
+    parent_maps = []
+    if by_action:
+        from . import components
+
+        if components.enabled():
+            for field_name in components.PARENT_FIELDS:
+                try:
+                    field = model._meta.get_field(field_name)
+                except Exception:
+                    continue
+                if field.is_relation and field.many_to_one:
+                    parent_map = components.pending_parent_map(model, field_name)
+                    if parent_map:
+                        parent_maps.append((field.attname, parent_map))
+    if not pending and not parent_maps:
+        return
+
+    def _lookup(record):
+        change_request = pending.get(getattr(record, 'pk', None))
+        if change_request is not None:
+            return change_request
+        for attname, parent_map in parent_maps:
+            parent_request = parent_map.get(getattr(record, attname, None))
+            if parent_request is not None:
+                return parent_request
+        return None
 
     # Preserve whatever row_attrs['class'] this specific table might already
     # define (rare, but several NetBox core tables do use it) rather than
@@ -62,7 +88,7 @@ def _highlight_pending_rows(table):
     # must come from the closure instead.
     def _row_class(record, table):
         base = _resolve(existing_class, record=record, table=table) or ''
-        change_request = pending.get(getattr(record, 'pk', None))
+        change_request = _lookup(record)
         if change_request is None:
             return base
         extra = PENDING_ROW_CSS_CLASS
@@ -85,22 +111,26 @@ def _highlight_pending_rows(table):
             return changes_cache[change_request.pk]
 
         def _action(record):
-            change_request = pending.get(getattr(record, 'pk', None))
+            change_request = _lookup(record)
             return change_request.action if change_request else None
 
         def _url(record):
-            change_request = pending.get(getattr(record, 'pk', None))
+            change_request = _lookup(record)
             return change_request.get_absolute_url() if change_request else None
 
         def _cells(record):
-            change_request = pending.get(getattr(record, 'pk', None))
+            change_request = _lookup(record)
             if change_request is None or change_request.action != ActionChoices.UPDATE:
                 return None
             return json.dumps(_changes(change_request)[0])
 
         def _summary(record):
-            change_request = pending.get(getattr(record, 'pk', None))
-            if change_request is None or change_request.action != ActionChoices.UPDATE:
+            change_request = _lookup(record)
+            if change_request is None:
+                return None
+            if change_request.object_id != getattr(record, 'pk', None) or change_request.content_type_id != content_type.pk:
+                return f'Part of new {change_request.object_repr} (request #{change_request.pk})'
+            if change_request.action != ActionChoices.UPDATE:
                 return None
             return _changes(change_request)[1]
 

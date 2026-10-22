@@ -28,7 +28,17 @@ class PendingChangeBanner(PluginTemplateExtension):
             status=StatusChoices.PENDING,
         ).first()
         if change_request is None:
-            return ''
+            # Part of a new device/VM that is still pending (components.py)?
+            from . import components
+
+            parent_request = components.pending_parent_request(obj)
+            if parent_request is None:
+                return ''
+            request = self.context.get('request')
+            return self.render('netbox_change_approval/component_banner.html', {
+                'change_request': parent_request,
+                'is_submitter': request is not None and parent_request.submitted_by_id == request.user.pk,
+            })
 
         from . import pending_marks
 

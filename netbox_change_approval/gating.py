@@ -150,6 +150,13 @@ def _gate(instance, action, request):
     if permissions.has_bypass(user, instance, check_new_state=action == ActionChoices.UPDATE):
         return None
 
+    # A component (interface, port, IP on its interface, ...) of a new
+    # device/VM that is still pending belongs to that request (components.py).
+    from . import components
+    handled, result = components.gate_component(instance, action, user, request)
+    if handled:
+        return result
+
     if ChangeRequest.is_object_locked(content_type, instance.pk):
         existing = ChangeRequest.objects.get(
             content_type=content_type, object_id=instance.pk, status='pending',

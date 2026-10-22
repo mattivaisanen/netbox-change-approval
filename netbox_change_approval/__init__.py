@@ -30,6 +30,10 @@ class NetBoxChangeApprovalConfig(PluginConfig):
         # (green new / blue edit / red delete, with a label and the requested
         # values) or 'outline' (the earlier single yellow outline).
         'pending_row_style': 'by_action',
+        # Components of a pending new device/VM (interfaces, ports, IPs on
+        # them, ...) belong to its request: only its submitter can change them,
+        # and approving or rejecting the device covers them. False turns it off.
+        'group_components_with_parent': True,
     }
 
     middleware = [
