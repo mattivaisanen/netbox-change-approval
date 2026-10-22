@@ -112,22 +112,41 @@ def has_bypass(user, instance, check_new_state=False):
     return _matches_bypass_in_memory(user, instance, constraints)
 
 
-def _viewable_content_type_ids(user, queryset):
-    """IDs of the object types in `queryset` this user may view in NetBox
-    (model-level "view" permission, or exempt via EXEMPT_VIEW_PERMISSIONS)."""
+def _viewable_requests_q(user, queryset):
+    """
+    A filter for the requests in `queryset` whose object this user may view
+    in NetBox, the same way can_view_change_request() checks one request:
+    model-level "view" permission (or EXEMPT_VIEW_PERMISSIONS), narrowed by
+    the permission's constraints while the object exists. Without the
+    constraints, someone allowed to see only tenant A's devices saw every
+    device request in the list.
+    """
     from django.contrib.contenttypes.models import ContentType
+    from django.db.models import Q
 
     ct_ids = queryset.order_by().values_list('content_type_id', flat=True).distinct()
-    return [
-        ct.pk for ct in ContentType.objects.filter(pk__in=list(ct_ids))
-        if user.has_perm(f'{ct.app_label}.view_{ct.model}')
-    ]
+    q = Q(pk__in=[])
+    for ct in ContentType.objects.filter(pk__in=list(ct_ids)):
+        if not user.has_perm(f'{ct.app_label}.view_{ct.model}'):
+            continue
+        model = ct.model_class()
+        restrict = getattr(getattr(model, 'objects', None), 'restrict', None)
+        if model is None or restrict is None:
+            q |= Q(content_type_id=ct.pk)
+            continue
+        q |= Q(content_type_id=ct.pk) & (
+            Q(object_id__isnull=True)
+            | Q(object_id__in=restrict(user, 'view').values('pk'))
+            # Object deleted since: model-level permission decides.
+            | ~Q(object_id__in=model.objects.values('pk'))
+        )
+    return q
 
 
 def visible_change_requests(user, queryset):
     """
-    Change requests a user may read: those about object types they're allowed
-    to view in NetBox, plus their own submissions and anything routed to their
+    Change requests a user may read: those about objects they're allowed to
+    view in NetBox, plus their own submissions and anything routed to their
     approver groups (superusers see everything). A request's diff shows the
     object's field values, so it follows the same view permission as the object.
     Approve/reject/retract are checked separately in the views.
@@ -139,7 +158,7 @@ def visible_change_requests(user, queryset):
     if user.is_superuser:
         return queryset
     return queryset.filter(
-        Q(content_type_id__in=_viewable_content_type_ids(user, queryset))
+        _viewable_requests_q(user, queryset)
         | Q(submitted_by=user)
         | Q(approver_group__in=user.groups.all())
     ).distinct()

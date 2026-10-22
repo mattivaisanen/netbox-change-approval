@@ -67,3 +67,28 @@ class VisibleChangeRequestsTests(TestCase):
 def ct_for_changerequest():
     from ..models import ChangeRequest
     return ObjectType.objects.get_for_model(ChangeRequest)
+
+
+class ConstrainedViewListTests(TestCase):
+    """The request list follows view permission constraints, like a single
+    request's page does."""
+
+    def test_constrained_viewer_sees_only_permitted_objects_requests(self):
+        submitter = User.objects.create(username='sub')
+        viewer = User.objects.create(username='viewer')
+        perm = ObjectPermission.objects.create(
+            name='only-acme', enabled=True, actions=['view'], constraints={'slug': 'acme'},
+        )
+        perm.object_types.set([ObjectType.objects.get_for_model(Manufacturer)])
+        perm.users.set([viewer])
+
+        requests = {}
+        for slug in ('acme', 'other'):
+            obj = Manufacturer(name=slug, slug=slug)
+            gating.gate(obj, ActionChoices.CREATE, fake_request(submitter))
+            obj.save()
+            requests[slug] = ChangeRequest.objects.get(object_id=obj.pk)
+
+        visible = permissions.visible_change_requests(viewer, ChangeRequest.objects.all())
+        self.assertIn(requests['acme'], visible)
+        self.assertNotIn(requests['other'], visible)
