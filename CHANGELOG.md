@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 0.3.0 (2026-10-22)
+
+Upgrade: see README "Upgrading". Run `manage.py migrate`: this release adds
+and removes database tables (the old rule tables are gone; their rules were
+moved to Approval Rules in 0.2.0).
+
 ### New features
 - Request page: "Policy Rules" (the rule, ✓/✗ with approvals so far, eligible
   reviewers) and "Reviews" (each reviewer's Approved / Changes requested /
