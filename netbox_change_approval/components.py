@@ -13,7 +13,10 @@ are part of that same request instead of getting requests of their own:
 - Approving the device approves them with it; rejecting it removes them
   with it (they are deleted along with the device).
 
-Cables are not included: a cable joins two devices and keeps its own request.
+A new cable with an end on such a pending device (say, from its port to an
+existing patch panel) joins that device's request too, so racking and
+patching a device is one decision. An existing cable re-pointed onto a pending
+device still needs its own approval.
 
 Set PLUGINS_CONFIG['netbox_change_approval']['group_components_with_parent']
 to False to turn this off (each component change is its own request again).
@@ -80,6 +83,9 @@ def pending_parent_request(instance):
     """
     if not enabled():
         return None
+    if _is_cable(instance):
+        requests = cable_requests(instance)
+        return requests[0] if requests else None
     states = [_parents(instance)]
     stored = _stored(instance)
     if stored is not None:
@@ -94,6 +100,36 @@ def pending_parent_request(instance):
                 return None
             found = found or change_request
     return found
+
+
+def _is_cable(instance):
+    return instance._meta.label_lower == 'dcim.cable'
+
+
+def _cable_end_requests(ends):
+    found = []
+    for end in ends or ():
+        for model, pk in _parents(end):
+            change_request = _pending_create(model, pk)
+            if change_request is not None and change_request not in found:
+                found.append(change_request)
+    return found
+
+
+def cable_requests(cable):
+    """
+    Pending new-device requests a cable belongs to: those of the pending
+    devices at its ends. A new cable belongs to them if any end is on one; an
+    existing cable only if it was already on that device and still is (so an
+    approved cable can't be moved onto a pending device without approval).
+    """
+    new_ends = list(getattr(cable, 'a_terminations', None) or []) + list(getattr(cable, 'b_terminations', None) or [])
+    requests = _cable_end_requests(new_ends)
+    stored = _stored(cable)
+    if stored is not None:
+        before = _cable_end_requests(list(stored.a_terminations) + list(stored.b_terminations))
+        requests = [cr for cr in requests if cr in before]
+    return requests
 
 
 def _pending_create(model, pk):
@@ -113,18 +149,30 @@ def gate_component(instance, action, user, request):
     _gate() returns `result` (None lets the write through); otherwise normal
     gating continues. Raises ObjectLocked for anyone but the submitter.
     """
+    if not enabled():
+        return False, None
+    if _is_cable(instance):
+        parent_requests = cable_requests(instance)
+    else:
+        parent_request = pending_parent_request(instance)
+        parent_requests = [parent_request] if parent_request is not None else []
+    if not parent_requests:
+        return False, None
+    for parent_request in parent_requests:
+        _check_owner(parent_request, user)
+    for parent_request in parent_requests:
+        _note_change(parent_request, request)
+    return True, None
+
+
+def _check_owner(parent_request, user):
     from .exceptions import ObjectLocked
 
-    parent_request = pending_parent_request(instance)
-    if parent_request is None:
-        return False, None
     if user is None or parent_request.submitted_by_id != user.pk:
         raise ObjectLocked(parent_request, message=(
             f'This belongs to {parent_request.object_repr}, which is new and waiting for approval '
             f'(request #{parent_request.pk}). Until it is decided, only its submitter can change it.'
         ))
-    _note_change(parent_request, request)
-    return True, None
 
 
 def _note_change(parent_request, request):
@@ -179,7 +227,41 @@ def component_summary(change_request):
         except (NoReverseMatch, Exception):
             url = None
         rows.append((str(related._meta.verbose_name_plural).capitalize(), count, url))
+    if model._meta.label_lower == 'dcim.device':
+        from dcim.models import Cable
+
+        count = Cable.objects.filter(terminations___device_id=change_request.object_id).distinct().count()
+        if count:
+            try:
+                url = f'{get_action_url(Cable, action="list")}?device_id={change_request.object_id}'
+            except Exception:
+                url = None
+            rows.append((str(Cable._meta.verbose_name_plural).capitalize(), count, url))
     return sorted(rows)
+
+
+def pending_cable_map():
+    """{cable pk: pending new-device request} for cables with an end on a
+    pending new device (for marking cable rows in lists)."""
+    from core.models import ObjectType
+    from dcim.models import CableTermination, Device
+
+    from .models import ChangeRequest
+
+    pending = {
+        cr.object_id: cr for cr in ChangeRequest.objects.filter(
+            content_type=ObjectType.objects.get_for_model(Device), status=StatusChoices.PENDING,
+            action=ActionChoices.CREATE, object_id__isnull=False,
+        ).only('pk', 'object_id', 'action', 'content_type', 'object_repr')
+    }
+    if not pending:
+        return {}
+    return {
+        cable_id: pending[device_id]
+        for cable_id, device_id in CableTermination.objects.filter(
+            _device_id__in=list(pending),
+        ).values_list('cable_id', '_device_id')
+    }
 
 
 def pending_parent_map(model, parent_field):

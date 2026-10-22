@@ -3,6 +3,10 @@
 ## Unreleased
 
 ### New features
+- A new cable with an end on a new device that is still waiting for approval
+  joins that device's request: its submitter can patch it freely, everyone
+  else waits, and approving the device approves the cables. Its request page
+  counts them.
 - The Approval Inbox has an "All change requests" button.
 - The Pending Approvals dashboard widget has a quick view of each request's
   changes, like the Approval Inbox.

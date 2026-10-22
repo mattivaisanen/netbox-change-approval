@@ -56,6 +56,10 @@ def _highlight_pending_rows(table):
                     parent_map = components.pending_parent_map(model, field_name)
                     if parent_map:
                         parent_maps.append((field.attname, parent_map))
+            if model._meta.label_lower == 'dcim.cable':
+                cable_map = components.pending_cable_map()
+                if cable_map:
+                    parent_maps.append(('pk', cable_map))
     if not pending and not parent_maps:
         return
 

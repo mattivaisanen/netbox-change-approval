@@ -146,3 +146,47 @@ class ComponentsOfPendingDeviceTests(TestCase):
         page = self.client.get(self.device_request.get_absolute_url())
         self.assertContains(page, 'Included with it')
         self.assertContains(page, f'device_id={self.device.pk}')
+
+
+class CablesFollowPendingDeviceTests(ComponentsOfPendingDeviceTests):
+    """A new cable with an end on a pending new device joins its request."""
+
+    def setUp(self):
+        super().setUp()
+        self.existing = Device.objects.create(
+            name='pp1', site=self.site, device_type=self.device_type, role=self.role,
+        )
+        self.panel_port = Interface.objects.get(device=self.existing, name='eth0')
+
+    def _cable(self):
+        from dcim.models import Cable
+
+        return Cable(a_terminations=[self.interface], b_terminations=[self.panel_port])
+
+    def test_submitter_cable_joins_device_request(self):
+        self.assertIsNone(self._gate(self._cable(), ActionChoices.CREATE, self.alice))
+        self.device_request.refresh_from_db()
+        self.assertEqual(self.device_request.revision, 2)
+        self.assertEqual(ChangeRequest.objects.count(), 1)
+
+    def test_others_blocked_from_cabling_pending_device(self):
+        with self.assertRaises(ObjectLocked):
+            self._gate(self._cable(), ActionChoices.CREATE, self.bob)
+
+    def test_existing_cable_moved_onto_pending_device_needs_approval(self):
+        from dcim.models import Cable
+
+        other = Device.objects.create(name='pp2', site=self.site, device_type=self.device_type, role=self.role)
+        cable = Cable(a_terminations=[self.panel_port], b_terminations=[Interface.objects.get(device=other, name='eth0')])
+        cable.save()
+        cable = Cable.objects.get(pk=cable.pk)
+        cable.b_terminations = [self.interface]
+        change_request = self._gate(cable, ActionChoices.UPDATE, self.alice)
+        self.assertIsNotNone(change_request)
+        self.assertNotEqual(change_request.pk, self.device_request.pk)
+
+    def test_request_page_counts_cables(self):
+        self._cable().save()
+        self.assertIn('Cables', [label for label, _count, _url in __import__(
+            'netbox_change_approval.components', fromlist=['component_summary']
+        ).component_summary(self.device_request)])
