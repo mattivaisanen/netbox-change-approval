@@ -68,7 +68,8 @@
 - Approval Inbox and dashboard widget are more compact: one line per
   request, with columns for the request, its object type, who it's from (or
   waiting on, or who decided), and how long ago, instead of two tall lines
-  with an empty middle. Columns keep their place when a quick view opens.
+  with an empty middle. Columns keep their place when a quick view opens,
+  and ages show one unit ("10 hours"; hover for the exact time).
 - Approval Inbox and dashboard widget: clicking anywhere on a request's
   row (except its links and buttons) opens its quick view, and the arrow
   points up while it's open (it never turned before). Closing a quick view

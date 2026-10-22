@@ -35,3 +35,14 @@ class QuickToggleIncludedTests(SimpleTestCase):
         self.assertIn('nbcaQuickRows', html)
         # Transforms don't apply to inline elements; without this the arrow never turned.
         self.assertIn('display: inline-block', html)
+
+
+class ShortAgeTests(SimpleTestCase):
+    def test_largest_unit_only(self):
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        from ..templatetags.nbca_diff import short_age
+        self.assertEqual(short_age(timezone.now() - timedelta(hours=10, minutes=47)), '10\xa0hours')
+        self.assertEqual(short_age(None), '')

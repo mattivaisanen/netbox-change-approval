@@ -1,5 +1,5 @@
 {% extends 'generic/_base.html' %}
-{% load i18n %}
+{% load i18n nbca_diff %}
 
 {# Plain text: base.html reuses this block for the browser tab title. #}
 {% block title %}{% trans "Approval Inbox" %}{% if inbox_count %} ({{ inbox_count }}){% endif %}{% endblock %}
@@ -102,7 +102,7 @@
             {% endif %}
           </td>
           <td class="text-muted small text-nowrap">
-            {% if section.key == 'decide' or section.key == 'waiting' %}{{ cr.submitted_at|timesince }}{% elif section.key == 'approved' %}{{ cr.applied_at|timesince }}{% else %}{{ cr.decided_at|timesince }}{% endif %}
+            {% if section.key == 'decide' or section.key == 'waiting' %}<span title="{{ cr.submitted_at }}">{{ cr.submitted_at|short_age }}</span>{% elif section.key == 'approved' %}<span title="{{ cr.applied_at }}">{{ cr.applied_at|short_age }}</span>{% else %}<span title="{{ cr.decided_at }}">{{ cr.decided_at|short_age }}</span>{% endif %}
           </td>
           <td class="text-end text-nowrap align-middle">
             <button type="button" class="btn btn-sm btn-ghost-secondary nbca-toggle" data-bs-toggle="collapse"
