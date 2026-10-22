@@ -5,6 +5,9 @@
   tr:has(> td > .nbca-toggle) { cursor: pointer; }
   .nbca-toggle .mdi { display: inline-block; transition: transform .15s; }
   .nbca-toggle[aria-expanded="true"] .mdi { transform: rotate(180deg); }
+  /* Bootstrap animates collapse by height, which table rows can't do: the
+     row just sat there for the animation's length before closing. */
+  tr.nbca-quick.collapsing { transition: none; }
 </style>
 <script>
   (function () {
