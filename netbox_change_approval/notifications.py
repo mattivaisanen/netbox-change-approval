@@ -97,10 +97,15 @@ def _approvers(change_request):
 
 
 def _is_batch_lead(change_request, status):
-    """Only the lowest-numbered request of a batch (in `status`) notifies."""
+    """Only the lowest-numbered request of a batch (in `status`) notifies.
+    Per approver group: one bulk edit can need approval from several groups
+    (different rules per tenant, say), and each group must hear about its
+    part."""
     if not change_request.batch_id:
         return True
-    lead = ChangeRequest.objects.filter(batch_id=change_request.batch_id, status=status).order_by('pk').first()
+    lead = ChangeRequest.objects.filter(
+        batch_id=change_request.batch_id, status=status, approver_group_id=change_request.approver_group_id,
+    ).order_by('pk').first()
     return lead is None or lead.pk == change_request.pk
 
 

@@ -68,3 +68,31 @@ class MixedBatchTests(TestCase):
         self._post(self.alice, 'retract', {'confirm': True})
 
         self.assertEqual(self._statuses(), [StatusChoices.RETRACTED, StatusChoices.RETRACTED])
+
+
+class MixedBatchNotificationTests(TestCase):
+    def test_each_approver_group_is_notified(self):
+        from django.contrib.contenttypes.models import ContentType
+        from extras.models import Notification
+
+        group_a = Group.objects.create(name='Team A')
+        group_b = Group.objects.create(name='Team B')
+        submitter = User.objects.create(username='alice')
+        approver_a = User.objects.create(username='approver-a')
+        approver_a.groups.add(group_a)
+        approver_b = User.objects.create(username='approver-b')
+        approver_b.groups.add(group_b)
+        ct = ContentType.objects.get_for_model(Manufacturer)
+        batch = uuid.uuid4()
+
+        with self.captureOnCommitCallbacks(execute=True):
+            for name, group in (('a', group_a), ('b', group_b)):
+                obj = Manufacturer.objects.create(name=f'Vendor {name}', slug=f'vendor-{name}')
+                ChangeRequest.objects.create(
+                    content_type=ct, object_id=obj.pk, object_repr=str(obj), action=ActionChoices.UPDATE,
+                    diff={'description': {'old': '', 'new': 'x'}}, submitted_by=submitter,
+                    approver_group=group, batch_id=batch,
+                )
+
+        self.assertTrue(Notification.objects.filter(user=approver_a).exists())
+        self.assertTrue(Notification.objects.filter(user=approver_b).exists())
