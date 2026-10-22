@@ -67,3 +67,14 @@ class InboxTests(TestCase):
         change_request = self._update('acme', 'x')
         self.assertEqual(change_request.get_action_display(), 'Update')
         self.assertEqual(ChangeRequest.objects.get(pk=change_request.pk).status, StatusChoices.PENDING)
+
+
+class FromDbSignatureTests(TestCase):
+    def test_from_db_accepts_newer_django_arguments(self):
+        # Django 6.1 passes fetch_mode to Model.from_db(); the override must
+        # accept whatever Django adds.
+        import inspect
+
+        from ..models import ChangeRequest
+        params = inspect.signature(ChangeRequest.from_db).parameters
+        self.assertTrue(any(p.kind is p.VAR_KEYWORD for p in params.values()))

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.2 (2026-10-22)
+
+Fixed:
+- Opening the Approval Inbox (and other request pages) failed with
+  "from_db() got an unexpected keyword argument 'fetch_mode'" on newer
+  Django releases.
+
 ## 0.2.1 (2026-10-22)
 
 Fixed:

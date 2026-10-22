@@ -462,8 +462,9 @@ class ChangeRequest(NetBoxModel):
         }.get(self.status, 'secondary')
 
     @classmethod
-    def from_db(cls, db, field_names, values):
-        instance = super().from_db(db, field_names, values)
+    def from_db(cls, db, field_names, values, *args, **kwargs):
+        # Pass through whatever else Django adds (Django 6.1: fetch_mode).
+        instance = super().from_db(db, field_names, values, *args, **kwargs)
         # Status as loaded, so notifications.py can tell what changed on save.
         instance._nbca_loaded_status = instance.__dict__.get('status')
         return instance
