@@ -30,7 +30,7 @@
 
 {% for section in sections %}
   {% if section.items %}
-  <div class="card mb-3{% if not section.counted %} opacity-75{% endif %}">
+  <div class="card mb-3{% if not section.counted %} opacity-75{% endif %}" id="nbca-section-{{ section.key }}">
     <h2 class="card-header d-flex align-items-center">
       <span class="flex-grow-1">
         {{ section.title }}
@@ -126,14 +126,13 @@
         {% endfor %}
       </tbody>
     </table>
-    {% if section.total > section.items|length %}
-      <div class="card-footer text-muted small">
-        {% blocktrans with shown=section.items|length total=section.total %}Showing {{ shown }} of {{ total }}.{% endblocktrans %}
-        {% if section.key == 'decide' %}
-          <a href="{% url 'plugins:netbox_change_approval:changerequest_approvals' %}">{% trans "See all" %}</a>
-        {% else %}
-          <a href="{% url 'plugins:netbox_change_approval:changerequest_list' %}?submitted_by={{ request.user.pk }}">{% trans "See all your requests" %}</a>
-        {% endif %}
+    {% if section.pages > 1 %}
+      <div class="card-footer d-flex align-items-center gap-2 small">
+        <span class="text-muted">{% blocktrans with page=section.page pages=section.pages total=section.total %}Page {{ page }} of {{ pages }} ({{ total }} items){% endblocktrans %}</span>
+        <div class="btn-group btn-group-sm ms-auto">
+          {% if section.prev_query %}<a class="btn btn-outline-secondary" href="?{{ section.prev_query }}#nbca-section-{{ section.key }}">{% trans "Previous" %}</a>{% endif %}
+          {% if section.next_query %}<a class="btn btn-outline-secondary" href="?{{ section.next_query }}#nbca-section-{{ section.key }}">{% trans "Next" %}</a>{% endif %}
+        </div>
       </div>
     {% endif %}
   </div>

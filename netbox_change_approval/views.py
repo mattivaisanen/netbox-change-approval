@@ -734,6 +734,13 @@ class ChangeRequestCommentView(ConditionalLoginRequiredMixin, View):
         return redirect(f'{change_request.get_absolute_url()}#comments')
 
 
+def _with_param(request, name, value):
+    """This page's query string with `name` set to `value`."""
+    params = request.GET.copy()
+    params[name] = str(value)
+    return params.urlencode()
+
+
 @register_model_view(ChangeRequest, 'inbox', path='inbox', detail=False)
 class InboxView(ConditionalLoginRequiredMixin, View):
     """The Approval Inbox (see inbox.py), linked from the navbar button."""
@@ -743,7 +750,13 @@ class InboxView(ConditionalLoginRequiredMixin, View):
         user = request.user
         sections = []
         for key, title, queryset, counted in inbox.inbox_sections(user):
-            items = inbox.group_items(queryset)
+            total = inbox.item_count(queryset)
+            pages = inbox.page_count(total)
+            try:
+                page = min(max(1, int(request.GET.get(f'{key}_page', 1))), pages)
+            except (TypeError, ValueError):
+                page = 1
+            items = inbox.group_items(queryset, page=page)
             members = [member for item in items for member in item['members']]
             names = prefetch_display_names(members)
             for member in members:
@@ -754,7 +767,12 @@ class InboxView(ConditionalLoginRequiredMixin, View):
                 'title': title,
                 'counted': counted,
                 'items': items,
-                'total': inbox.item_count(queryset),
+                'total': total,
+                'page': page,
+                'pages': pages,
+                'page_param': f'{key}_page',
+                'prev_query': _with_param(request, f'{key}_page', page - 1) if page > 1 else None,
+                'next_query': _with_param(request, f'{key}_page', page + 1) if page < pages else None,
             })
         return render(request, 'netbox_change_approval/inbox.html', {
             'sections': sections,

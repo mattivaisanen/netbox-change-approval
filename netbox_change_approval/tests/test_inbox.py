@@ -39,6 +39,34 @@ class InboxTests(TestCase):
         sizes = sorted(len(item['members']) for item in inbox.group_items(queryset))
         self.assertEqual(sizes, [1, 3])
 
+    def test_pages_keep_batches_whole(self):
+        self._update('single-old', 'one')
+        with batch_scope(uuid.uuid4()):
+            for n in range(3):
+                self._update(f'vendor-{n}', 'bulk')
+        self._update('single-new', 'two')
+
+        queryset = inbox._decide(self.approver)
+        pages = [inbox.group_items(queryset, limit=1, page=n) for n in (1, 2, 3, 4)]
+        self.assertEqual([len(page) for page in pages], [1, 1, 1, 0])
+        self.assertEqual(sorted(len(page[0]['members']) for page in pages[:3]), [1, 1, 3])
+        leads = [page[0]['lead'].pk for page in pages[:3]]
+        self.assertEqual(len(set(leads)), 3)
+
+    def test_inbox_page_links(self):
+        from unittest import mock
+
+        for n in range(3):
+            self._update(f'paged-{n}', 'x')
+        self.client.force_login(self.approver)
+        with mock.patch.object(inbox, 'SECTION_LIMIT', 2):
+            first = self.client.get(reverse('plugins:netbox_change_approval:changerequest_inbox'))
+            self.assertContains(first, 'Page 1 of 2')
+            self.assertContains(first, 'decide_page=2')
+            second = self.client.get(reverse('plugins:netbox_change_approval:changerequest_inbox') + '?decide_page=2')
+            self.assertContains(second, 'Page 2 of 2')
+            self.assertContains(second, 'decide_page=1')
+
     def test_page_shows_batch_quick_view_and_approved(self):
         with batch_scope(uuid.uuid4()):
             for n in range(2):

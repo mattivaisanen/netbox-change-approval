@@ -19,7 +19,7 @@ same way approving or rejecting it decides the whole batch.
 from . import permissions
 from .models import ChangeRequest, StatusChoices
 
-#: Items shown per section; the header shows the full count.
+#: Items per page in each section; the header shows the full count.
 SECTION_LIMIT = 50
 
 
@@ -60,30 +60,47 @@ def item_count(queryset):
     return singles + batches
 
 
-def group_items(queryset, limit=SECTION_LIMIT):
+def group_items(queryset, limit=None, page=1):
     """
-    [{'lead': cr, 'members': [cr, ...]}], at most `limit` items, in the
-    queryset's order. Requests sharing a batch_id become one item, with every
-    member of that batch that is in `queryset`.
+    [{'lead': cr, 'members': [cr, ...]}] for one page of `limit` items, in
+    the queryset's order. Requests sharing a batch_id become one item (placed
+    where its first request falls), with every member of that batch that is
+    in `queryset`.
     """
+    limit = limit or SECTION_LIMIT
+    units = []  # (batch_id or None, lead pk), in order
+    seen_batches = set()
+    for pk, batch_id in queryset.values_list('pk', 'batch_id'):
+        if batch_id is not None:
+            if batch_id in seen_batches:
+                continue
+            seen_batches.add(batch_id)
+        units.append((batch_id, pk))
+    page = max(1, page)
+    window = units[(page - 1) * limit: page * limit]
+    if not window:
+        return []
+
+    leads = queryset.in_bulk([pk for _batch, pk in window])
     items, by_batch = [], {}
-    for change_request in queryset[: limit * 4]:
-        if change_request.batch_id in by_batch:
+    for batch_id, pk in window:
+        lead = leads.get(pk)
+        if lead is None:
             continue
-        if len(items) >= limit:
-            break
-        item = {'lead': change_request, 'members': [change_request]}
-        if change_request.batch_id is not None:
+        item = {'lead': lead, 'members': [lead]}
+        if batch_id is not None:
             item['members'] = []  # filled below, with the whole batch
-            by_batch[change_request.batch_id] = item
+            by_batch[batch_id] = item
         items.append(item)
-    batch_ids = [item['lead'].batch_id for item in items if item['lead'].batch_id]
-    if batch_ids:
-        for member in queryset.filter(batch_id__in=batch_ids).order_by('pk'):
-            item = by_batch.get(member.batch_id)
-            if item is not None:
-                item['members'].append(member)
+    if by_batch:
+        for member in queryset.filter(batch_id__in=list(by_batch)).order_by('pk'):
+            by_batch[member.batch_id]['members'].append(member)
     return items
+
+
+def page_count(total, limit=None):
+    limit = limit or SECTION_LIMIT
+    return max(1, -(-total // limit))
 
 
 def inbox_count(user):
