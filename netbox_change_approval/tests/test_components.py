@@ -93,6 +93,31 @@ class ComponentsOfPendingDeviceTests(TestCase):
             self._gate(ip, ActionChoices.CREATE, self.bob)
         self.assertIsNone(self._gate(ip, ActionChoices.CREATE, self.alice))
 
+    def test_moving_approved_interface_onto_pending_device_needs_approval(self):
+        # Otherwise the submitter could take an approved device's interface
+        # without approval (and withdrawing the new device would delete it).
+        other = Device.objects.create(name='sw2', site=self.site, device_type=self.device_type, role=self.role)
+        approved = Interface.objects.get(device=other, name='eth0')
+        approved.device = self.device
+        change_request = self._gate(approved, ActionChoices.UPDATE, self.alice)
+        self.assertIsNotNone(change_request)
+        self.assertEqual(change_request.content_type_id, ContentType.objects.get_for_model(Interface).pk)
+        self.device_request.refresh_from_db()
+        self.assertEqual(self.device_request.revision, 1)
+
+    def test_moving_pending_interface_onto_approved_device_needs_approval(self):
+        other = Device.objects.create(name='sw2', site=self.site, device_type=self.device_type, role=self.role)
+        self.interface.device = other
+        self.interface.name = 'eth7'
+        self.assertIsNotNone(self._gate(self.interface, ActionChoices.UPDATE, self.alice))
+
+    def test_assigning_existing_ip_to_pending_interface_needs_approval(self):
+        ip = IPAddress.objects.create(address='192.0.2.5/24')
+        ip.assigned_object = self.interface
+        change_request = self._gate(ip, ActionChoices.UPDATE, self.alice)
+        self.assertIsNotNone(change_request)
+        self.assertEqual(change_request.content_type_id, ContentType.objects.get_for_model(IPAddress).pk)
+
     def test_rejecting_device_removes_components(self):
         self.device_request.reject(self.approver, 'no')
         self.assertFalse(Interface.objects.filter(pk=self.interface.pk).exists())

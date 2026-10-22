@@ -69,26 +69,42 @@ def _stored(instance):
 def pending_parent_request(instance):
     """
     The pending *create* request of the new device/VM this instance belongs
-    to (as it is now, or as it is being changed to), or None.
+    to, or None.
+
+    Only when the object belongs to pending new objects both as it is stored
+    now and as it is being changed to. An object of an approved device (or one
+    with no device at all, like an unassigned IP) moved onto a pending device,
+    or moved off one onto an approved device, goes through normal approval:
+    otherwise its submitter could move approved objects without approval, and
+    withdrawing the device would then delete them.
     """
+    if not enabled():
+        return None
+    states = [_parents(instance)]
+    stored = _stored(instance)
+    if stored is not None:
+        states.append(_parents(stored))
+    found = None
+    for parents in states:
+        if not parents:
+            return None
+        for model, pk in parents:
+            change_request = _pending_create(model, pk)
+            if change_request is None:
+                return None
+            found = found or change_request
+    return found
+
+
+def _pending_create(model, pk):
     from core.models import ObjectType
 
     from .models import ChangeRequest
 
-    if not enabled():
-        return None
-    parents = _parents(instance)
-    stored = _stored(instance)
-    if stored is not None:
-        parents += _parents(stored)
-    for model, pk in parents:
-        change_request = ChangeRequest.objects.filter(
-            content_type=ObjectType.objects.get_for_model(model), object_id=pk,
-            status=StatusChoices.PENDING, action=ActionChoices.CREATE,
-        ).first()
-        if change_request is not None:
-            return change_request
-    return None
+    return ChangeRequest.objects.filter(
+        content_type=ObjectType.objects.get_for_model(model), object_id=pk,
+        status=StatusChoices.PENDING, action=ActionChoices.CREATE,
+    ).first()
 
 
 def gate_component(instance, action, user, request):
