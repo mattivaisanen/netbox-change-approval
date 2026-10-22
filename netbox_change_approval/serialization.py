@@ -50,8 +50,25 @@ def _concrete_fields(model):
     ]
 
 
+class _ReverseManyToMany:
+    """A many-to-many relation seen from the other side (ASN.sites is
+    Site.asns). NetBox forms edit some of these directly (the ASN form's
+    "Sites"), so they're diffed and applied like the model's own fields."""
+    many_to_many = True
+    concrete = False
+
+    def __init__(self, rel):
+        self.rel = rel
+        self.name = rel.get_accessor_name()
+        self.related_model = rel.related_model
+
+
 def _m2m_fields(model):
-    return list(model._meta.local_many_to_many)
+    fields = list(model._meta.local_many_to_many)
+    for rel in model._meta.get_fields():
+        if rel.many_to_many and rel.auto_created and not rel.concrete:
+            fields.append(_ReverseManyToMany(rel))
+    return fields
 
 
 def _field_map(model):
