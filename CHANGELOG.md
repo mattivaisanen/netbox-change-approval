@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### New features
+- A small button next to the Approval Inbox starts a change set (or opens
+  the one you're working in). Hidden for superusers and users who skip
+  approval.
+
 ### Bug fixes
 - A delete request records what it removes: every field with a value and,
   for cables, both ends ("A side: sw1 eth1"). Deleting a plain cable

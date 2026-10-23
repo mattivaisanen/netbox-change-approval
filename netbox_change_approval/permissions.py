@@ -279,3 +279,20 @@ def _decide_group_ids(user):
     from .absence import decide_group_ids
 
     return decide_group_ids(user)
+
+
+def has_any_bypass(user):
+    """Does `user` skip approval for at least one object type (superuser, or
+    an enabled permission with the bypass_approval action)? Used to hide
+    tools only people who need approval use (the change set button)."""
+    from django.db.models import Q
+
+    from users.models import ObjectPermission
+
+    if user is None or not user.is_authenticated:
+        return False
+    if user.is_superuser:
+        return True
+    return ObjectPermission.objects.filter(
+        enabled=True, actions__contains=[BYPASS_ACTION],
+    ).filter(Q(users=user) | Q(groups__in=user.groups.all())).exists()

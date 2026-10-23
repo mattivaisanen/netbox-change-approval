@@ -126,9 +126,17 @@ class InboxNavButton(PluginTemplateExtension):
 
         from .inbox import inbox_count
         inbox_url = reverse('plugins:netbox_change_approval:changerequest_inbox')
+        from . import changesets, permissions
+
+        # "Start a change set" beside it, for people whose changes need
+        # approval (not superusers or bypass users) when change sets are on.
+        change_set_button = changesets.enabled() and not permissions.has_any_bypass(request.user)
+        active_change_set = changesets.active_for(request) if change_set_button else None
         return self.render('netbox_change_approval/inbox_nav.html', {
             'count': inbox_count(request.user),
             'active': request.path == inbox_url,
+            'change_set_button': change_set_button,
+            'active_change_set': active_change_set,
         })
 
 

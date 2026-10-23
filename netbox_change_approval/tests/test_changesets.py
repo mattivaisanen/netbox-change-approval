@@ -110,3 +110,28 @@ class ChangeSetTests(TestCase):
         session.save()
         self._edit_all()
         self.assertEqual(ChangeRequest.objects.filter(batch_id__isnull=True).count(), 2)
+
+
+class ChangeSetNavButtonTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        from users.models import ObjectPermission
+
+        Group.objects.get_or_create(name='Change Approvers')
+        cls.alice = User.objects.create(username='alice')
+        cls.admin = User.objects.create(username='admin', is_superuser=True)
+        cls.bypasser = User.objects.create(username='bypasser')
+        perm = ObjectPermission.objects.create(name='bypass', actions=['view', 'bypass_approval'])
+        perm.object_types.set([ObjectType.objects.get_for_model(Manufacturer)])
+        perm.users.set([cls.bypasser])
+
+    def _page(self, user):
+        self.client.force_login(user)
+        return self.client.get(reverse('plugins:netbox_change_approval:changerequest_inbox')).content.decode()
+
+    def test_shown_to_users_who_need_approval(self):
+        self.assertIn('mdi-package-variant-plus', self._page(self.alice))
+
+    def test_hidden_for_superusers_and_bypass(self):
+        self.assertNotIn('mdi-package-variant-plus', self._page(self.admin))
+        self.assertNotIn('mdi-package-variant-plus', self._page(self.bypasser))

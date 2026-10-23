@@ -1,13 +1,23 @@
 {% load i18n %}
 {# Approval Inbox button at the top of the sidebar, between the NetBox logo and the first menu. NetBox has no plugin hook there, so it's rendered in <head> and moved into place once the page loads. #}
 <template id="nbca-inbox-nav">
-  <div class="nbca-inbox-nav px-3 mt-2 mb-1">
+  <div class="nbca-inbox-nav px-3 mt-2 mb-1 d-flex gap-1">
     <a href="{% url 'plugins:netbox_change_approval:changerequest_inbox' %}"
-       class="btn {% if count %}btn-outline-primary{% else %}btn-outline-secondary{% endif %} w-100 justify-content-between{% if active %} active{% endif %}"
+       class="btn {% if count %}btn-outline-primary{% else %}btn-outline-secondary{% endif %} flex-grow-1 justify-content-between{% if active %} active{% endif %}"
        title="{% trans 'Change requests waiting on you' %}">
       <span><i class="mdi mdi-inbox{% if count %}-full{% endif %}-outline me-1"></i>{% trans "Approval Inbox" %}</span>
       {% if count %}<span class="badge text-bg-red ms-2">{{ count }}</span>{% endif %}
     </a>
+    {% if change_set_button %}
+      {% if active_change_set %}
+      <a href="{{ active_change_set.get_absolute_url }}" class="btn btn-outline-primary active px-2"
+         title="{% blocktrans with name=active_change_set.name %}Working in change set: {{ name }}{% endblocktrans %}"
+         aria-label="{% trans 'Open the active change set' %}"><i class="mdi mdi-package-variant-closed m-0"></i></a>
+      {% else %}
+      <a href="{% url 'plugins:netbox_change_approval:changeset_list' %}" class="btn btn-outline-secondary px-2"
+         title="{% trans 'Start a change set' %}" aria-label="{% trans 'Start a change set' %}"><i class="mdi mdi-package-variant-plus m-0"></i></a>
+      {% endif %}
+    {% endif %}
   </div>
 </template>
 <script>
