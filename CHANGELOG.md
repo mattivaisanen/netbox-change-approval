@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+## 0.3.1 (2026-10-23)
+
+Upgrade: run `manage.py migrate` (adds one column for work task links).
+
+### Bug fixes
+- An Event Rule on Change Request for "Object created/updated/deleted" (for
+  example a webhook) crashed with "Could not determine serializer for
+  netbox_change_approval.ChangeRequest". Change requests and approval rules
+  now have serializers, so such rules and their webhooks work.
+
+### Improvements
+- Field work: device, rack, interface, IP and other names in each task link
+  to their NetBox pages; marking a task done asks to confirm first; the
+  inbox's "Your field work" shows only the jobs from your own requests
+  (approvers no longer see everyone's). The work sheet page still lists all
+  jobs you may see.
+- The Pending Approvals widget's title opens the Approval Inbox (the extra
+  link at the bottom is gone).
+
 ## 0.3.0 (2026-10-22)
 
 Upgrade: see README "Upgrading". Run `manage.py migrate`: this release adds
@@ -15,7 +34,7 @@ moved to Approval Rules in 0.2.0).
 - Notifications for a partly approved request ("approved by bob (1 of 2)"),
   and every notification fires a NetBox event with the request's details and
   recipients, so Event Rules can e-mail or post it through a webhook.
-- The Pending Approvals widget's title opens the Approval Inbox.
+- The Pending Approvals widget links to the Approval Inbox.
 - Change sets (Change Approvals → Change Sets): start one ("Install sw1 in
   rack A3", optional ticket), make your changes as usual, then submit them
   as one item that approvers decide together. Drafts stay hidden from
@@ -90,11 +109,6 @@ moved to Approval Rules in 0.2.0).
   lists them.
 
 ### Improvements
-- Field work: device, rack, interface, IP and other names in each task link
-  to their NetBox pages; marking a task done asks to confirm first; the
-  inbox's "Your field work" shows only the jobs from your own requests
-  (approvers no longer see everyone's). The work sheet page still lists all
-  jobs you may see.
 - Notifications say who did what ("rejected by bob: wrong rack", "bob: why
   this VLAN?"). Comment notifications go only to the submitter and the
   approver group, no longer to everyone who commented before.
