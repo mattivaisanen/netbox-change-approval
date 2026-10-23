@@ -178,7 +178,9 @@ def _gate(instance, action, request):
         diff = serialization.snapshot_update(old_instance, instance)
         if not diff:
             return None  # nothing actually changed — let the no-op save through
-    else:  # CREATE or DELETE — snapshot current/requested state for the record
+    elif action == ActionChoices.DELETE:  # what is being removed, for the record
+        diff = serialization.snapshot_delete(instance)
+    else:  # CREATE: the requested state
         diff = serialization.snapshot_create(instance)
 
     change_request = ChangeRequest(

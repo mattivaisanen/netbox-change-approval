@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Bug fixes
+- A delete request records what it removes: every field with a value and,
+  for cables, both ends ("A side: sw1 eth1"). Deleting a plain cable
+  recorded nothing before, so its request said "No field-level changes
+  recorded".
+
 ## 0.3.3 (2026-10-23)
 
 ### New features

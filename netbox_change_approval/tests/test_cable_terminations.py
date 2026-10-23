@@ -61,3 +61,25 @@ class CableTerminationTests(TestCase):
         cable = Cable.objects.get(pk=self.cable.pk)
         self.assertEqual([t.pk for t in cable.b_terminations], [self.if3.pk])
         self.assertEqual([t.pk for t in cable.a_terminations], [self.if1.pk])
+
+
+class CableDeleteRecordTests(TestCase):
+    """A cable delete records what is removed, ends included (it used to
+    record nothing: "No field-level changes recorded")."""
+
+    setUpTestData = classmethod(CableTerminationTests.setUpTestData.__func__)
+
+    def test_delete_records_ends_and_fields(self):
+        from ..views import _diff_rows
+
+        cable = Cable.objects.get(pk=self.cable.pk)
+        change_request = gating.gate(cable, ActionChoices.DELETE, fake_request(self.alice))
+        change_request.save()
+
+        self.assertEqual(change_request.diff['a_terminations'], [['dcim.interface', self.if1.pk]])
+        self.assertEqual(change_request.diff['b_terminations'], [['dcim.interface', self.if2.pk]])
+        self.assertEqual(change_request.diff['status'], 'connected')
+
+        rows = {row['label']: row['old'] for row in _diff_rows(change_request)}
+        self.assertEqual(rows['A side'], 'd1 eth0')
+        self.assertEqual(rows['B side'], 'd1 eth1')

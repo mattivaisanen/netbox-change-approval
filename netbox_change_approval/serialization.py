@@ -113,7 +113,52 @@ def snapshot_create(instance):
         value = _new_m2m_value(instance, field)
         if value:
             data[field.name] = value
+    data.update(_cable_ends(instance))
     return data
+
+
+def snapshot_delete(instance):
+    """
+    What a delete removes, for the approver and the record: every field
+    that has a value (unlike snapshot_create, values equal to the default
+    count too: a cable's "connected" status is worth showing), its
+    many-to-many links, and a cable's two ends. Before, a plain cable's
+    delete recorded nothing at all, because all its fields were defaults
+    and its ends aren't fields.
+    """
+    model = type(instance)
+    data = {}
+    for field in _concrete_fields(model):
+        value = getattr(instance, field.attname)
+        if value is None or value == '' or value == {} or value == []:
+            continue
+        data[field.attname] = _json_safe(value)
+    if instance.pk is not None:
+        for field in _m2m_fields(model):
+            try:
+                value = list(getattr(instance, field.name).values_list('pk', flat=True))
+            except Exception:
+                continue
+            if value:
+                data[field.name] = value
+    data.update(_cable_ends(instance))
+    return data
+
+
+def _cable_ends(instance):
+    """{'a_terminations': [...], 'b_terminations': [...]} for a cable, as
+    ["app_label.model", pk] pairs; {} for anything else."""
+    if not _is_cable(type(instance)):
+        return {}
+    ends = {}
+    for key in CABLE_TERMINATION_KEYS:
+        try:
+            refs = _termination_refs(getattr(instance, key))
+        except Exception:
+            continue
+        if refs:
+            ends[key] = refs
+    return ends
 
 
 #: Cable ends aren't model fields (they live in CableTermination rows), so the

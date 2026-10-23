@@ -130,6 +130,8 @@ def _resolve_display(model, key, value, names=None):
     """
     if value is None:
         return value
+    if key in serialization.CABLE_TERMINATION_KEYS and isinstance(value, (list, tuple)):
+        return _termination_names(value)
 
     field_name = key[:-3] if key.endswith('_id') else key
     try:
@@ -160,10 +162,35 @@ def _resolve_display(model, key, value, names=None):
         return f'#{value} (not found)'
 
 
+def _termination_names(refs):
+    """A cable end stored as [["dcim.interface", 12], ...] -> "sw1 eth1, sw1 eth2"."""
+    from django.apps import apps
+
+    names = []
+    for ref in refs:
+        try:
+            label, pk = ref
+            obj = apps.get_model(label).objects.filter(pk=pk).first()
+        except (LookupError, TypeError, ValueError):
+            names.append(str(ref))
+            continue
+        if obj is None:
+            names.append(f'#{pk} (not found)')
+            continue
+        parent = getattr(obj, 'parent_object', None)
+        names.append(f'{parent} {obj}' if parent is not None else str(obj))
+    return ', '.join(names)
+
+
+_CABLE_END_LABELS = {'a_terminations': _('A side'), 'b_terminations': _('B side')}
+
+
 def _field_label(model, key):
     """Diff keys are attnames (e.g. 'device_id', 'u_height') — the raw storage
     name, not something an approver should have to decode. Resolve to the
     field's own verbose_name, same label NetBox's own forms show."""
+    if key in _CABLE_END_LABELS:
+        return str(_CABLE_END_LABELS[key])
     field_name = key[:-3] if key.endswith('_id') else key
     try:
         field = model._meta.get_field(field_name)
