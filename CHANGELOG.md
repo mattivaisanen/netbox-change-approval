@@ -15,6 +15,8 @@
   pop-up style instead of the browser's plain OK/Cancel box.
 
 ### Improvements
+- Marking field work done from the Approval Inbox keeps your place on the
+  page instead of jumping down to the field work section.
 - The "Working in change set" bar no longer shows on the change set's own
   page, whose header already has the same buttons.
 
