@@ -12,6 +12,7 @@ NetBox `configuration.py`.
 | `group_components_with_parent` | `bool` | `True` | While a new device or VM waits for approval, its interfaces, ports, bays, modules, inventory items, VM disks and IP/MAC addresses on its interfaces belong to its request instead of getting their own. `False` gives each its own request again. |
 | `work_sheets` | `bool` | `True` | Field work: approved changes that need work on site (mounting a device, patching a cable, configuring an IP address, ...) become tasks in the **Field work** section of the Approval Inbox, with a printable work sheet by rack. `False` turns it off. |
 | `change_sets` | `bool` | `True` | Change sets (Change Approvals → Change Sets): collect several changes and submit them for approval as one item. `False` turns them off. |
+| `netbox_url` | `str` | `''` | NetBox's address as users reach it, e.g. `https://netbox.example.com`. Puts full links (`link`) in webhook data; see [webhooks.md](webhooks.md). Only in `configuration.py`. |
 
 Example:
 

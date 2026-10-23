@@ -23,6 +23,9 @@ class ChangeRequestSerializer(serializers.ModelSerializer):
     submitted_by = serializers.SerializerMethodField()
     decided_by = serializers.SerializerMethodField()
     approver_group = serializers.SerializerMethodField()
+    link = serializers.SerializerMethodField()
+    recipients = serializers.SerializerMethodField()
+    recipient_emails = serializers.SerializerMethodField()
 
     class Meta:
         model = ChangeRequest
@@ -30,7 +33,7 @@ class ChangeRequestSerializer(serializers.ModelSerializer):
             'id', 'display', 'url', 'object_type', 'object_id', 'object_repr', 'action', 'status',
             'auto_approved', 'diff', 'revision', 'batch_id', 'submitted_by', 'submitted_at', 'approver_group',
             'required_approvals', 'decided_by', 'decided_at', 'decision_comment', 'applied_at', 'expires_at',
-            'created', 'last_updated',
+            'created', 'last_updated', 'link', 'recipients', 'recipient_emails',
         )
         read_only_fields = fields
 
@@ -39,6 +42,22 @@ class ChangeRequestSerializer(serializers.ModelSerializer):
 
     def get_url(self, obj):
         return obj.get_absolute_url()
+
+    def get_link(self, obj):
+        from ..notifications import absolute_url
+        return absolute_url(obj.get_absolute_url())
+
+    def _recipients(self, obj):
+        if not hasattr(obj, '_nbca_recipients'):
+            from ..notifications import who_to_notify
+            obj._nbca_recipients = who_to_notify(obj)
+        return obj._nbca_recipients
+
+    def get_recipients(self, obj):
+        return [_user(u) for u in self._recipients(obj)]
+
+    def get_recipient_emails(self, obj):
+        return ';'.join(u.email for u in self._recipients(obj) if u.email)
 
     def get_object_type(self, obj):
         return f'{obj.content_type.app_label}.{obj.content_type.model}' if obj.content_type_id else None

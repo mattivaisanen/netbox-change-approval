@@ -7,7 +7,7 @@ from extras.models import EventRule, Webhook
 from users.models import Group, User
 
 from .. import gating
-from ..models import ActionChoices, ApprovalRule
+from ..models import ActionChoices, ApprovalRule, ChangeRequest
 from .utils import fake_request
 
 
@@ -58,3 +58,69 @@ class EventRuleOnChangeRequestTests(TestCase):
         with mock.patch('extras.event_rules.get_queue') as get_queue:
             process_event_queue([event])
         self.assertTrue(get_queue.return_value.enqueue.called)
+
+
+GUIDE_BODY = '''{
+  "event": {{ data.event | default(event, true) | tojson }},
+  "title": {{ data.display | tojson }},
+  "detail": {{ data.detail | default('', true) | tojson }},
+  "link": {{ data.link | tojson }},
+  "status": {{ data.status | tojson }},
+  "recipients": {{ data.recipients | tojson }},
+  "recipient_emails": {{ data.recipient_emails | tojson }}
+}'''
+
+
+class WebhookDataTests(TestCase):
+    """Webhook data names who should be told and links to the request; the
+    body template from docs/webhooks.md renders to valid JSON."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.approvers, _ = Group.objects.get_or_create(name='Change Approvers')
+        cls.alice = User.objects.create(username='alice', email='alice@example.com')
+        cls.bob = User.objects.create(username='bob', email='bob@example.com')
+        cls.alice.groups.add(cls.approvers)
+        cls.bob.groups.add(cls.approvers)
+        cls.submitter = User.objects.create(username='sub', email='sub@example.com')
+
+    def _request(self):
+        obj = Manufacturer.objects.create(name='X', slug='x')
+        obj = Manufacturer.objects.get(pk=obj.pk)
+        obj.description = 'changed'
+        return gating.gate(obj, ActionChoices.UPDATE, fake_request(self.submitter))
+
+    def test_recipients_follow_status(self):
+        change_request = self._request()
+        data = serialize_for_event(change_request)
+        self.assertEqual({p['username'] for p in data['recipients']}, {'alice', 'bob'})
+        self.assertEqual(set(data['recipient_emails'].split(';')), {'alice@example.com', 'bob@example.com'})
+        change_request.reject(self.alice, 'no')
+        data = serialize_for_event(ChangeRequest.objects.get(pk=change_request.pk))
+        self.assertEqual(data['recipient_emails'], 'sub@example.com')
+
+    def test_link_uses_netbox_url(self):
+        from django.test import override_settings
+
+        change_request = self._request()
+        config = {'netbox_change_approval': {'default_approver_group': 'Change Approvers', 'exempt_models': [],
+                                             'netbox_url': 'https://netbox.example.com/'}}
+        with override_settings(PLUGINS_CONFIG=config):
+            data = serialize_for_event(change_request)
+        self.assertEqual(data['link'], f'https://netbox.example.com{change_request.get_absolute_url()}')
+
+    def test_guide_body_template_renders_json(self):
+        import json
+
+        from .. import notifications
+
+        change_request = self._request()
+        hook = Webhook(name='guide', payload_url='http://hook.test/', body_template=GUIDE_BODY)
+        plugin_data = notifications.event_data(change_request, notifications.REJECTED, [self.submitter],
+                                               detail='rejected by alice: "no"')
+        body = json.loads(hook.render_body({'event': 'netbox_change_approval.rejected', 'data': plugin_data}))
+        self.assertEqual(body['recipient_emails'], 'sub@example.com')
+        self.assertEqual(body['detail'], 'rejected by alice: "no"')
+        generic = json.loads(hook.render_body({'event': 'updated', 'data': serialize_for_event(change_request)}))
+        self.assertEqual(generic['event'], 'updated')
+        self.assertEqual(len(generic['recipients']), 2)

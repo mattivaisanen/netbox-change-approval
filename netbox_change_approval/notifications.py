@@ -93,6 +93,42 @@ def _person(user):
     }
 
 
+def absolute_url(path):
+    """`path` with the NetBox address in front, when the netbox_url setting
+    (configuration.py) gives one: webhooks run outside a web request, so the
+    plugin can't know the address users reach NetBox at."""
+    from .plugin_settings import get_setting
+
+    base = (get_setting('netbox_url') or '').rstrip('/')
+    return f'{base}{path}' if base else path
+
+
+def who_to_notify(change_request):
+    """
+    The people a change request concerns right now, for webhooks on NetBox's
+    own "object created/updated" events: its approver group while it waits,
+    its submitter once it is decided. [] when nobody needs to hear (an
+    auto-approved request, a draft change set, a decision the submitter made
+    themselves).
+    """
+    if change_request.auto_approved:
+        return []
+    if change_request.status == StatusChoices.PENDING:
+        from .changesets import is_draft
+
+        if is_draft(change_request):
+            return []
+        return [u for u in _approvers(change_request) if u.pk != change_request.submitted_by_id]
+    submitter = change_request.submitted_by
+    if submitter is None or change_request.decided_by_id == submitter.pk:
+        return []
+    if change_request.status in (
+        StatusChoices.APPLIED, StatusChoices.REJECTED, StatusChoices.RETURNED, StatusChoices.EXPIRED,
+    ):
+        return [submitter] if submitter.is_active else []
+    return []
+
+
 def event_data(change_request, event_type, recipients, detail='', actor=None, comment=''):
     """
     The data of the NetBox event fired with a notification: everything a
@@ -117,6 +153,7 @@ def event_data(change_request, event_type, recipients, detail='', actor=None, co
         'id': change_request.pk,
         'display': _label(change_request),
         'url': change_request.get_absolute_url(),
+        'link': absolute_url(change_request.get_absolute_url()),
         'event': str(event) if event else event_type,
         'detail': detail,
         'action': change_request.action,
@@ -134,6 +171,7 @@ def event_data(change_request, event_type, recipients, detail='', actor=None, co
         'by': _person(actor),
         'comment': comment,
         'recipients': [_person(u) for u in recipients],
+        'recipient_emails': ';'.join(u.email for u in recipients if u.email),
     }
 
 

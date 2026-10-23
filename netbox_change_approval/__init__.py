@@ -8,7 +8,7 @@ class NetBoxChangeApprovalConfig(PluginConfig):
         'Require approval-group sign-off on changes to NetBox objects before they take '
         'effect, with auto-approval rules and a bypass permission for trusted users.'
     )
-    version = '0.3.2'
+    version = '0.3.3'
     author = 'Matti'
     base_url = 'change-approval'
     # Only NetBox 4.7 is tested. Older releases lack hooks this plugin uses
@@ -38,6 +38,9 @@ class NetBoxChangeApprovalConfig(PluginConfig):
         'work_sheets': True,
         # Change sets (changesets.py): collect changes, submit them as one.
         'change_sets': True,
+        # NetBox's address as users reach it (e.g. 'https://netbox.example.com'),
+        # for full links in webhook data. Empty: links are paths only.
+        'netbox_url': '',
     }
 
     middleware = [

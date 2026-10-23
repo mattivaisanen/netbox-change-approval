@@ -509,15 +509,10 @@ needs, including who should get it:
   `{username, name, email}`.
 - `comment`, `approver_group`, `approvals_needed`.
 
-To e-mail the right people, add **Operations → Event Rules**: object type
-Change Approval > Change Request, the event types you want, action Webhook
-pointing at your mail or chat relay, with a body template such as:
-
-```json
-{"to": [{% for r in data.recipients %}"{{ r.email }}"{% if not forloop.last %}, {% endif %}{% endfor %}],
- "subject": "{{ data.event }}: {{ data.display }}",
- "text": "{{ data.detail }}\nhttps://netbox.example.com{{ data.url }}"}
-```
+**Setup guide:** [docs/webhooks.md](docs/webhooks.md) shows the Event
+Rule and webhook, every data field, and step-by-step Power Automate examples
+for an Outlook e-mail to the recipients and a Teams message to each person
+from the Flow bot.
 
 A Notification action with a notification group also works, but sends to
 that fixed group rather than to each request's own people.
