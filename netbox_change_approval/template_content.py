@@ -185,6 +185,8 @@ class ChangeSetBanner(PluginTemplateExtension):
         change_set = active_for(request)
         if change_set is None:
             return ''
+        if request.path == change_set.get_absolute_url():
+            return ''  # its own page has the same actions in the header
         from .models import StatusChoices
 
         return self.render('netbox_change_approval/changeset_banner.html', {

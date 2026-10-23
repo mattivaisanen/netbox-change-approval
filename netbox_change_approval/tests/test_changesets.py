@@ -102,6 +102,11 @@ class ChangeSetTests(TestCase):
         self.assertContains(detail, 'Submit for approval')
         self.assertContains(detail, 'V1')
 
+    def test_no_banner_on_the_change_sets_own_page(self):
+        change_set = self._start()
+        self.assertNotContains(self.client.get(change_set.get_absolute_url()), 'nbca-changeset-bar')
+        self.assertContains(self.client.get(reverse('dcim:manufacturer_list')), 'nbca-changeset-bar')
+
     @override_settings(PLUGINS_CONFIG=PLUGINS_CONFIG_OFF)
     def test_setting_off(self):
         ChangeSet.objects.create(name='x', created_by=self.alice)
@@ -135,3 +140,4 @@ class ChangeSetNavButtonTests(TestCase):
     def test_hidden_for_superusers_and_bypass(self):
         self.assertNotIn('mdi-package-variant-plus', self._page(self.admin))
         self.assertNotIn('mdi-package-variant-plus', self._page(self.bypasser))
+
