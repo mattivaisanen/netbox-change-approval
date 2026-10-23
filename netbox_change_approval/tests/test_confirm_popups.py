@@ -87,3 +87,13 @@ class ConfirmPopupTests(TestCase):
         response = self.client.get(self.cr.get_absolute_url())
         self.assertContains(response, 'id="nbca-modal-template"')
         self.assertContains(response, f'data-nbca-modal href="{_url("approve", self.cr)}"')
+
+    def test_template_comments_stay_hidden(self):
+        # Django's {# #} only works on one line; a longer one shows as text
+        # at the top of every page.
+        self.client.force_login(self.approver)
+        for url in (self.cr.get_absolute_url(), reverse('plugins:netbox_change_approval:changerequest_approvals')):
+            with self.subTest(url):
+                response = self.client.get(url)
+                self.assertNotContains(response, '{#')
+                self.assertNotContains(response, 'Optional: data-nbca-confirm-label')

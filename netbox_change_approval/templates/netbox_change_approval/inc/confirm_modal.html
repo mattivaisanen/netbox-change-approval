@@ -1,7 +1,9 @@
 {% load i18n %}
-{# Pop-up dialog for confirmations, like NetBox's own delete dialog. Rendered in <head> (see inbox_nav.html) and moved into the page once it loads.
+{% comment %}
+Pop-up dialog for confirmations, like NetBox's own delete dialog. Rendered in <head> (see inbox_nav.html) and moved into the page once it loads.
    - Links and buttons marked data-nbca-modal load their confirmation page's dialog version into it. Without JavaScript they open the full page.
-   - Buttons marked data-nbca-confirm="Question?" ask first, in place of the browser's OK/Cancel box. Optional: data-nbca-confirm-label, data-nbca-confirm-class. #}
+   - Buttons marked data-nbca-confirm="Question?" ask first, in place of the browser's OK/Cancel box. Optional: data-nbca-confirm-label, data-nbca-confirm-class.
+{% endcomment %}
 <template id="nbca-modal-template">
   <div class="modal fade" id="nbca-modal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-scrollable modal-lg">

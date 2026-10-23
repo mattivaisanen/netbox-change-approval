@@ -1,8 +1,9 @@
 {% extends 'generic/object_list.html' %}
 {% load i18n %}
 
-{# Plain text only: base/base.html's <title> tag reuses this exact block name
+{% comment %} Plain text only: base/base.html's <title> tag reuses this exact block name
    (not a separate one for the <h1>), so any HTML here would leak into the
    literal browser tab title — this also means the count shows up there too,
-   which is a bonus, not just a workaround. #}
+   which is a bonus, not just a workaround.
+{% endcomment %}
 {% block title %}{% trans "Approvals" %}{% if pending_count %} ({{ pending_count }}){% endif %}{% endblock %}
