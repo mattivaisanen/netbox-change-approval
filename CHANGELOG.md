@@ -7,6 +7,12 @@
   the one you're working in). Hidden for superusers and users who skip
   approval. While a change set is active the button glows softly (none
   with reduced motion turned on).
+- Approve, Reject, Send back, Retract and Discard open as a pop-up dialog
+  over the page you're on, like NetBox's own delete dialog, instead of a
+  separate page. So do Approve Selected and Reject Selected. The separate
+  pages still work for direct links and browsers without JavaScript.
+- Discarding a change set and marking field work done ask in the same
+  pop-up style instead of the browser's plain OK/Cancel box.
 
 ### Improvements
 - The "Working in change set" bar no longer shows on the change set's own

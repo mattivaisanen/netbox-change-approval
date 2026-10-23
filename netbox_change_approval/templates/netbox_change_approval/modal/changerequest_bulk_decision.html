@@ -1,0 +1,18 @@
+{% extends 'netbox_change_approval/modal/base.html' %}
+{% load i18n %}
+{% block hidden_fields %}
+  <input type="hidden" name="return_url" value="{{ return_url }}" />
+  {% for pk in pks %}<input type="hidden" name="pk" value="{{ pk }}" />{% endfor %}
+{% endblock %}
+{% block title %}{% include 'netbox_change_approval/inc/confirm/bulk_title.html' %}{% endblock %}
+{% block body %}
+  <div class="modal-body p-0 border-bottom" style="max-height: 40vh; overflow-y: auto;">
+    {% include 'netbox_change_approval/inc/confirm/bulk_list.html' %}
+  </div>
+  <div class="modal-body">{% include 'netbox_change_approval/inc/confirm/bulk_body.html' %}</div>
+{% endblock %}
+{% block buttons %}
+  <button type="submit" name="_confirm" value="1" class="btn {% if decision == 'approve' %}btn-success{% else %}btn-danger{% endif %}">
+    {% if decision == 'approve' %}<i class="mdi mdi-check"></i> {% trans "Approve" %}{% else %}<i class="mdi mdi-close"></i> {% trans "Reject" %}{% endif %}
+  </button>
+{% endblock %}

@@ -46,7 +46,7 @@
             {% csrf_token %}
             <input type="hidden" name="task" value="{{ task.pk }}">
             <input type="hidden" name="back" value="inbox">
-            <button type="submit" class="btn btn-sm btn-primary" title="{% trans 'Mark done' %}" onclick="return confirm('{% filter escapejs %}{% blocktrans with text=task.text %}Mark done: {{ text }}?{% endblocktrans %}{% endfilter %}')" aria-label="{% trans 'Mark done' %}"><i class="mdi mdi-check"></i></button>
+            <button type="submit" class="btn btn-sm btn-primary" title="{% trans 'Mark done' %}" data-nbca-confirm="{% blocktrans with text=task.text %}Mark done: {{ text }}?{% endblocktrans %}" data-nbca-confirm-label="{% trans 'Mark done' %}" aria-label="{% trans 'Mark done' %}"><i class="mdi mdi-check"></i></button>
           </form>
         </td>
       </tr>

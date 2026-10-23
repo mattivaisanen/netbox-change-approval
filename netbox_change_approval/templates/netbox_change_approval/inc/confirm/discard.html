@@ -1,0 +1,5 @@
+{% load i18n %}
+<p>
+  {% trans "This closes the request without resubmitting it:" %}
+  <strong>{{ object.get_action_display }} {{ object.object_repr }}</strong>
+</p>

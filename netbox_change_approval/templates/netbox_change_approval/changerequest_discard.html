@@ -4,8 +4,5 @@
 {% block confirmation_title %}{% trans "Discard change request" %} #{{ object.pk }}?{% endblock %}
 
 {% block message %}
-<p>
-  {% trans "This closes the request without resubmitting it:" %}
-  <strong>{{ object.get_action_display }} {{ object.object_repr }}</strong>
-</p>
+{% include 'netbox_change_approval/inc/confirm/discard.html' %}
 {% endblock %}

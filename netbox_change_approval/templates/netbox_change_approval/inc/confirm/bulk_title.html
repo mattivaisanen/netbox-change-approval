@@ -1,0 +1,1 @@
+{% load i18n %}{% if decision == 'approve' %}{% blocktrans count counter=selected|length %}Approve and apply {{ counter }} request?{% plural %}Approve and apply {{ counter }} requests?{% endblocktrans %}{% else %}{% blocktrans count counter=selected|length %}Reject {{ counter }} request?{% plural %}Reject {{ counter }} requests?{% endblocktrans %}{% endif %}

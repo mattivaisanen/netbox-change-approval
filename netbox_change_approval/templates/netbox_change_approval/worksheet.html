@@ -53,7 +53,7 @@
           {% csrf_token %}
           <input type="hidden" name="task" value="{{ task.pk }}">
           <input type="hidden" name="query" value="{{ request.GET.urlencode }}">
-          <button type="submit" class="btn btn-sm btn-primary" title="{% trans 'Mark done' %}" onclick="return confirm('{% filter escapejs %}{% blocktrans with text=task.text %}Mark done: {{ text }}?{% endblocktrans %}{% endfilter %}')"><i class="mdi mdi-check"></i></button>
+          <button type="submit" class="btn btn-sm btn-primary" title="{% trans 'Mark done' %}" data-nbca-confirm="{% blocktrans with text=task.text %}Mark done: {{ text }}?{% endblocktrans %}" data-nbca-confirm-label="{% trans 'Mark done' %}"><i class="mdi mdi-check"></i></button>
         </form>
       </td>
       <td>{{ task|task_text }}</td>

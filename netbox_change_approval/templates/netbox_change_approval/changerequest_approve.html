@@ -4,13 +4,5 @@
 {% block confirmation_title %}{% trans "Approve change request" %} #{{ object.pk }}?{% endblock %}
 
 {% block message %}
-<p>
-  {% trans "This will immediately apply:" %}
-  <strong>{{ object.get_action_display }} {{ object.object_repr }}</strong>
-</p>
-{% if batch_count > 1 %}
-<p class="text-warning">
-  {% blocktrans %}This request is part of a batch of {{ batch_count }} pending changes — approving will apply all of them.{% endblocktrans %}
-</p>
-{% endif %}
+{% include 'netbox_change_approval/inc/confirm/approve.html' %}
 {% endblock %}

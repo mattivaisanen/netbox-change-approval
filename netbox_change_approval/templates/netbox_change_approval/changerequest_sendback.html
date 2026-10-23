@@ -4,25 +4,5 @@
 {% block confirmation_title %}{% trans "Send back change request" %} #{{ object.pk }}?{% endblock %}
 
 {% block message %}
-<p>
-  {% trans "Nothing is applied. The submitter gets it back to revise and resubmit:" %}
-  <strong>{{ object.get_action_display }} {{ object.object_repr }}</strong>
-</p>
-{% if object.action == 'create' %}
-<p class="text-muted small">
-  {% trans "The new object is removed until the submitter resubmits it." %}
-</p>
-{% endif %}
-{% if batch_count > 1 %}
-<p class="text-warning">
-  {% blocktrans %}This request is part of a batch of {{ batch_count }} pending changes. All of them are sent back with the same comment.{% endblocktrans %}
-</p>
-{% endif %}
-<div class="mb-2">
-  {{ form.comment.label_tag }}
-  {{ form.comment }}
-  {% if form.comment.errors %}
-    <div class="text-danger small">{{ form.comment.errors }}</div>
-  {% endif %}
-</div>
+{% include 'netbox_change_approval/inc/confirm/sendback.html' %}
 {% endblock %}

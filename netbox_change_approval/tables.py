@@ -42,21 +42,21 @@ class ApprovalRuleTable(NetBoxTable):
 _DECISION_BUTTONS = """
 {% if record.status == "pending" %}
 {% if record.submitted_by_id != request.user.pk %}{% if record.nbca_can_decide %}
-<a href="{% url 'plugins:netbox_change_approval:changerequest_approve' pk=record.pk %}?return_url={{ request.get_full_path|urlencode }}"
+<a data-nbca-modal href="{% url 'plugins:netbox_change_approval:changerequest_approve' pk=record.pk %}?return_url={{ request.get_full_path|urlencode }}"
    class="btn btn-sm btn-success" title="Approve"><i class="mdi mdi-check"></i></a>
-<a href="{% url 'plugins:netbox_change_approval:changerequest_sendback' pk=record.pk %}?return_url={{ request.get_full_path|urlencode }}"
+<a data-nbca-modal href="{% url 'plugins:netbox_change_approval:changerequest_sendback' pk=record.pk %}?return_url={{ request.get_full_path|urlencode }}"
    class="btn btn-sm btn-warning" title="Send back for revision"><i class="mdi mdi-undo-variant"></i></a>
-<a href="{% url 'plugins:netbox_change_approval:changerequest_reject' pk=record.pk %}?return_url={{ request.get_full_path|urlencode }}"
+<a data-nbca-modal href="{% url 'plugins:netbox_change_approval:changerequest_reject' pk=record.pk %}?return_url={{ request.get_full_path|urlencode }}"
    class="btn btn-sm btn-danger" title="Reject"><i class="mdi mdi-close"></i></a>
 {% endif %}{% endif %}
 {% if record.submitted_by_id == request.user.pk %}
-<a href="{% url 'plugins:netbox_change_approval:changerequest_retract' pk=record.pk %}?return_url={{ request.get_full_path|urlencode }}"
+<a data-nbca-modal href="{% url 'plugins:netbox_change_approval:changerequest_retract' pk=record.pk %}?return_url={{ request.get_full_path|urlencode }}"
    class="btn btn-sm btn-secondary" title="Retract"><i class="mdi mdi-undo"></i></a>
 {% endif %}
 {% elif record.status == "returned" and record.submitted_by_id == request.user.pk %}
 <a href="{% url 'plugins:netbox_change_approval:changerequest_revise' pk=record.pk %}"
    class="btn btn-sm btn-primary" title="Revise and resubmit"><i class="mdi mdi-pencil"></i></a>
-<a href="{% url 'plugins:netbox_change_approval:changerequest_discard' pk=record.pk %}?return_url={{ request.get_full_path|urlencode }}"
+<a data-nbca-modal href="{% url 'plugins:netbox_change_approval:changerequest_discard' pk=record.pk %}?return_url={{ request.get_full_path|urlencode }}"
    class="btn btn-sm btn-primary" title="Discard"><i class="mdi mdi-delete-outline"></i></a>
 {% endif %}
 """

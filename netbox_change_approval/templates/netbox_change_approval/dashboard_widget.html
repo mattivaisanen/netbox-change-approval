@@ -29,7 +29,7 @@
                 title="{% trans 'Show details' %}"><i class="mdi mdi-chevron-down"></i></button>
         <a href="{% url 'plugins:netbox_change_approval:changerequest_revise' pk=cr.pk %}"
            class="btn btn-sm btn-primary" title="{% trans "Revise and resubmit" %}"><i class="mdi mdi-pencil"></i> {% trans "Revise" %}</a>
-        <a href="{% url 'plugins:netbox_change_approval:changerequest_discard' pk=cr.pk %}"
+        <a data-nbca-modal href="{% url 'plugins:netbox_change_approval:changerequest_discard' pk=cr.pk %}"
            class="btn btn-sm btn-primary" title="{% trans "Discard" %}" aria-label="{% trans "Discard" %}"><i class="mdi mdi-delete-outline"></i></a>
       </td>
     </tr>
@@ -47,11 +47,11 @@
                 data-bs-target="#nbca-wq-{{ cr.pk }}" aria-expanded="false" aria-controls="nbca-wq-{{ cr.pk }}"
                 title="{% trans 'Show details' %}"><i class="mdi mdi-chevron-down"></i></button>
         {% if can_decide %}
-        <a href="{% url 'plugins:netbox_change_approval:changerequest_approve' pk=cr.pk %}"
+        <a data-nbca-modal href="{% url 'plugins:netbox_change_approval:changerequest_approve' pk=cr.pk %}"
            class="btn btn-sm btn-success" title="{% trans "Approve" %}"><i class="mdi mdi-check"></i></a>
-        <a href="{% url 'plugins:netbox_change_approval:changerequest_sendback' pk=cr.pk %}"
+        <a data-nbca-modal href="{% url 'plugins:netbox_change_approval:changerequest_sendback' pk=cr.pk %}"
            class="btn btn-sm btn-warning" title="{% trans "Send back for revision" %}"><i class="mdi mdi-undo-variant"></i></a>
-        <a href="{% url 'plugins:netbox_change_approval:changerequest_reject' pk=cr.pk %}"
+        <a data-nbca-modal href="{% url 'plugins:netbox_change_approval:changerequest_reject' pk=cr.pk %}"
            class="btn btn-sm btn-danger" title="{% trans "Reject" %}"><i class="mdi mdi-close"></i></a>
         {% endif %}
       </td>

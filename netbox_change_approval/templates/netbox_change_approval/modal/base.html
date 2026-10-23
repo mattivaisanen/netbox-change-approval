@@ -1,0 +1,17 @@
+{% load i18n %}
+{# Contents of the pop-up dialog (inc/confirm_modal.html). Each confirmation's full page shows the same message and posts to the same view. #}
+<form action="{{ form_url }}" method="post">
+  {% csrf_token %}
+  {% block hidden_fields %}
+    {% for field in form.hidden_fields %}{{ field }}{% endfor %}
+  {% endblock %}
+  <div class="modal-header">
+    <h5 class="modal-title">{% block title %}{% endblock %}</h5>
+    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{% trans 'Close' %}"></button>
+  </div>
+  {% block body %}<div class="modal-body">{% block message %}{% endblock %}</div>{% endblock %}
+  <div class="modal-footer">
+    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">{% trans "Cancel" %}</button>
+    {% block buttons %}{% endblock %}
+  </div>
+</form>

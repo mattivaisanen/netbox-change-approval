@@ -1,0 +1,5 @@
+{% extends 'netbox_change_approval/modal/base.html' %}
+{% load i18n %}
+{% block title %}{% trans "Approve change request" %} #{{ object.pk }}?{% endblock %}
+{% block message %}{% include 'netbox_change_approval/inc/confirm/approve.html' %}{% endblock %}
+{% block buttons %}<button type="submit" name="_confirm" class="btn btn-success"><i class="mdi mdi-check"></i> {% trans "Approve" %}</button>{% endblock %}

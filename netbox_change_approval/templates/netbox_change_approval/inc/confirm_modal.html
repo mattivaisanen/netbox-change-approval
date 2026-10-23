@@ -1,0 +1,138 @@
+{% load i18n %}
+{# Pop-up dialog for confirmations, like NetBox's own delete dialog. Rendered in <head> (see inbox_nav.html) and moved into the page once it loads.
+   - Links and buttons marked data-nbca-modal load their confirmation page's dialog version into it. Without JavaScript they open the full page.
+   - Buttons marked data-nbca-confirm="Question?" ask first, in place of the browser's OK/Cancel box. Optional: data-nbca-confirm-label, data-nbca-confirm-class. #}
+<template id="nbca-modal-template">
+  <div class="modal fade" id="nbca-modal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-scrollable modal-lg">
+      <div class="modal-content" id="nbca-modal-content"></div>
+    </div>
+  </div>
+  <button type="button" class="d-none" id="nbca-modal-open" data-bs-toggle="modal" data-bs-target="#nbca-modal"></button>
+</template>
+<script>
+(function () {
+  var TEXT = {
+    loading: '{% filter escapejs %}{% trans "Loading…" %}{% endfilter %}',
+    cancel: '{% filter escapejs %}{% trans "Cancel" %}{% endfilter %}',
+    confirm: '{% filter escapejs %}{% trans "Confirm" %}{% endfilter %}',
+    close: '{% filter escapejs %}{% trans "Close" %}{% endfilter %}'
+  };
+
+  function el(tag, cls, text) {
+    var node = document.createElement(tag);
+    if (cls) node.className = cls;
+    if (text) node.textContent = text;
+    return node;
+  }
+  function content() { return document.getElementById('nbca-modal-content'); }
+  function isOpen() { var m = document.getElementById('nbca-modal'); return m && m.classList.contains('show'); }
+  function open() { if (!isOpen()) document.getElementById('nbca-modal-open').click(); }
+  function close() {
+    var dismiss = content().querySelector('[data-bs-dismiss="modal"]');
+    if (dismiss && isOpen()) dismiss.click();
+  }
+  function focusFirst() {
+    var target = content().querySelector('textarea, input:not([type=hidden]), .modal-footer [type=submit]');
+    if (target) target.focus();
+  }
+  function setContent(nodeOrHtml) {
+    var box = content();
+    if (typeof nodeOrHtml === 'string') box.innerHTML = nodeOrHtml;
+    else { box.replaceChildren(nodeOrHtml); }
+    focusFirst();
+  }
+  function loading() {
+    var body = el('div', 'modal-body text-center text-muted py-5');
+    body.appendChild(el('span', 'spinner-border spinner-border-sm me-2'));
+    body.appendChild(document.createTextNode(TEXT.loading));
+    setContent(body);
+  }
+
+  // Load a confirmation's dialog version. If anything goes wrong, fall back to its full page.
+  function load(url, options, fallback) {
+    loading();
+    open();
+    options.credentials = 'same-origin';
+    options.headers = { 'HX-Request': 'true', 'HX-Current-URL': window.location.href };
+    fetch(url, options).then(function (response) {
+      var redirect = response.headers.get('HX-Redirect');
+      if (redirect) { window.location.href = redirect; return; }
+      if (!response.ok) throw new Error(response.status);
+      return response.text().then(setContent);
+    }).catch(fallback);
+  }
+
+  function ask(button) {
+    var frag = document.createDocumentFragment();
+    var header = el('div', 'modal-header');
+    header.appendChild(el('h5', 'modal-title', button.getAttribute('data-nbca-confirm')));
+    var x = el('button', 'btn-close');
+    x.type = 'button';
+    x.setAttribute('data-bs-dismiss', 'modal');
+    x.setAttribute('aria-label', TEXT.close);
+    header.appendChild(x);
+    var footer = el('div', 'modal-footer');
+    var cancel = el('button', 'btn btn-outline-secondary', TEXT.cancel);
+    cancel.type = 'button';
+    cancel.setAttribute('data-bs-dismiss', 'modal');
+    var ok = el('button', 'btn ' + (button.getAttribute('data-nbca-confirm-class') || 'btn-primary'),
+                button.getAttribute('data-nbca-confirm-label') || TEXT.confirm);
+    ok.type = 'button';
+    ok.addEventListener('click', function () {
+      close();
+      button.setAttribute('data-nbca-confirmed', '');
+      button.click();
+    });
+    footer.appendChild(cancel);
+    footer.appendChild(ok);
+    frag.appendChild(header);
+    frag.appendChild(footer);
+    setContent(frag);
+    open();
+    ok.focus();
+  }
+
+  document.addEventListener('click', function (event) {
+    var target = event.target.closest('[data-nbca-modal], [data-nbca-confirm]');
+    if (!target || !document.getElementById('nbca-modal')) return;
+    // Ctrl/Cmd/Shift-click on a link still opens the full page in a new tab or window.
+    if (target.tagName === 'A' && (event.ctrlKey || event.metaKey || event.shiftKey || event.button)) return;
+
+    if (target.hasAttribute('data-nbca-confirm')) {
+      if (target.hasAttribute('data-nbca-confirmed')) { target.removeAttribute('data-nbca-confirmed'); return; }
+      event.preventDefault();
+      event.stopPropagation();
+      ask(target);
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    if (target.tagName === 'A') {
+      load(target.href, { method: 'GET' }, function () { window.location.href = target.href; });
+      return;
+    }
+    // A bulk button: send the ticked rows the way submitting the form would.
+    var form = target.form;
+    var data = new FormData(form);
+    if (target.name) data.append(target.name, target.value || '');
+    var url = target.getAttribute('formaction') || form.action;
+    load(url, { method: 'POST', body: data }, function () {
+      close();
+      target.removeAttribute('data-nbca-modal');
+      target.click();
+    });
+  }, true);
+
+  document.addEventListener('shown.bs.modal', function (event) {
+    if (event.target.id === 'nbca-modal') focusFirst();
+  });
+
+  document.addEventListener('DOMContentLoaded', function () {
+    var tpl = document.getElementById('nbca-modal-template');
+    if (!tpl || document.getElementById('nbca-modal')) return;
+    document.body.appendChild(tpl.content.cloneNode(true));
+  });
+})();
+</script>

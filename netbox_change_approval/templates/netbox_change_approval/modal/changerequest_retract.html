@@ -1,0 +1,8 @@
+{% extends 'netbox_change_approval/modal/base.html' %}
+{% load i18n %}
+{% block title %}{% trans "Retract change request" %} #{{ object.pk }}?{% endblock %}
+{% block message %}{% include 'netbox_change_approval/inc/confirm/retract.html' %}{% endblock %}
+{% block buttons %}
+  <button type="submit" name="then" value="discard" class="btn btn-outline-danger"><i class="mdi mdi-delete-outline"></i> {% trans "Retract and discard" %}</button>
+  <button type="submit" name="then" value="edit" class="btn btn-primary"><i class="mdi mdi-pencil"></i> {% trans "Retract and edit" %}</button>
+{% endblock %}

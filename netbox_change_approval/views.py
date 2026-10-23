@@ -1,7 +1,7 @@
 from django.contrib import messages
 from django.core.exceptions import FieldDoesNotExist, ValidationError
 from django.db import transaction
-from django.http import Http404
+from django.http import Http404, HttpResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
@@ -12,6 +12,7 @@ from netbox.context import current_request
 from netbox.object_actions import BulkExport
 from netbox.views import generic
 from utilities.forms.forms import ConfirmationForm
+from utilities.htmx import htmx_partial
 from utilities.views import ConditionalLoginRequiredMixin, register_model_view
 
 from . import absence, amend, approvals, changesets, components, reviews, filtersets, forms, inbox, notifications, permissions, placement, revision, serialization, tables
@@ -454,7 +455,28 @@ def _safe_return_url(url, fallback=None):
     return fallback or _default_return_url()
 
 
-class _ChangeRequestDecisionView(ConditionalLoginRequiredMixin, View):
+def _confirm_page(request, template, context):
+    """A confirmation as its own page, or only the pop-up dialog's contents
+    when a page asked for it (see inc/confirm_modal.html). Both post to the
+    same view, so the full page keeps working without JavaScript."""
+    if htmx_partial(request):
+        template = template.replace('netbox_change_approval/', 'netbox_change_approval/modal/', 1)
+        context = {**context, 'form_url': request.get_full_path()}
+    return render(request, template, context)
+
+
+class _PopupRedirectMixin:
+    """A redirect answering a pop-up's request (not allowed, already decided,
+    nothing selected) moves the whole page there instead of loading that page
+    into the dialog."""
+    def dispatch(self, request, *args, **kwargs):
+        response = super().dispatch(request, *args, **kwargs)
+        if htmx_partial(request) and isinstance(response, HttpResponseRedirect):
+            return HttpResponse(headers={'HX-Redirect': response.url})
+        return response
+
+
+class _ChangeRequestDecisionView(_PopupRedirectMixin, ConditionalLoginRequiredMixin, View):
     def setup(self, request, *args, **kwargs):
         super().setup(request, *args, **kwargs)
         self.change_request = get_object_or_404(ChangeRequest, pk=kwargs['pk'])
@@ -495,7 +517,7 @@ class ChangeRequestApproveView(_ChangeRequestDecisionView):
         if (denied := self.check_permission(request)) is not None:
             return denied
         targets = _batch_targets(self.change_request)
-        return render(request, 'netbox_change_approval/changerequest_approve.html', {
+        return _confirm_page(request, 'netbox_change_approval/changerequest_approve.html', {
             'object': self.change_request,
             'form': ConfirmationForm(initial=request.GET),
             'return_url': _safe_return_url(request.GET.get('return_url')),
@@ -541,7 +563,7 @@ class ChangeRequestRejectView(_ChangeRequestDecisionView):
         if (denied := self.check_permission(request)) is not None:
             return denied
         targets = _batch_targets(self.change_request)
-        return render(request, 'netbox_change_approval/changerequest_reject.html', {
+        return _confirm_page(request, 'netbox_change_approval/changerequest_reject.html', {
             'object': self.change_request,
             'form': forms.ChangeRequestRejectForm(initial=request.GET),
             'return_url': _safe_return_url(request.GET.get('return_url')),
@@ -553,7 +575,7 @@ class ChangeRequestRejectView(_ChangeRequestDecisionView):
             return denied
         form = forms.ChangeRequestRejectForm(request.POST)
         if not form.is_valid():
-            return render(request, 'netbox_change_approval/changerequest_reject.html', {
+            return _confirm_page(request, 'netbox_change_approval/changerequest_reject.html', {
                 'object': self.change_request,
                 'form': form,
                 'return_url': _safe_return_url(request.POST.get('return_url')),
@@ -588,7 +610,7 @@ class ChangeRequestRetractView(_ChangeRequestDecisionView):
         if (denied := self.check_permission(request)) is not None:
             return denied
         targets = _batch_targets(self.change_request)
-        return render(request, 'netbox_change_approval/changerequest_retract.html', {
+        return _confirm_page(request, 'netbox_change_approval/changerequest_retract.html', {
             'object': self.change_request,
             'form': ConfirmationForm(initial=request.GET),
             'return_url': _safe_return_url(request.GET.get('return_url')),
@@ -626,7 +648,7 @@ class ChangeRequestSendBackView(_ChangeRequestDecisionView):
     template_name = 'netbox_change_approval/changerequest_sendback.html'
 
     def _render(self, request, form, return_url):
-        return render(request, self.template_name, {
+        return _confirm_page(request, self.template_name, {
             'object': self.change_request,
             'form': form,
             'return_url': return_url,
@@ -661,7 +683,7 @@ class ChangeRequestSendBackView(_ChangeRequestDecisionView):
         return redirect(_safe_return_url(form.cleaned_data.get('return_url')))
 
 
-class _SentBackView(ConditionalLoginRequiredMixin, View):
+class _SentBackView(_PopupRedirectMixin, ConditionalLoginRequiredMixin, View):
     """Base for the submitter's two choices on a sent-back request."""
     def setup(self, request, *args, **kwargs):
         super().setup(request, *args, **kwargs)
@@ -697,7 +719,7 @@ class ChangeRequestDiscardView(_SentBackView):
     def get(self, request, pk):
         if (denied := self.check_permission(request)) is not None:
             return denied
-        return render(request, 'netbox_change_approval/changerequest_discard.html', {
+        return _confirm_page(request, 'netbox_change_approval/changerequest_discard.html', {
             'object': self.change_request,
             'form': ConfirmationForm(initial=request.GET),
             'return_url': _safe_return_url(request.GET.get('return_url'), self.change_request.get_absolute_url()),
@@ -812,7 +834,7 @@ class InboxView(ConditionalLoginRequiredMixin, View):
         return redirect(reverse('plugins:netbox_change_approval:changerequest_inbox'))
 
 
-class _BulkDecisionView(ConditionalLoginRequiredMixin, View):
+class _BulkDecisionView(_PopupRedirectMixin, ConditionalLoginRequiredMixin, View):
     """
     "Approve Selected" / "Reject Selected" under the Approvals list. The list
     posts the ticked pks (or `_all` for everything matching the filter); this
@@ -866,7 +888,7 @@ class _BulkDecisionView(ConditionalLoginRequiredMixin, View):
 
         form = forms.ChangeRequestBulkRejectForm(request.POST) if self.decision == 'reject' else None
         if '_confirm' not in request.POST or (form is not None and not form.is_valid()):
-            return render(request, self.template_name, {
+            return _confirm_page(request, self.template_name, {
                 'decision': self.decision,
                 'selected': list(selected.order_by('-submitted_at').select_related('submitted_by', 'content_type')),
                 'pks': list(selected.values_list('pk', flat=True)),

@@ -1,0 +1,5 @@
+{% extends 'netbox_change_approval/modal/base.html' %}
+{% load i18n %}
+{% block title %}{% trans "Send back change request" %} #{{ object.pk }}?{% endblock %}
+{% block message %}{% include 'netbox_change_approval/inc/confirm/sendback.html' %}{% endblock %}
+{% block buttons %}<button type="submit" name="_confirm" class="btn btn-warning"><i class="mdi mdi-undo-variant"></i> {% trans "Send back" %}</button>{% endblock %}

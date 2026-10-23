@@ -109,21 +109,21 @@
               <i class="mdi mdi-chevron-down"></i>
             </button>
             {% if section.key == 'decide' %}
-              <a href="{% url 'plugins:netbox_change_approval:changerequest_approve' pk=cr.pk %}?return_url={{ request.path|urlencode }}"
+              <a data-nbca-modal href="{% url 'plugins:netbox_change_approval:changerequest_approve' pk=cr.pk %}?return_url={{ request.path|urlencode }}"
                  class="btn btn-sm btn-success" title="{% trans "Approve" %}"><i class="mdi mdi-check"></i></a>
-              <a href="{% url 'plugins:netbox_change_approval:changerequest_sendback' pk=cr.pk %}?return_url={{ request.path|urlencode }}"
+              <a data-nbca-modal href="{% url 'plugins:netbox_change_approval:changerequest_sendback' pk=cr.pk %}?return_url={{ request.path|urlencode }}"
                  class="btn btn-sm btn-warning" title="{% trans "Send back for revision" %}"><i class="mdi mdi-undo-variant"></i></a>
-              <a href="{% url 'plugins:netbox_change_approval:changerequest_reject' pk=cr.pk %}?return_url={{ request.path|urlencode }}"
+              <a data-nbca-modal href="{% url 'plugins:netbox_change_approval:changerequest_reject' pk=cr.pk %}?return_url={{ request.path|urlencode }}"
                  class="btn btn-sm btn-danger" title="{% trans "Reject" %}"><i class="mdi mdi-close"></i></a>
             {% elif section.key == 'sent_back' %}
               {% if count == 1 %}
               <a href="{% url 'plugins:netbox_change_approval:changerequest_revise' pk=cr.pk %}"
                  class="btn btn-sm btn-primary"><i class="mdi mdi-pencil"></i> {% trans "Revise" %}</a>
               {% endif %}
-              <a href="{% url 'plugins:netbox_change_approval:changerequest_discard' pk=cr.pk %}?return_url={{ request.path|urlencode }}"
+              <a data-nbca-modal href="{% url 'plugins:netbox_change_approval:changerequest_discard' pk=cr.pk %}?return_url={{ request.path|urlencode }}"
                  class="btn btn-sm btn-primary" title="{% trans "Discard" %}" aria-label="{% trans "Discard" %}"><i class="mdi mdi-delete-outline"></i></a>
             {% elif section.key == 'waiting' %}
-              <a href="{% url 'plugins:netbox_change_approval:changerequest_retract' pk=cr.pk %}?return_url={{ request.path|urlencode }}"
+              <a data-nbca-modal href="{% url 'plugins:netbox_change_approval:changerequest_retract' pk=cr.pk %}?return_url={{ request.path|urlencode }}"
                  class="btn btn-sm btn-primary" title="{% trans "Retract" %}" aria-label="{% trans "Retract" %}"><i class="mdi mdi-undo"></i></a>
             {% endif %}
             {% if section.key == 'waiting' or section.key == 'approved' %}

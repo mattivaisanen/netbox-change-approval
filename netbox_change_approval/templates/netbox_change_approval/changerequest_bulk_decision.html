@@ -12,36 +12,11 @@
         {% for pk in pks %}<input type="hidden" name="pk" value="{{ pk }}" />{% endfor %}
         <div class="card {% if decision == 'approve' %}border-success{% else %}border-danger{% endif %}">
           <h2 class="card-header">
-            {% if decision == 'approve' %}
-              {% blocktrans count counter=selected|length %}Approve and apply {{ counter }} request?{% plural %}Approve and apply {{ counter }} requests?{% endblocktrans %}
-            {% else %}
-              {% blocktrans count counter=selected|length %}Reject {{ counter }} request?{% plural %}Reject {{ counter }} requests?{% endblocktrans %}
-            {% endif %}
+            {% include 'netbox_change_approval/inc/confirm/bulk_title.html' %}
           </h2>
-          <table class="table table-hover mb-0">
-            <tbody>
-              {% for cr in selected %}
-              <tr>
-                <td>
-                  <a href="{{ cr.get_absolute_url }}">#{{ cr.pk }} {{ cr.get_action_display }} {{ cr.object_repr }}</a>
-                  <span class="text-muted small">&middot; {{ cr.content_type.name|capfirst }} &middot; {{ cr.submitted_by|default:_("unknown user") }}</span>
-                  {% if cr.batch_id %}<span class="badge text-bg-secondary ms-1">{% trans "with its batch" %}</span>{% endif %}
-                </td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
+          {% include 'netbox_change_approval/inc/confirm/bulk_list.html' %}
           <div class="card-body">
-            {% if decision == 'approve' %}
-              <p class="text-muted mb-0">{% trans "Each request is applied on its own. One that can't be applied stays pending and is listed afterwards." %}</p>
-            {% else %}
-              <div class="mb-2">
-                {{ form.comment.label_tag }}
-                {{ form.comment }}
-                <div class="form-text">{{ form.comment.help_text }}</div>
-                {% if form.comment.errors %}<div class="text-danger small">{{ form.comment.errors }}</div>{% endif %}
-              </div>
-            {% endif %}
+            {% include 'netbox_change_approval/inc/confirm/bulk_body.html' %}
           </div>
           <div class="card-footer text-end">
             <a href="{{ return_url }}" class="btn btn-outline-secondary">{% trans "Cancel" %}</a>

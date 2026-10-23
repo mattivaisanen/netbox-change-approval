@@ -1,0 +1,5 @@
+{% extends 'netbox_change_approval/modal/base.html' %}
+{% load i18n %}
+{% block title %}{% trans "Discard change request" %} #{{ object.pk }}?{% endblock %}
+{% block message %}{% include 'netbox_change_approval/inc/confirm/discard.html' %}{% endblock %}
+{% block buttons %}<button type="submit" name="_confirm" class="btn btn-danger"><i class="mdi mdi-delete-outline"></i> {% trans "Discard" %}</button>{% endblock %}

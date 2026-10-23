@@ -1,4 +1,5 @@
 {% load i18n %}
+{% include 'netbox_change_approval/inc/confirm_modal.html' %}
 {# Approval Inbox button at the top of the sidebar, between the NetBox logo and the first menu. NetBox has no plugin hook there, so it's rendered in <head> and moved into place once the page loads. #}
 <style>
   /* Active change set: a soft glow. The icon fades brighter and dimmer and a
