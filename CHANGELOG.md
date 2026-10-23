@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+## 0.3.2 (2026-10-23)
+
+### Bug fixes
+- Field work links could point at the wrong object when a name appeared in
+  more than one task (a device type named like another device, say), and a
+  moved device's name wasn't linked. Each task now links only the objects it
+  names, left to right.
+
 ## 0.3.1 (2026-10-23)
 
 Upgrade: run `manage.py migrate` (adds one column for work task links).
