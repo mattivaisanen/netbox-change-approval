@@ -22,7 +22,7 @@
       <button type="submit" name="action" value="continue" class="btn btn-outline-primary"><i class="mdi mdi-play"></i> {% trans "Continue working in it" %}</button>
     {% endif %}
     <button type="submit" name="action" value="discard" class="btn btn-outline-danger"
-            data-nbca-confirm="{% trans 'Withdraw every change in this change set?' %}" data-nbca-confirm-label="{% trans 'Discard' %}" data-nbca-confirm-class="btn-danger"><i class="mdi mdi-delete-outline"></i> {% trans "Discard" %}</button>
+            data-nbca-confirm-title="{% trans 'Discard change set?' %}" data-nbca-confirm="{% trans 'Every change in this change set is withdrawn.' %}" data-nbca-confirm-label="{% trans 'Discard' %}" data-nbca-confirm-class="btn-danger"><i class="mdi mdi-delete-outline"></i> {% trans "Discard" %}</button>
     <button type="submit" name="action" value="submit" class="btn btn-primary"><i class="mdi mdi-send"></i> {% trans "Submit for approval" %}</button>
   </form>
   {% elif can_decide %}

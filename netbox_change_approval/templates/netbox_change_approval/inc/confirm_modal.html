@@ -2,11 +2,12 @@
 {% comment %}
 Pop-up dialog for confirmations, like NetBox's own delete dialog. Rendered in <head> (see inbox_nav.html) and moved into the page once it loads.
    - Links and buttons marked data-nbca-modal load their confirmation page's dialog version into it. Without JavaScript they open the full page.
-   - Buttons marked data-nbca-confirm="Question?" ask first, in place of the browser's OK/Cancel box. Optional: data-nbca-confirm-label, data-nbca-confirm-class.
+   - Buttons marked data-nbca-confirm="Details" ask first, in place of the browser's OK/Cancel box. Optional: data-nbca-confirm-title (short question), data-nbca-confirm-label, data-nbca-confirm-class.
+   - After a confirmed button's form is sent, the page it comes back to keeps its scroll position.
 {% endcomment %}
 <template id="nbca-modal-template">
   <div class="modal fade" id="nbca-modal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-scrollable modal-lg">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
       <div class="modal-content" id="nbca-modal-content"></div>
     </div>
   </div>
@@ -20,6 +21,8 @@ Pop-up dialog for confirmations, like NetBox's own delete dialog. Rendered in <h
     confirm: '{% filter escapejs %}{% trans "Confirm" %}{% endfilter %}',
     close: '{% filter escapejs %}{% trans "Close" %}{% endfilter %}'
   };
+
+  var SCROLL_KEY = 'nbca-scroll';
 
   function el(tag, cls, text) {
     var node = document.createElement(tag);
@@ -38,6 +41,10 @@ Pop-up dialog for confirmations, like NetBox's own delete dialog. Rendered in <h
     var target = content().querySelector('textarea, input:not([type=hidden]), .modal-footer [type=submit]');
     if (target) target.focus();
   }
+  function size(large) {
+    var dialog = document.querySelector('#nbca-modal .modal-dialog');
+    if (dialog) dialog.classList.toggle('modal-lg', large);
+  }
   function setContent(nodeOrHtml) {
     var box = content();
     if (typeof nodeOrHtml === 'string') box.innerHTML = nodeOrHtml;
@@ -53,6 +60,7 @@ Pop-up dialog for confirmations, like NetBox's own delete dialog. Rendered in <h
 
   // Load a confirmation's dialog version. If anything goes wrong, fall back to its full page.
   function load(url, options, fallback) {
+    size(true);
     loading();
     open();
     options.credentials = 'same-origin';
@@ -67,13 +75,20 @@ Pop-up dialog for confirmations, like NetBox's own delete dialog. Rendered in <h
 
   function ask(button) {
     var frag = document.createDocumentFragment();
+    var title = button.getAttribute('data-nbca-confirm-title');
+    var details = button.getAttribute('data-nbca-confirm');
     var header = el('div', 'modal-header');
-    header.appendChild(el('h5', 'modal-title', button.getAttribute('data-nbca-confirm')));
+    header.appendChild(el('h5', 'modal-title', title || details));
     var x = el('button', 'btn-close');
     x.type = 'button';
     x.setAttribute('data-bs-dismiss', 'modal');
     x.setAttribute('aria-label', TEXT.close);
     header.appendChild(x);
+    var body = null;
+    if (title && details) {
+      body = el('div', 'modal-body');
+      body.appendChild(el('p', 'mb-0', details));
+    }
     var footer = el('div', 'modal-footer');
     var cancel = el('button', 'btn btn-outline-secondary', TEXT.cancel);
     cancel.type = 'button';
@@ -83,13 +98,18 @@ Pop-up dialog for confirmations, like NetBox's own delete dialog. Rendered in <h
     ok.type = 'button';
     ok.addEventListener('click', function () {
       close();
+      try {
+        sessionStorage.setItem(SCROLL_KEY, JSON.stringify({ path: location.pathname, y: window.scrollY }));
+      } catch (e) { /* storage off: the page just starts at the top */ }
       button.setAttribute('data-nbca-confirmed', '');
       button.click();
     });
     footer.appendChild(cancel);
     footer.appendChild(ok);
     frag.appendChild(header);
+    if (body) frag.appendChild(body);
     frag.appendChild(footer);
+    size(false);
     setContent(frag);
     open();
     ok.focus();
@@ -129,6 +149,15 @@ Pop-up dialog for confirmations, like NetBox's own delete dialog. Rendered in <h
 
   document.addEventListener('shown.bs.modal', function (event) {
     if (event.target.id === 'nbca-modal') focusFirst();
+  });
+
+  window.addEventListener('load', function () {
+    var saved = null;
+    try {
+      saved = JSON.parse(sessionStorage.getItem(SCROLL_KEY) || 'null');
+      sessionStorage.removeItem(SCROLL_KEY);
+    } catch (e) { return; }
+    if (saved && saved.path === location.pathname) window.scrollTo(0, saved.y);
   });
 
   document.addEventListener('DOMContentLoaded', function () {

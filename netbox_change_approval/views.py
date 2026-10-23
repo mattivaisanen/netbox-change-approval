@@ -1080,7 +1080,8 @@ class WorkSheetView(ConditionalLoginRequiredMixin, View):
                 task.done_by, task.done_at = request.user, timezone.now()
             task.save(update_fields=['done_by', 'done_at'])
         if request.POST.get('back') == 'inbox':
-            return redirect(reverse('plugins:netbox_change_approval:changerequest_inbox') + '#nbca-section-field-work')
+            # No #anchor: the page keeps its scroll position (inc/confirm_modal.html).
+            return redirect(reverse('plugins:netbox_change_approval:changerequest_inbox'))
         url = reverse('plugins:netbox_change_approval:worksheet')
         query = request.POST.get('query', '')
         return redirect(f'{url}?{query}' if query else url)
