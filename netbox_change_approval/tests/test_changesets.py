@@ -141,3 +141,16 @@ class ChangeSetNavButtonTests(TestCase):
         self.assertNotIn('mdi-package-variant-plus', self._page(self.admin))
         self.assertNotIn('mdi-package-variant-plus', self._page(self.bypasser))
 
+
+class ChangeSetNavPulseTests(ChangeSetNavButtonTests):
+    def test_active_change_set_icon_pulses(self):
+        from ..models import ChangeSet
+
+        change_set = ChangeSet.objects.create(name='x', created_by=self.alice)
+        self.client.force_login(self.alice)
+        session = self.client.session
+        session['nbca_change_set'] = change_set.pk
+        session.save()
+        html = self.client.get(reverse('plugins:netbox_change_approval:changerequest_inbox')).content.decode()
+        self.assertIn('nbca-cs-active', html)
+        self.assertIn('prefers-reduced-motion', html)

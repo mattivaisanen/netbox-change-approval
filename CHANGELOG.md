@@ -5,7 +5,8 @@
 ### New features
 - A small button next to the Approval Inbox starts a change set (or opens
   the one you're working in). Hidden for superusers and users who skip
-  approval.
+  approval. While a change set is active the button glows softly (none
+  with reduced motion turned on).
 
 ### Improvements
 - The "Working in change set" bar no longer shows on the change set's own
