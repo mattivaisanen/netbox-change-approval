@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+## 0.3.3 (2026-10-23)
+
+### New features
+- Webhook data for change requests says who should be told: `recipients`
+  (username, name, e-mail) and `recipient_emails` (semicolon-separated), plus
+  `link`, a full link to the request when the new `netbox_url` setting is
+  set. On NetBox's own "Object created/updated" events the recipients follow
+  the request's status (approver group while it waits, submitter once
+  decided).
+- Setup guide [docs/webhooks.md](docs/webhooks.md): Event Rule and webhook
+  for any service, every data field, and Power Automate examples for an
+  Outlook e-mail and a Teams message to each person from the Flow bot.
+
 ## 0.3.2 (2026-10-23)
 
 ### Bug fixes
