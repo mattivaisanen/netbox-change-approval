@@ -239,3 +239,26 @@ class FieldWorkLinksAndAudienceTests(WorkSheetTests):
         self.assertContains(self.client.get(inbox_url), 'Your field work')
         self.client.force_login(self.approver)
         self.assertNotContains(self.client.get(inbox_url), 'Your field work')
+
+
+class TaskLinkOrderTests(TestCase):
+    def test_links_follow_the_text(self):
+        from ..worksheet import _links_in
+
+        refs = [('A3', '/r/1'), ('A4', '/r/2'), ('sw1', '/d/1')]
+        self.assertEqual(_links_in('Move sw1 from rack A3 to rack A4', refs),
+                         [['sw1', '/d/1'], ['A3', '/r/1'], ['A4', '/r/2']])
+        refs = [('sw1', '/d/1'), ('eth1', '/i/1'), ('pp1', '/d/2'), ('1', '/i/2')]
+        self.assertEqual(_links_in('Patch sw1 eth1 → pp1 1', refs),
+                         [['sw1', '/d/1'], ['eth1', '/i/1'], ['pp1', '/d/2'], ['1', '/i/2']])
+
+    def test_device_type_name_is_not_linked_to_another_device(self):
+        from ..worksheet import _task, _refs  # noqa: F401
+        import netbox_change_approval.worksheet as ws
+
+        ws._refs = []
+        ws._r(type('X', (), {'__str__': lambda self: 'sw1', 'get_absolute_url': lambda self: '/d/1'})())
+        task = ws._task(None, None, 'Mount sw1 (asdasd) in rack R1')
+        ws._r(type('Y', (), {'__str__': lambda self: 'asdasd', 'get_absolute_url': lambda self: '/d/2'})())
+        ws._refs = None
+        self.assertEqual(task[3], [['sw1', '/d/1']])
