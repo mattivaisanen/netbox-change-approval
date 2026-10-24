@@ -199,6 +199,11 @@ def _gate(instance, action, request):
     )
     from .approvals import apply_rule_settings
     apply_rule_settings(change_request, rule)
+    from . import reasons
+    change_request.reason = reasons.from_request(request, instance)
+    if (rule is not None and rule.outcome == RuleOutcomeChoices.REQUIRE and rule.require_reason
+            and not change_request.reason):
+        _refuse_without_reason(action)
 
     if rule is not None and rule.outcome == RuleOutcomeChoices.AUTO:
         change_request.auto_approved = True
@@ -245,3 +250,17 @@ def _gate(instance, action, request):
 
     change_request.save()
     return change_request
+
+
+def _refuse_without_reason(action):
+    """The rule wants a reason and none was given: stop the change. A form
+    shows it on the changelog message box; a delete (which has no form
+    validation to hook into) shows it as an error message."""
+    from django.core.exceptions import ValidationError
+
+    from . import reasons
+
+    if action == ActionChoices.DELETE:
+        from utilities.exceptions import AbortRequest
+        raise AbortRequest(reasons.required_message())
+    raise ValidationError({reasons.FIELD: reasons.required_message()})

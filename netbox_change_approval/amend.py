@@ -104,6 +104,10 @@ def amend(change_request, instance, request):
     change_request.diff = diff
     change_request.object_repr = str(instance)[:300]
     change_request.revision += 1
+    from . import reasons
+    reason = reasons.from_request(request, instance)
+    if reason:
+        change_request.reason = reason
     apply_rule_settings(change_request, _first_matching_rule(instance, change_request.action))
     change_request._nbca_amended = True
     change_request.save()

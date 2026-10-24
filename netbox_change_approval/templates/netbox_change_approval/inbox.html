@@ -83,6 +83,7 @@
             {% endif %}
             {% if cr.revision > 1 %}<span class="badge text-bg-secondary ms-1">{% blocktrans with n=cr.revision %}rev {{ n }}{% endblocktrans %}</span>{% endif %}
             {% if cr.auto_approved %}<span class="badge text-bg-blue ms-1">{% trans "auto-approved" %}</span>{% endif %}
+            {% if cr.reason %}<span class="text-muted small ms-1" title="{% trans 'Reason' %}: {{ cr.reason }}"><i class="mdi mdi-comment-quote-outline"></i> {{ cr.reason }}</span>{% endif %}
           </td>
           <td class="d-none d-md-table-cell small nbca-who">
             {% if section.key == 'decide' %}

@@ -170,6 +170,7 @@ def event_data(change_request, event_type, recipients, detail='', actor=None, co
         'approvals_needed': change_request.required_approvals,
         'by': _person(actor),
         'comment': comment,
+        'reason': change_request.reason,
         'recipients': [_person(u) for u in recipients],
         'recipient_emails': ';'.join(u.email for u in recipients if u.email),
     }
@@ -295,7 +296,8 @@ def _after_commit(pk, old_status):
         recipients = [u for u in _approvers(change_request) if u.pk != change_request.submitted_by_id]
         who = change_request.submitted_by or _('unknown user')
         detail = (_('resubmitted by {who}') if change_request.revision > 1 else _('from {who}')).format(who=who)
-        notify(recipients, change_request, NEEDS_APPROVAL, detail=str(detail), actor=change_request.submitted_by)
+        detail = _said(detail, change_request.reason) if change_request.reason else str(detail)
+        notify(recipients, change_request, NEEDS_APPROVAL, detail=detail, actor=change_request.submitted_by)
         return
 
     if submitter is None or change_request.decided_by_id == submitter.pk:

@@ -32,7 +32,7 @@ class ChangeRequestSerializer(serializers.ModelSerializer):
         fields = (
             'id', 'display', 'url', 'object_type', 'object_id', 'object_repr', 'action', 'status',
             'auto_approved', 'diff', 'revision', 'batch_id', 'submitted_by', 'submitted_at', 'approver_group',
-            'required_approvals', 'decided_by', 'decided_at', 'decision_comment', 'applied_at', 'expires_at',
+            'required_approvals', 'reason', 'decided_by', 'decided_at', 'decision_comment', 'applied_at', 'expires_at',
             'created', 'last_updated', 'link', 'recipients', 'recipient_emails',
         )
         read_only_fields = fields
@@ -82,7 +82,7 @@ class ApprovalRuleSerializer(serializers.ModelSerializer):
         model = ApprovalRule
         fields = (
             'id', 'display', 'url', 'priority', 'object_type', 'constraint', 'action', 'outcome',
-            'approver_group', 'required_approvals', 'expire_after_days', 'enabled', 'description',
+            'approver_group', 'required_approvals', 'require_reason', 'expire_after_days', 'enabled', 'description',
             'created', 'last_updated',
         )
         read_only_fields = fields

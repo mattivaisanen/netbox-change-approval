@@ -416,6 +416,9 @@ NetBox's "view" permission on approval rules can read them. Each rule has:
     applied when the last one does. **Expire after (days)** closes requests
     nobody decided in time (blank: the `expire_pending_after_days` setting;
     0: never).
+  - **Reason required** (with "Needs approval"): the change is refused
+    until NetBox's changelog message box is filled in; that text is shown to
+    approvers as the request's reason.
   - **Approve automatically**: the change goes through right away and is
     logged as an auto-approved request.
   - **Skip approval**: the change goes through with no record at all.

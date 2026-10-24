@@ -56,14 +56,14 @@ class ApprovalRuleForm(BaseRuleForm):
     fieldsets = (
         FieldSet('description', 'priority', 'enabled', name=_('Rule')),
         FieldSet('content_type', 'constraint', 'action', name=_('Applies to')),
-        FieldSet('outcome', 'approver_group', 'required_approvals', 'expire_after_days', name=_('Outcome')),
+        FieldSet('outcome', 'approver_group', 'required_approvals', 'require_reason', 'expire_after_days', name=_('Outcome')),
     )
 
     class Meta:
         model = ApprovalRule
         fields = (
             'priority', 'content_type', 'constraint', 'action', 'outcome', 'approver_group',
-            'required_approvals', 'expire_after_days', 'enabled', 'description', 'tags',
+            'required_approvals', 'require_reason', 'expire_after_days', 'enabled', 'description', 'tags',
         )
 
     def clean(self):

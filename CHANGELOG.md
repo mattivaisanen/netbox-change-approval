@@ -3,6 +3,12 @@
 ## Unreleased
 
 ### New features
+- Every request carries a reason: NetBox's "Changelog message" box (and
+  `changelog_message` in the API) is saved as the request's reason and shown
+  on the request page, in the inbox, in the approvers' notification and in
+  webhook data (`reason`). An approval rule can require one ("Reason
+  required"), e.g. for a ticket number; the change is refused until it's
+  filled in.
 - A small button next to the Approval Inbox starts a change set (or opens
   the one you're working in). Hidden for superusers and users who skip
   approval. While a change set is active the button glows softly (none

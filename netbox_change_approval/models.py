@@ -152,6 +152,14 @@ class ApprovalRule(BaseMatchRule):
             'approve before the change is applied.'
         ),
     )
+    require_reason = models.BooleanField(
+        default=False,
+        verbose_name=_('reason required'),
+        help_text=_(
+            'Only for "Needs approval". Refuse the change until the changelog message (the reason, '
+            'e.g. a ticket number) is filled in.'
+        ),
+    )
     expire_after_days = models.PositiveSmallIntegerField(
         null=True,
         blank=True,
@@ -293,6 +301,12 @@ class ChangeRequest(NetBoxModel):
     # False while a rejection hasn't been opened by its submitter yet; drives
     # the inbox count. True for everything else.
     seen_by_submitter = models.BooleanField(default=True)
+
+    reason = models.CharField(
+        max_length=200,
+        blank=True,
+        help_text=_('Why: the changelog message typed with the change (reasons.py).'),
+    )
 
     # Copied from the matching rule at submission (and again on resubmission),
     # so editing a rule later doesn't change requests already waiting.

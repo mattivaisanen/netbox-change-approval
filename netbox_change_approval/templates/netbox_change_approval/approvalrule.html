@@ -43,6 +43,10 @@
           <td>{{ object.required_approvals }}</td>
         </tr>
         <tr>
+          <th scope="row">{% trans "Reason required" %}</th>
+          <td>{% checkmark object.require_reason %}</td>
+        </tr>
+        <tr>
           <th scope="row">{% trans "Expire after" %}</th>
           <td>
             {% if object.expire_after_days is None %}<span class="text-muted">{% trans "Plugin setting" %}</span>

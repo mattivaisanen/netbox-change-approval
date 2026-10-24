@@ -215,6 +215,10 @@
       <h2 class="card-header">{% trans "Details" %}</h2>
       <table class="table table-hover attr-table">
         <tr>
+          <th scope="row">{% trans "Reason" %}</th>
+          <td>{% if object.reason %}{{ object.reason }}{% else %}<span class="text-muted">&mdash;</span>{% endif %}</td>
+        </tr>
+        <tr>
           <th scope="row">{% trans "Approvers" %}</th>
           <td>
             {{ object.approver_group|linkify|placeholder }}
