@@ -41,7 +41,12 @@
   deletes notifications, bookmarks and subscriptions about change requests
   and removes the Pending Approvals widget from dashboards, which would
   otherwise give server errors on the Notifications, Bookmarks and
-  Subscriptions pages (and a reset dashboard) after removal. It warns about
+  Subscriptions pages (and a reset dashboard) after removal. It also
+  deletes changelog and journal entries and tag assignments of the plugin's
+  own objects (which break the Changelog and Journal Entries pages and their
+  API), and takes the plugin's object types off custom fields, custom links,
+  export templates, saved filters, tags, event rules and permissions,
+  deleting the ones that were only about change approval. It warns about
   requests still pending. See "Uninstalling" in the README.
 
 ### Improvements

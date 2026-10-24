@@ -146,10 +146,15 @@ main. On netbox-branching releases without plugin resolvers, also add
 
 ### Uninstalling
 
-Removing the plugin doesn't break NetBox by itself, but a few leftovers do:
-the Notifications, Bookmarks and Subscriptions pages give a server error for
-anyone with a row about a change request, and a dashboard with the Pending
-Approvals widget falls back to the default one. Clear them first, while the
+Removing the plugin doesn't break NetBox by itself, but leftovers do: the
+Notifications, Bookmarks, Subscriptions, Changelog and Journal Entries pages
+(and their API lists) give a server error once they hold a row about one of
+the plugin's objects, as does the page of a tag or custom field used on
+them, and a dashboard with the Pending Approvals widget falls back to the
+default one. `prepare_uninstall` deletes those rows, takes the plugin's
+object types off custom fields, custom links, export templates, saved
+filters, tags, event rules and permissions (deleting the ones only about
+change approval), and removes the widget. Clear them first, while the
 plugin is still installed:
 
 ```bash
