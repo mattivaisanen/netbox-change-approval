@@ -496,6 +496,11 @@ notifications (the bell in the top bar) work out of the box:
 | Expired | submitter | `… · nobody decided it in time` |
 | New comment | submitter and approver group, except the author | `… · bob: why this VLAN?` |
 
+Each notification in the bell also says who did it ("By: bob"), and the
+Notifications page has a "By" column. This covers NetBox's own notifications
+too (an Event Rule's or a subscription's "Object updated", say): those name
+the user of the change behind them.
+
 Once a request is decided, approvers' unread "needs approval" notifications
 for it disappear. A bulk action or a submitted change set is one
 notification.

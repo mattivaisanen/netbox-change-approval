@@ -81,6 +81,8 @@ class NetBoxChangeApprovalConfig(PluginConfig):
         patch_bulk_views()
         patch_netbox_table()
         patch_rack_elevation_svg()
+        from . import notification_by
+        notification_by.patch()
 
         from . import branching
         branching.connect()

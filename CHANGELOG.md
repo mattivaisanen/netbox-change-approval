@@ -3,6 +3,10 @@
 ## Unreleased
 
 ### New features
+- Notifications say who did it: each one in the bell's drop-down has a
+  "By: <user>" line, and the Notifications page has a "By" column. This
+  covers NetBox's own notifications too, such as an Event Rule's "Object
+  created" on a change request.
 - Default rule: Approval Rules now ends with a "Default rule" row that
   decides every change no other rule matches. Edit it like any rule to set
   the approver group, approvals needed, reason required and expiry for
