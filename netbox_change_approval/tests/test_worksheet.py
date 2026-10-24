@@ -262,3 +262,21 @@ class TaskLinkOrderTests(TestCase):
         ws._r(type('Y', (), {'__str__': lambda self: 'asdasd', 'get_absolute_url': lambda self: '/d/2'})())
         ws._refs = None
         self.assertEqual(task[3], [['sw1', '/d/1']])
+
+
+class MarkDoneDialogTextTests(TestCase):
+    """The Mark done pop-up shows the task as written: special characters
+    are escaped once in the page (the dialog reads them back as text)."""
+
+    setUpTestData = classmethod(WorkSheetTests.setUpTestData.__func__)
+    _create_device = WorkSheetTests._create_device
+
+    def test_ampersand_and_quotes_escaped_once(self):
+        device, change_request = self._create_device(name='core & "edge" o\'neil')
+        change_request.apply(user=self.approver)
+        self.client.force_login(self.alice)
+        for url in (reverse('plugins:netbox_change_approval:worksheet'),
+                    reverse('plugins:netbox_change_approval:changerequest_inbox')):
+            html = self.client.get(url).content.decode()
+            self.assertIn('data-nbca-confirm="Mount core &amp; &quot;edge&quot; o&#x27;neil', html, url)
+            self.assertNotIn('&amp;amp;', html, url)
