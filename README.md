@@ -144,6 +144,29 @@ own permissions. This plugin's rules and change requests always stay in
 main. On netbox-branching releases without plugin resolvers, also add
 `'netbox_change_approval.*'` to netbox-branching's `exempt_models` setting.
 
+### Uninstalling
+
+Removing the plugin doesn't break NetBox by itself, but a few leftovers do:
+the Notifications, Bookmarks and Subscriptions pages give a server error for
+anyone with a row about a change request, and a dashboard with the Pending
+Approvals widget falls back to the default one. Clear them first, while the
+plugin is still installed:
+
+```bash
+cd /opt/netbox/netbox && python manage.py prepare_uninstall
+```
+
+It shows what it will remove and asks before doing it (`--dry-run` only
+shows). It also warns about change requests that are still pending: decide
+them first, because once the plugin is gone pending edits and deletes are
+lost and pending new objects stay as normal objects. Change requests and
+rules are kept. Then take `netbox_change_approval` out of `PLUGINS` and
+`PLUGINS_CONFIG`, restart NetBox and its worker, and uninstall the package.
+
+To also delete all request history and rules, run
+`python manage.py migrate netbox_change_approval zero` before taking it out
+of `PLUGINS`.
+
 ## Using it
 
 ### As an editor
@@ -547,7 +570,7 @@ that fixed group rather than to each request's own people.
   worth knowing before years of use: approver groups become permanently
   undeletable once any historical request references them, and uninstalling
   the plugin doesn't clean up permissions, or (unless you reverse-
-  migrate) its own tables. See DEVELOPER.md "Long-term data lifecycle, and
+  migrate) its own tables (see "Uninstalling"). See DEVELOPER.md "Long-term data lifecycle, and
   what happens if you uninstall this" before committing to this long-term.
 
 ---

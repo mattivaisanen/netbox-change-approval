@@ -37,6 +37,13 @@
 - Discarding a change set and marking field work done ask in the same
   pop-up style instead of the browser's plain OK/Cancel box.
 
+- `manage.py prepare_uninstall`: run it before removing the plugin. It
+  deletes notifications, bookmarks and subscriptions about change requests
+  and removes the Pending Approvals widget from dashboards, which would
+  otherwise give server errors on the Notifications, Bookmarks and
+  Subscriptions pages (and a reset dashboard) after removal. It warns about
+  requests still pending. See "Uninstalling" in the README.
+
 ### Improvements
 - Auto-approved changes show the rule that approved them as the approver:
   on the request page, in the Approval Inbox and request list, in activity
@@ -54,6 +61,8 @@
   page, whose header already has the same buttons.
 
 ### Bug fixes
+- `migrate netbox_change_approval zero` no longer brings back the old
+  "Pending Approval" tag on objects with a pending create.
 - A delete request records what it removes: every field with a value and,
   for cables, both ends ("A side: sw1 eth1"). Deleting a plain cable
   recorded nothing before, so its request said "No field-level changes

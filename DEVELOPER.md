@@ -485,7 +485,13 @@ string snapshot captured at submission time). `submitted_by`/`decided_by` are
 
 **Uninstalling the plugin entirely** — removing it from `PLUGINS`, uninstalling
 the package — stops all gating immediately, but doesn't touch the database by
-itself:
+itself. Run `manage.py prepare_uninstall` first: NetBox's Notifications,
+Bookmarks and Subscriptions tables prefetch each row's `object`, and a row
+whose content type has no model class any more makes that prefetch fail (500
+on the whole page); a dashboard config naming an unregistered widget class
+fails to load the same way. The plugin's in-memory patches (the "By" column,
+the bell's template) need no cleanup: they're gone with the plugin. Leftovers
+that stay either way:
 - Any `ChangeRequest` for a pending **update or delete** at that moment just
   never gets applied. The original edit/delete was blocked and stays blocked
   forever (nothing errors — the object just keeps whatever state it already
