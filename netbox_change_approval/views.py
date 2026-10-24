@@ -869,7 +869,7 @@ class InboxView(ConditionalLoginRequiredMixin, View):
             })
         from . import worksheet
 
-        field_work = field_work_total = None
+        field_work, field_work_total = None, 0
         if worksheet.enabled():
             # The people who do the work: the submitter of each approved
             # request. Approvers don't need it in their inbox; the work

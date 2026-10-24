@@ -2,7 +2,7 @@
 {% load i18n nbca_diff %}
 
 {# Plain text: base.html reuses this block for the browser tab title. #}
-{% block title %}{% trans "Approval Inbox" %}{% if inbox_count %} ({{ inbox_count }}){% endif %}{% endblock %}
+{% block title %}{% trans "Approval Inbox" %}{% if inbox_count or field_work_total %} ({{ inbox_count|add:field_work_total }}){% endif %}{% endblock %}
 
 {% block subtitle %}
   <div class="text-secondary">{% trans "Your change requests, and what is waiting on you." %}</div>
@@ -31,7 +31,7 @@
 
 {% block content %}
 <div class="nbca-inbox">
-{% if not inbox_count %}
+{% if not inbox_count and not field_work_total %}
   <div class="alert alert-success" role="alert">
     <i class="mdi mdi-check-circle-outline"></i> {% trans "Nothing waiting on you." %}
   </div>
@@ -92,7 +92,7 @@
             {% elif section.key == 'waiting' %}
               {{ cr.approver_group|default:_("the default approver group") }}
             {% elif section.key == 'approved' %}
-              {% if cr.decided_by %}{{ cr.decided_by }}{% else %}&mdash;{% endif %}
+              {% if cr.decided_by %}{{ cr.decided_by }}{% elif cr.approving_rule %}<span title="{% trans 'Auto-approved by this rule' %}"><i class="mdi mdi-robot-outline"></i> {{ cr.approving_rule }}</span>{% else %}&mdash;{% endif %}
             {% elif cr.status == 'expired' %}
               <span class="text-muted">{% trans "Expired: nobody decided it in time" %}</span>
             {% elif cr.decided_by_id and cr.decided_by_id == cr.submitted_by_id %}

@@ -124,7 +124,7 @@ class InboxNavButton(PluginTemplateExtension):
             return ''
         from django.urls import reverse
 
-        from .inbox import inbox_count
+        from .inbox import field_work_count, inbox_count
         inbox_url = reverse('plugins:netbox_change_approval:changerequest_inbox')
         from . import changesets, permissions
 
@@ -133,7 +133,10 @@ class InboxNavButton(PluginTemplateExtension):
         change_set_button = changesets.enabled() and not permissions.has_any_bypass(request.user)
         active_change_set = changesets.active_for(request) if change_set_button else None
         return self.render('netbox_change_approval/inbox_nav.html', {
-            'count': inbox_count(request.user),
+            # Red badge for approvals that need attention; gray when only
+            # field work is left.
+            'approval_count': (approval_count := inbox_count(request.user)),
+            'count': approval_count + field_work_count(request.user),
             'active': request.path == inbox_url,
             'change_set_button': change_set_button,
             'active_change_set': active_change_set,

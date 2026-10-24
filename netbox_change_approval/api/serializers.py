@@ -22,6 +22,7 @@ class ChangeRequestSerializer(serializers.ModelSerializer):
     object_type = serializers.SerializerMethodField()
     submitted_by = serializers.SerializerMethodField()
     decided_by = serializers.SerializerMethodField()
+    auto_approved_by_rule = serializers.SerializerMethodField()
     approver_group = serializers.SerializerMethodField()
     link = serializers.SerializerMethodField()
     recipients = serializers.SerializerMethodField()
@@ -31,7 +32,7 @@ class ChangeRequestSerializer(serializers.ModelSerializer):
         model = ChangeRequest
         fields = (
             'id', 'display', 'url', 'object_type', 'object_id', 'object_repr', 'action', 'status',
-            'auto_approved', 'diff', 'revision', 'batch_id', 'submitted_by', 'submitted_at', 'approver_group',
+            'auto_approved', 'auto_approved_by_rule', 'diff', 'revision', 'batch_id', 'submitted_by', 'submitted_at', 'approver_group',
             'required_approvals', 'reason', 'decided_by', 'decided_at', 'decision_comment', 'applied_at', 'expires_at',
             'created', 'last_updated', 'link', 'recipients', 'recipient_emails',
         )
@@ -67,6 +68,11 @@ class ChangeRequestSerializer(serializers.ModelSerializer):
 
     def get_decided_by(self, obj):
         return _user(obj.decided_by)
+
+    def get_auto_approved_by_rule(self, obj):
+        if not obj.approving_rule:
+            return None
+        return {'id': obj.auto_approved_by_rule_id, 'name': obj.approving_rule}
 
     def get_approver_group(self, obj):
         return obj.approver_group.name if obj.approver_group_id else None

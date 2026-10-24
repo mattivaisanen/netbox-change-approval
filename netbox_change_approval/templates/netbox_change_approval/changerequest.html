@@ -190,7 +190,7 @@
         <thead><tr><th>{% trans "Reviewer" %}</th><th>{% trans "Status" %}</th><th>{% trans "Time" %}</th></tr></thead>
         {% for review in reviews %}
         <tr{% if review.old_revision %} class="text-muted"{% endif %}>
-          <td>{{ review.user|default:_("Rule") }}{% if review.old_revision %} <span class="small">({% trans "earlier revision" %})</span>{% endif %}
+          <td>{% if review.user %}{{ review.user }}{% elif review.rule %}<a href="{{ review.rule.get_absolute_url }}">{{ review.rule_name }}</a>{% else %}{{ review.rule_name|default:_("Rule") }}{% endif %}{% if review.old_revision %} <span class="small">({% trans "earlier revision" %})</span>{% endif %}
             {% if review.comment %}<div class="small text-muted">&ldquo;{{ review.comment }}&rdquo;</div>{% endif %}</td>
           <td><span class="badge text-bg-{{ review.color }}">{{ review.status }}</span></td>
           <td class="text-nowrap small">{% if review.time %}{{ review.time|isodatetime:"minutes" }}{% else %}&mdash;{% endif %}</td>

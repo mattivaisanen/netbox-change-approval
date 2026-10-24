@@ -39,7 +39,9 @@ class ApprovalGateValidator(CustomValidator):
                 del instance._nbca_auto_applied
                 messages.info(
                     request,
-                    _('Auto-approved by rule (request #%(pk)s).') % {'pk': auto_applied.pk},
+                    _('Auto-approved by rule %(rule)s (request #%(pk)s).') % {
+                        'rule': auto_applied.approving_rule, 'pk': auto_applied.pk,
+                    },
                     fail_silently=True,
                 )
             return

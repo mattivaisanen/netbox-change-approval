@@ -214,6 +214,8 @@ def _gate(instance, action, request):
 
     if rule is not None and rule.outcome == RuleOutcomeChoices.AUTO:
         change_request.auto_approved = True
+        change_request.auto_approved_by_rule = rule
+        change_request.auto_approved_by_rule_name = str(rule)[:200]
         change_request.status = StatusChoices.APPLIED
         change_request.applied_at = timezone.now()
 

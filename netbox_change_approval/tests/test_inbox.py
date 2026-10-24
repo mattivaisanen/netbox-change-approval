@@ -86,6 +86,36 @@ class InboxTests(TestCase):
             'plugins:netbox_change_approval:changerequest_changelog', kwargs={'pk': applied.pk},
         ))
 
+    def _field_task(self, user):
+        from django.contrib.contenttypes.models import ContentType
+
+        from ..models import WorkTask
+
+        applied = ChangeRequest.objects.create(
+            content_type=ContentType.objects.get_for_model(Manufacturer), object_repr='Vendor',
+            action=ActionChoices.UPDATE, status=StatusChoices.APPLIED, submitted_by=user,
+        )
+        return WorkTask.objects.create(change_request=applied, text='Mount sw1 in rack A3')
+
+    def test_field_work_counts_in_gray(self):
+        self._field_task(self.alice)
+        self.assertEqual(inbox.field_work_count(self.alice), 1)
+        self.assertEqual(inbox.inbox_count(self.alice), 0)
+
+        self.client.force_login(self.alice)
+        page = self.client.get(reverse('plugins:netbox_change_approval:changerequest_inbox'))
+        self.assertContains(page, '<span class="badge text-bg-secondary ms-2" title="Field work only">1</span>', html=False)
+        self.assertNotContains(page, 'Nothing waiting on you.')
+
+    def test_approvals_make_the_count_red(self):
+        self._update('single', 'one')
+        self._field_task(self.approver)
+
+        self.client.force_login(self.approver)
+        page = self.client.get(reverse('plugins:netbox_change_approval:changerequest_inbox'))
+        # One decision plus one field work task, in red.
+        self.assertContains(page, '<span class="badge text-bg-red ms-2">2</span>', html=False)
+
     def test_my_requests_redirects_to_inbox(self):
         self.client.force_login(self.alice)
         response = self.client.get(reverse('plugins:netbox_change_approval:changerequest_mine'))

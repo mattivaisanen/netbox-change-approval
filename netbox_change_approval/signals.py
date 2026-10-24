@@ -113,7 +113,8 @@ def finish_pending_create(sender, instance, created, **kwargs):
         if request is not None:
             messages.success(
                 request,
-                f'{instance} created — auto-approved by rule (request #{change_request.pk}).',
+                f'{instance} created — auto-approved by rule {change_request.approving_rule} '
+                f'(request #{change_request.pk}).',
                 fail_silently=True,
             )
             # See ChangeApprovalMiddleware._drop_duplicate_create_message: without

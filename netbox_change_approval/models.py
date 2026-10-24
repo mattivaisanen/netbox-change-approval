@@ -305,6 +305,17 @@ class ChangeRequest(NetBoxModel):
     )
     status = models.CharField(max_length=10, choices=StatusChoices.choices, default=StatusChoices.PENDING)
     auto_approved = models.BooleanField(default=False)
+    # The rule that auto-approved it, shown as its approver. The name is kept
+    # too, so the request still says which rule it was after that rule is
+    # renamed or deleted.
+    auto_approved_by_rule = models.ForeignKey(
+        to='netbox_change_approval.ApprovalRule',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='+',
+    )
+    auto_approved_by_rule_name = models.CharField(max_length=200, blank=True)
     batch_id = models.UUIDField(null=True, blank=True, db_index=True)
 
     submitted_by = models.ForeignKey(
@@ -407,6 +418,14 @@ class ChangeRequest(NetBoxModel):
     def get_absolute_url(self):
         return reverse('plugins:netbox_change_approval:changerequest', args=[self.pk])
 
+    @property
+    def approving_rule(self):
+        """Name of the rule that auto-approved this request ('' if none, or
+        if it was logged before rule names were recorded)."""
+        if not self.auto_approved:
+            return ''
+        return self.auto_approved_by_rule_name or (str(self.auto_approved_by_rule) if self.auto_approved_by_rule_id else '')
+
     def get_action_color(self):
         # Literal Tabler color names (green/blue/red), not Bootstrap semantic
         # ones (success/warning/danger) — matching NetBox's own
@@ -462,7 +481,9 @@ class ChangeRequest(NetBoxModel):
             text = _('Waiting for approval ({ref})') if self.revision <= 1 else _('Resubmitted for approval ({ref})')
             text = text.format(ref=ref)
         elif self.status == StatusChoices.APPLIED:
-            if self.auto_approved:
+            if self.auto_approved and self.approving_rule:
+                text = _('Auto-approved by rule {rule} ({ref})').format(rule=self.approving_rule, ref=ref)
+            elif self.auto_approved:
                 text = _('Auto-approved by rule ({ref})').format(ref=ref)
             elif decider:
                 text = _('Approved by {user} ({ref})').format(user=decider, ref=ref)

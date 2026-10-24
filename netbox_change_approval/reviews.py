@@ -74,5 +74,6 @@ def reviews(change_request):
         items.append({
             'user': None, 'status': _('Approved automatically'), 'color': 'green',
             'time': change_request.applied_at, 'comment': '', 'old_revision': False,
+            'rule': change_request.auto_approved_by_rule, 'rule_name': change_request.approving_rule,
         })
     return sorted(items, key=lambda item: (item['time'] is not None, item['time'] or 0))

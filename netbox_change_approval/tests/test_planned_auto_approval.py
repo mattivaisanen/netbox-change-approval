@@ -69,6 +69,28 @@ class PlannedAutoApprovalTests(TestCase):
         site.refresh_from_db()
         self.assertEqual(site.description, 'new description')
 
+    def test_rule_is_shown_as_approver(self):
+        from .. import reviews
+
+        site = Site.objects.create(name='S1', slug='s1', status='planned')
+        site.description = 'new description'
+        gating.gate(site, ActionChoices.UPDATE, fake_request(self.alice))
+        site.save()
+
+        change_request = ChangeRequest.objects.get(object_id=site.pk)
+        rule = ApprovalRule.objects.get(description='planned sites')
+        self.assertEqual(change_request.auto_approved_by_rule, rule)
+        self.assertEqual(change_request.approving_rule, 'planned sites')
+        self.assertIn('planned sites', change_request.activity_message())
+        auto = [item for item in reviews.reviews(change_request) if item['user'] is None]
+        self.assertEqual(auto[0]['rule_name'], 'planned sites')
+
+        # Renaming or deleting the rule later keeps the name on the request.
+        rule.delete()
+        change_request.refresh_from_db()
+        self.assertIsNone(change_request.auto_approved_by_rule)
+        self.assertEqual(change_request.approving_rule, 'planned sites')
+
     def test_planned_to_active_needs_approval(self):
         site = Site.objects.create(name='S1', slug='s1', status='planned')
         site.status = 'active'

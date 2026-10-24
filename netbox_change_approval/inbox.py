@@ -9,6 +9,9 @@ Counted (something for you to do):
   retracted by you to edit.
 - Rejected: your rejected (or expired) requests you haven't opened yet.
 
+Also counted, but shown in gray on the navbar button (no decision needed):
+- Your field work: open tasks from your applied requests (worksheet.py).
+
 Listed for reference, not counted:
 - Waiting on others: your own pending requests.
 - Approved: your requests that were applied.
@@ -107,6 +110,16 @@ def inbox_count(user):
     if not user.is_authenticated:
         return 0
     return item_count(_decide(user)) + item_count(_sent_back(user)) + item_count(_rejected(user))
+
+
+def field_work_count(user):
+    """Open field work tasks from `user`'s applied requests (0 when work
+    sheets are off)."""
+    from . import worksheet
+
+    if not user.is_authenticated or not worksheet.enabled():
+        return 0
+    return worksheet.open_tasks().filter(change_request__submitted_by=user).count()
 
 
 def inbox_sections(user):

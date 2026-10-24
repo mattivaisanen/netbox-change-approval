@@ -96,7 +96,7 @@ class ChangeRequestTable(NetBoxTable):
     auto_approved = columns.BooleanColumn()
     submitted_by = tables.Column(linkify=True)
     approver_group = tables.Column(linkify=True)
-    decided_by = tables.Column(linkify=True)
+    decided_by = tables.Column(linkify=True, empty_values=())
     batch_id = tables.Column(verbose_name=_('Batch'))
 
     class Meta(NetBoxTable.Meta):
@@ -110,3 +110,14 @@ class ChangeRequestTable(NetBoxTable):
             'id', 'content_type', 'object_repr', 'action', 'status', 'submitted_by',
             'submitted_at', 'approver_group',
         )
+
+    def render_decided_by(self, value, record):
+        # Auto-approved: the rule is the approver.
+        if value is None and record.approving_rule:
+            rule = record.auto_approved_by_rule
+            if rule is not None:
+                return format_html('<a href="{}">{}</a>', rule.get_absolute_url(), record.approving_rule)
+            return record.approving_rule
+        if value is None:
+            return '—'
+        return format_html('<a href="{}">{}</a>', value.get_absolute_url(), value) if hasattr(value, 'get_absolute_url') else str(value)
