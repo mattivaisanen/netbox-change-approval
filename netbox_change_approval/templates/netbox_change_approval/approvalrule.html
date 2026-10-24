@@ -9,6 +9,20 @@
     <div class="card">
       <h2 class="card-header">{% trans "Approval Rule" %}</h2>
       <table class="table table-hover attr-table">
+        {% if object.is_default %}
+        <tr>
+          <th scope="row">{% trans "Priority" %}</th>
+          <td>{% trans "Last" %}</td>
+        </tr>
+        <tr>
+          <th scope="row">{% trans "Description" %}</th>
+          <td>{{ object.description|placeholder }}</td>
+        </tr>
+        <tr>
+          <th scope="row">{% trans "Applies to" %}</th>
+          <td>{% trans "Every change no other rule matches" %}</td>
+        </tr>
+        {% else %}
         <tr>
           <th scope="row">{% trans "Priority" %}</th>
           <td>{{ object.priority }}</td>
@@ -29,6 +43,7 @@
           <th scope="row">{% trans "Action" %}</th>
           <td>{{ object.get_action_display }}</td>
         </tr>
+        {% endif %}
         <tr>
           <th scope="row">{% trans "Outcome" %}</th>
           <td>{% badge object.get_outcome_display bg_color=object.get_outcome_color %}</td>
@@ -36,7 +51,11 @@
         {% if object.outcome == "require" %}
         <tr>
           <th scope="row">{% trans "Approver group" %}</th>
-          <td>{% if object.approver_group %}{{ object.approver_group|linkify }}{% else %}<span class="text-muted">{% trans "Default approver group" %}</span>{% endif %}</td>
+          <td>
+            {% if object.approver_group %}{{ object.approver_group|linkify }}
+            {% elif default_group %}{{ default_group|linkify }} <span class="text-muted">({% if object.is_default %}{% trans "configuration.py" %}{% else %}{% trans "from Default rule" %}{% endif %})</span>
+            {% else %}<span class="text-warning">{% trans "None: only superusers can decide these changes" %}</span>{% endif %}
+          </td>
         </tr>
         <tr>
           <th scope="row">{% trans "Approvals needed" %}</th>
@@ -49,16 +68,20 @@
         <tr>
           <th scope="row">{% trans "Expire after" %}</th>
           <td>
-            {% if object.expire_after_days is None %}<span class="text-muted">{% trans "Plugin setting" %}</span>
-            {% elif object.expire_after_days == 0 %}{% trans "Never" %}
+            {% if object.expire_after_days is None and not object.is_default %}
+              {% if default_rule.expire_after_days %}{% blocktrans count days=default_rule.expire_after_days %}{{ days }} day{% plural %}{{ days }} days{% endblocktrans %}{% else %}{% trans "Never" %}{% endif %}
+              <span class="text-muted">({% trans "from Default rule" %})</span>
+            {% elif not object.expire_after_days %}{% trans "Never" %}
             {% else %}{% blocktrans count days=object.expire_after_days %}{{ days }} day{% plural %}{{ days }} days{% endblocktrans %}{% endif %}
           </td>
         </tr>
         {% endif %}
+        {% if not object.is_default %}
         <tr>
           <th scope="row">{% trans "Enabled" %}</th>
           <td>{% checkmark object.enabled %}</td>
         </tr>
+        {% endif %}
       </table>
     </div>
     {% plugin_left_page object %}
@@ -67,7 +90,7 @@
     <div class="card">
       <h2 class="card-header">{% trans "How rules work" %}</h2>
       <div class="card-body">
-        {% trans "Rules are checked in priority order (lowest first). The first enabled rule that matches decides what happens. If no rule matches, the change needs approval from the default approver group." %}
+        {% blocktrans trimmed %}Rules are checked in priority order (lowest first). The first enabled rule that matches decides what happens. The Default rule always comes last: it decides every change no other rule matches, and "Needs approval" rules that leave the approver group or expiry blank use its values.{% endblocktrans %}
       </div>
     </div>
     {% plugin_right_page object %}

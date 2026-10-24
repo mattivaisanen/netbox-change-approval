@@ -3,6 +3,12 @@
 ## Unreleased
 
 ### New features
+- Default rule: Approval Rules now ends with a "Default rule" row that
+  decides every change no other rule matches. Edit it like any rule to set
+  the approver group, approvals needed, reason required and expiry for
+  those changes. It always needs approval and can't be deleted or disabled.
+  "Needs approval" rules that leave the approver group or expiry blank use
+  the Default rule's values.
 - Approve now, apply later: the Approve dialog has an optional "Apply at"
   time (a maintenance window, say). The last approval then schedules the
   change instead of applying it: it stays pending and locked, shows its time
@@ -28,6 +34,9 @@
   pop-up style instead of the browser's plain OK/Cancel box.
 
 ### Improvements
+- The default approver group and request expiry moved from the Settings
+  page into the Default rule, so the Settings page only holds plugin-wide
+  options. Upgrading copies the values in effect into the Default rule.
 - Marking field work done from the Approval Inbox keeps your place on the
   page instead of jumping down to the field work section.
 - The "Working in change set" bar no longer shows on the change set's own

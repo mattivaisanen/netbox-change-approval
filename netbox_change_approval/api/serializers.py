@@ -81,7 +81,7 @@ class ApprovalRuleSerializer(serializers.ModelSerializer):
     class Meta:
         model = ApprovalRule
         fields = (
-            'id', 'display', 'url', 'priority', 'object_type', 'constraint', 'action', 'outcome',
+            'id', 'display', 'url', 'is_default', 'priority', 'object_type', 'constraint', 'action', 'outcome',
             'approver_group', 'required_approvals', 'require_reason', 'expire_after_days', 'enabled', 'description',
             'created', 'last_updated',
         )

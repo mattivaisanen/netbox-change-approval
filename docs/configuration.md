@@ -5,9 +5,9 @@ NetBox `configuration.py`.
 
 | Key | Type | Default | Description |
 |---|---|---|---|
-| `default_approver_group` | `str` | `'Change Approvers'` | Name of the NetBox `Group` (`users.Group` — NetBox ships its own, not Django's stock `auth.Group`) used when no Approval Rule matches the object (or a "Needs approval" rule has no group). Must already exist (Admin → Groups) — if it doesn't, changes are still queued but have no approver group assigned, and only superusers can decide them. |
+| `default_approver_group` | `str` | `'Change Approvers'` | Name of the NetBox `Group` (`users.Group`) the **Default rule** (bottom of Change Approvals → Approval Rules) starts with when it is created, and its fallback while it leaves the approver group blank. Set the group on the Default rule instead. If no such group exists, changes are still queued but only superusers can decide them. |
 | `exempt_models` | `list[str]` | `[]` | Emergency off switch: models the plugin doesn't touch at all, as `'app_label.model_name'` strings (e.g. `'extras.tag'`). Needs a restart; for normal use prefer a "Skip approval" Approval Rule. Applies in addition to this plugin's own models, which are always excluded regardless of this setting. |
-| `expire_pending_after_days` | `int` or `None` | `None` | Days after which a pending request nobody decided expires: nothing is applied and a pending new object is removed. Applies to rules that don't set their own expiry. `None` or `0` means never. NetBox's background worker checks every hour. |
+| `expire_pending_after_days` | `int` or `None` | `None` | Only the starting **Expire after (days)** of the Default rule when it is created. Set expiry on the Default rule instead. |
 | `pending_row_style` | `str` | `'by_action'` | How pending objects look in object lists and rack elevations: `'by_action'` (green new, blue edit, red delete, with the requested values) or `'outline'` (a single yellow outline). |
 | `group_components_with_parent` | `bool` | `True` | While a new device or VM waits for approval, its interfaces, ports, bays, modules, inventory items, VM disks and IP/MAC addresses on its interfaces belong to its request instead of getting their own. `False` gives each its own request again. |
 | `work_sheets` | `bool` | `True` | Field work: approved changes that need work on site (mounting a device, patching a cable, configuring an IP address, ...) become tasks in the **Field work** section of the Approval Inbox, with a printable work sheet by rack. `False` turns it off. |
@@ -19,11 +19,9 @@ Example:
 ```python
 PLUGINS_CONFIG = {
     'netbox_change_approval': {
-        'default_approver_group': 'Network Change Board',
         'exempt_models': [
             'extras.tag',
         ],
-        'expire_pending_after_days': 14,
         'pending_row_style': 'by_action',
         'group_components_with_parent': True,
         'work_sheets': True,
@@ -34,7 +32,8 @@ PLUGINS_CONFIG = {
 
 ## Changing settings in NetBox
 
-Superusers can change every setting above except `exempt_models` on
+Superusers can change `pending_row_style`, `group_components_with_parent`,
+`work_sheets` and `change_sets` on
 **Change Approvals → Settings**, without editing `configuration.py` or
 restarting NetBox:
 
@@ -52,8 +51,11 @@ restarting NetBox:
 - Changing a setting doesn't itself need approval.
 - Only superusers see the page (it's in the Change Approvals menu for them
   only).
-- Changing the default approver group updates who sees the "Approvals" menu
-  right away.
+
+The default approver group, approvals needed, reason required and expiry for
+changes no rule matches are not settings: they are the **Default rule** at the
+bottom of **Change Approvals → Approval Rules**. Upgrading moves the values in
+effect (saved on the settings page, else `configuration.py`) into that rule.
 
 `exempt_models` stays `configuration.py`-only. It is the emergency off switch:
 it decides at startup which models the plugin touches at all, and it has to

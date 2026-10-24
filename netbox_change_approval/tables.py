@@ -1,4 +1,5 @@
 import django_tables2 as tables
+from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 
 from netbox.tables import NetBoxTable, columns
@@ -16,6 +17,12 @@ class ApprovalRuleTable(NetBoxTable):
     outcome = columns.ChoiceFieldColumn()
     approver_group = tables.Column(linkify=True)
     enabled = columns.BooleanColumn()
+
+    def render_priority(self, value, record):
+        # The Default rule is always last, whatever its stored priority.
+        if record.is_default:
+            return format_html('<a href="{}">{}</a>', record.get_absolute_url(), _('Last'))
+        return format_html('<a href="{}">{}</a>', record.get_absolute_url(), value)
 
     class Meta(NetBoxTable.Meta):
         model = ApprovalRule

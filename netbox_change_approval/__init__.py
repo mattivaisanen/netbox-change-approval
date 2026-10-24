@@ -16,15 +16,16 @@ class NetBoxChangeApprovalConfig(PluginConfig):
     min_version = '4.7.0'
 
     default_settings = {
-        # Name of the NetBox Group that approves a change when no "Needs
-        # approval" rule with its own approver group matches. Must exist.
+        # Approver group of the Default rule (bottom of Approval Rules) when
+        # that rule leaves its group blank. Also the group the Default rule
+        # starts with when it's created. Edit the Default rule instead.
         'default_approver_group': 'Change Approvers',
         # Dotted labels ('app_label.model_name') to exclude from gating entirely, on top
         # of this plugin's own models (which are always excluded). Useful for noisy,
         # low-stakes, or infrastructure-internal models you never want to gate.
         'exempt_models': [],
-        # Days after which a pending request nobody decided expires, for rules
-        # that don't set their own. None (or 0) means never.
+        # Only the starting "Expire after (days)" of the Default rule, when
+        # migration 0017 creates it. Edit the Default rule instead.
         'expire_pending_after_days': None,
         # How pending objects look in lists and rack elevations: 'by_action'
         # (green new / blue edit / red delete, with a label and the requested

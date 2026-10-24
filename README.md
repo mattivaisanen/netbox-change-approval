@@ -83,14 +83,11 @@ PLUGINS = [
 
 PLUGINS_CONFIG = {
     'netbox_change_approval': {
-        # Approver group used when no "Needs approval" rule names its own.
+        # Approver group the Default rule (Approval Rules) starts with.
         # Must be an existing NetBox group (Admin -> Groups).
         'default_approver_group': 'Change Approvers',
         # Optional: models to exclude from gating entirely, as 'app_label.model' strings.
         'exempt_models': [],
-        # Optional: days after which a pending request nobody decided expires,
-        # for rules that don't set their own. None means never.
-        'expire_pending_after_days': None,
         # Optional: 'outline' brings back the single yellow outline for pending
         # objects in lists and rack elevations, instead of colors per action.
         'pending_row_style': 'by_action',
@@ -372,7 +369,7 @@ notification.
 ### Expiry
 
 A request nobody decides within its rule's **Expire after (days)** (or the
-`expire_pending_after_days` setting) expires: nothing is applied, a pending
+Default rule's) expires: nothing is applied, a pending
 new object is removed, and the object is unlocked. The submitter sees it in
 their inbox and gets a notification. NetBox's background worker checks every
 hour (the same worker that runs scripts); `manage.py expire_change_requests`
@@ -410,12 +407,11 @@ NetBox's "view" permission on approval rules can read them. Each rule has:
   of these". Leave blank to match every object of that type.
 - **Action**: Create, Update, Delete, or Any.
 - **Outcome**:
-  - **Needs approval**: from the chosen **Approver group**, or the default
-    approver group if left blank. **Approvals needed** says how many
+  - **Needs approval**: from the chosen **Approver group**, or the Default
+    rule's if left blank. **Approvals needed** says how many
     different people from that group must approve (default 1); the change is
     applied when the last one does. **Expire after (days)** closes requests
-    nobody decided in time (blank: the `expire_pending_after_days` setting;
-    0: never).
+    nobody decided in time (blank: the Default rule's; 0: never).
   - **Reason required** (with "Needs approval"): the change is refused
     until NetBox's changelog message box is filled in; that text is shown to
     approvers as the request's reason.
@@ -423,8 +419,13 @@ NetBox's "view" permission on approval rules can read them. Each rule has:
     logged as an auto-approved request.
   - **Skip approval**: the change goes through with no record at all.
 - **Priority**: rules are checked lowest number first, and **the first enabled
-  rule that matches decides**. If no rule matches, the change needs approval
-  from `default_approver_group`.
+  rule that matches decides**.
+
+The **Default rule** is always the last row. It decides every change no
+other rule matches: it always needs approval, and you set its approver
+group, approvals needed, reason required and expiry like any rule's. It
+can't be deleted or disabled. Upgrading creates it from the
+`default_approver_group` and `expire_pending_after_days` values in effect.
 
 For an **update**, "Approve automatically" and "Skip approval" rules must
 match both the object as it is now *and* the new values. That's what keeps

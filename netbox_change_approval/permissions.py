@@ -239,9 +239,10 @@ def approver_queue(user, queryset):
 def sync_is_approver_permission():
     """
     Keeps one ObjectPermission's `groups` in sync with "every Group that is
-    currently an approver" — i.e. referenced by an enabled "Needs approval" ApprovalRule,
-    or the configured default_approver_group (which also decides who approves
-    when no rule matches — see gating._default_approver_group). Called after
+    currently an approver" — i.e. referenced by an enabled "Needs approval" ApprovalRule
+    (the Default rule included), or the configuration.py default_approver_group
+    when the Default rule leaves its group blank (see
+    gating._default_approver_group). Called after
     `migrate`, on each process's first request, on every ApprovalRule
     save/delete and when the default approver group is created, renamed or
     deleted (signals.py), so "Approvals" nav visibility
@@ -251,19 +252,20 @@ def sync_is_approver_permission():
     an admin-facing permission.
     """
     from core.models import ObjectType
-    from users.models import Group, ObjectPermission
+    from users.models import ObjectPermission
 
     from .models import ApprovalRule, ChangeRequest, RuleOutcomeChoices
-    from .plugin_settings import get_setting
 
     group_ids = set(
         ApprovalRule.objects.filter(
             enabled=True, outcome=RuleOutcomeChoices.REQUIRE, approver_group__isnull=False,
         ).values_list('approver_group_id', flat=True)
     )
-    default_name = get_setting('default_approver_group')
-    if default_name:
-        group_ids.update(Group.objects.filter(name=default_name).values_list('pk', flat=True))
+    from .gating import _default_approver_group
+
+    default_group = _default_approver_group()
+    if default_group is not None:
+        group_ids.add(default_group.pk)
 
     perm, _created = ObjectPermission.objects.get_or_create(
         name=_IS_APPROVER_SYNC_PERM_NAME,

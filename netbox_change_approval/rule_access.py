@@ -47,10 +47,14 @@ class RuleActionsColumn(columns.ActionsColumn):
 
     def render(self, record, table, **kwargs):
         request = getattr(table, 'context', {}).get('request')
-        if can_manage_rules(getattr(request, 'user', None)):
+        can_manage = can_manage_rules(getattr(request, 'user', None))
+        # The Default rule can be edited but never deleted.
+        undeletable = getattr(record, 'is_default', False)
+        if can_manage and not undeletable:
             return super().render(record, table, **kwargs)
+        keep = {'changelog', 'edit'} if can_manage else {'changelog'}
         all_actions = self.actions
-        self.actions = {name: attrs for name, attrs in all_actions.items() if name == 'changelog'}
+        self.actions = {name: attrs for name, attrs in all_actions.items() if name in keep}
         try:
             return super().render(record, table, **kwargs)
         finally:

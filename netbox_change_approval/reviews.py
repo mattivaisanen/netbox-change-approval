@@ -15,11 +15,13 @@ def _rule_name(change_request):
 
     rules = ApprovalRule.objects.filter(
         enabled=True, outcome=RuleOutcomeChoices.REQUIRE, approver_group_id=change_request.approver_group_id,
-    ).filter(Q(content_type__isnull=True) | Q(content_type_id=change_request.content_type_id)).order_by('priority', 'pk')
+    ).filter(Q(content_type__isnull=True) | Q(content_type_id=change_request.content_type_id)).order_by('is_default', 'priority', 'pk')
     rule = rules.first()
+    if rule is None:
+        rule = ApprovalRule.get_default()
     if rule is not None:
         return str(rule), rule
-    return _('Default approval'), None
+    return _('Default rule'), None
 
 
 def policy_rules(change_request):

@@ -2,8 +2,8 @@
 Expiring requests nobody decided in time.
 
 A request's deadline (ChangeRequest.expires_at) comes from its approval rule's
-"Expire after (days)", or the plugin setting `expire_pending_after_days` when
-the rule leaves it blank (off unless set). Resubmitting after a send-back sets
+"Expire after (days)", or the Default rule's when the rule leaves it blank
+(off unless set). Resubmitting after a send-back sets
 a new deadline.
 
 An expired request ends like a rejection: nothing is applied, a pending

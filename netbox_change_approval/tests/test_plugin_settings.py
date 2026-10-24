@@ -4,8 +4,8 @@ from django.urls import reverse
 from netbox.context import current_request
 from users.models import Group, ObjectPermission, User
 
-from .. import approvals, changesets, components, pending_marks, plugin_settings, worksheet
-from ..models import PluginSetting
+from .. import changesets, components, pending_marks, plugin_settings, worksheet
+from ..models import ApprovalRule, PluginSetting
 from ..permissions import _IS_APPROVER_SYNC_PERM_NAME
 from .utils import fake_request
 
@@ -13,11 +13,10 @@ PLUGINS_CONFIG = {
     'netbox_change_approval': {
         'default_approver_group': 'Change Approvers',
         'exempt_models': ['extras.tag'],
-        'expire_pending_after_days': 14,
         'pending_row_style': 'by_action',
         'group_components_with_parent': True,
         'work_sheets': True,
-        'change_sets': True,
+        'change_sets': False,
     },
 }
 
@@ -27,8 +26,8 @@ URL = 'plugins:netbox_change_approval:settings'
 @override_settings(PLUGINS_CONFIG=PLUGINS_CONFIG)
 class SettingLookupTests(TestCase):
     def test_configuration_py_value_without_saved_value(self):
-        self.assertEqual(plugin_settings.get_setting('expire_pending_after_days'), 14)
-        self.assertEqual(plugin_settings.source('expire_pending_after_days'), 'config')
+        self.assertFalse(plugin_settings.get_setting('change_sets'))
+        self.assertEqual(plugin_settings.source('change_sets'), 'config')
         self.assertEqual(plugin_settings.source('pending_row_style'), 'default')
 
     def test_saved_value_overrides_until_reset(self):
@@ -41,24 +40,21 @@ class SettingLookupTests(TestCase):
         self.assertFalse(PluginSetting.objects.exists())
 
     def test_every_editable_setting_is_read_at_runtime(self):
-        plugin_settings.save('expire_pending_after_days', 3)
         plugin_settings.save('group_components_with_parent', False)
         plugin_settings.save('work_sheets', False)
-        plugin_settings.save('change_sets', False)
-        self.assertFalse(changesets.enabled())
-        self.assertEqual(approvals.default_expiry_days(), 3)
+        plugin_settings.save('change_sets', True)
+        self.assertTrue(changesets.enabled())
         self.assertFalse(components.enabled())
         self.assertFalse(worksheet.enabled())
 
     def test_saving_the_configuration_value_keeps_following_configuration(self):
-        plugin_settings.save('expire_pending_after_days', 3)
-        self.assertFalse(plugin_settings.save('expire_pending_after_days', 14))
+        self.assertTrue(plugin_settings.save('change_sets', True))
+        self.assertFalse(plugin_settings.save('change_sets', False))
         self.assertFalse(PluginSetting.objects.exists())
 
-    def test_never_expire_means_the_same_as_zero(self):
-        with override_settings(PLUGINS_CONFIG={'netbox_change_approval': {'expire_pending_after_days': None}}):
-            self.assertFalse(plugin_settings.save('expire_pending_after_days', 0))
-            self.assertFalse(PluginSetting.objects.exists())
+    def test_default_rule_settings_left_the_page(self):
+        self.assertNotIn('default_approver_group', plugin_settings.BY_KEY)
+        self.assertNotIn('expire_pending_after_days', plugin_settings.BY_KEY)
 
     def test_exempt_models_only_from_configuration(self):
         PluginSetting.objects.create(key='exempt_models', value=[])
@@ -75,10 +71,12 @@ class SettingLookupTests(TestCase):
         finally:
             current_request.reset(token)
 
-    def test_changing_default_group_moves_the_approvals_menu(self):
+    def test_changing_default_rule_group_moves_the_approvals_menu(self):
         Group.objects.create(name='Change Approvers')
         board = Group.objects.create(name='Network Board')
-        plugin_settings.save('default_approver_group', 'Network Board')
+        rule = ApprovalRule.get_default()
+        rule.approver_group = board
+        rule.save()
         groups = set(ObjectPermission.objects.get(name=_IS_APPROVER_SYNC_PERM_NAME).groups.all())
         self.assertEqual(groups, {board})
 
@@ -93,12 +91,10 @@ class SettingsPageTests(TestCase):
 
     def _form(self, **changes):
         data = {
-            'default_approver_group': 'Change Approvers',
-            'expire_pending_after_days': '14',
             'pending_row_style': 'by_action',
             'group_components_with_parent': 'on',
             'work_sheets': 'on',
-            'change_sets': 'on',
+            'change_sets': None,
         }
         data.update(changes)
         return {key: value for key, value in data.items() if value is not None}
@@ -132,7 +128,7 @@ class SettingsPageTests(TestCase):
 
     def test_invalid_value_is_rejected(self):
         self.client.force_login(self.admin)
-        response = self.client.post(reverse(URL), self._form(expire_pending_after_days='-1'))
+        response = self.client.post(reverse(URL), self._form(pending_row_style='bogus'))
         self.assertEqual(response.status_code, 200)
         self.assertFalse(PluginSetting.objects.exists())
 

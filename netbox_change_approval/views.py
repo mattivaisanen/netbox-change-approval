@@ -35,11 +35,30 @@ class ApprovalRuleListView(RuleReadMixin, generic.ObjectListView):
     filterset_form = forms.ApprovalRuleFilterForm
     table = tables.ApprovalRuleTable
 
+    def get(self, request, *args, **kwargs):
+        ApprovalRule.get_default()  # always listed, even after a database flush
+        return super().get(request, *args, **kwargs)
+
 
 @register_model_view(ApprovalRule)
 class ApprovalRuleView(RuleReadMixin, generic.ObjectView):
     queryset = ApprovalRule.objects.all()
     template_name = 'netbox_change_approval/approvalrule.html'
+
+    def get_permitted_actions(self, user, model=None):
+        actions = super().get_permitted_actions(user, model=model)
+        if getattr(model, 'is_default', False):  # editable, never deleted
+            actions = [action for action in actions if action.name != 'delete']
+        return actions
+
+    def get_extra_context(self, request, instance):
+        from .gating import _default_approver_group
+
+        default_rule = ApprovalRule.get_default()
+        return {
+            'default_rule': default_rule,
+            'default_group': _default_approver_group(),
+        }
 
 
 @register_model_view(ApprovalRule, 'add', detail=False)
@@ -49,14 +68,15 @@ class ApprovalRuleEditView(RuleWriteMixin, generic.ObjectEditView):
     form = forms.ApprovalRuleForm
 
 
+# The Default rule can't be deleted: it isn't in these querysets.
 @register_model_view(ApprovalRule, 'delete')
 class ApprovalRuleDeleteView(RuleWriteMixin, generic.ObjectDeleteView):
-    queryset = ApprovalRule.objects.all()
+    queryset = ApprovalRule.objects.filter(is_default=False)
 
 
 @register_model_view(ApprovalRule, 'bulk_delete', path='delete', detail=False)
 class ApprovalRuleBulkDeleteView(RuleWriteMixin, generic.BulkDeleteView):
-    queryset = ApprovalRule.objects.all()
+    queryset = ApprovalRule.objects.filter(is_default=False)
     filterset = filtersets.ApprovalRuleFilterSet
     table = tables.ApprovalRuleTable
 

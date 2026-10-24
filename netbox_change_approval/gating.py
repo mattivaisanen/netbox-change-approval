@@ -15,26 +15,33 @@ from .models import ActionChoices, ApprovalRule, ChangeRequest, RuleOutcomeChoic
 
 
 def _default_approver_group():
+    """The Default rule's approver group. If it leaves the group blank: the
+    group configuration.py names in `default_approver_group`, if it exists."""
+    default_rule = ApprovalRule.get_default()
+    if default_rule is not None and default_rule.approver_group_id:
+        return default_rule.approver_group
+    return _config_approver_group()
+
+
+def _config_approver_group():
+    """The group configuration.py names in `default_approver_group`, or None."""
     from users.models import Group
 
-    from .plugin_settings import get_setting
+    from .plugin_settings import config_value
 
-    default_name = get_setting('default_approver_group')
-    try:
-        return Group.objects.get(name=default_name)
-    except Group.DoesNotExist:
-        return None
+    return Group.objects.filter(name=config_value('default_approver_group')).first()
 
 
 def _first_matching_rule(instance, action):
-    """The first enabled ApprovalRule (by priority) that matches, or None."""
-    rules = ApprovalRule.objects.filter(enabled=True).select_related(
+    """The first enabled ApprovalRule (by priority) that matches, else the
+    Default rule (None only if the Default rule is missing)."""
+    rules = ApprovalRule.objects.filter(enabled=True, is_default=False).select_related(
         'content_type', 'approver_group',
     ).order_by('priority', 'pk')
     for rule in rules:
         if rule.matches(instance, action=action):
             return rule
-    return None
+    return ApprovalRule.get_default()
 
 
 #: Request attribute: {model label: [unsaved ChangeRequest, ...]} for REST API creates.

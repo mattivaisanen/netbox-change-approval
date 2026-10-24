@@ -22,18 +22,17 @@ from .models import ActionChoices, ChangeRequest, ChangeRequestApproval, RuleOut
 
 
 def default_expiry_days():
-    from .plugin_settings import get_setting
+    """The Default rule's "Expire after (days)": None means never."""
+    from .models import ApprovalRule
 
-    value = get_setting('expire_pending_after_days')
-    try:
-        return int(value) if value else None
-    except (TypeError, ValueError):
-        return None
+    default_rule = ApprovalRule.get_default()
+    return (default_rule.expire_after_days or None) if default_rule is not None else None
 
 
 def apply_rule_settings(change_request, rule):
     """Copy the matching rule's approval count and expiry onto a new request.
-    `rule` is the first matching ApprovalRule, or None (default approvers)."""
+    `rule` is the first matching ApprovalRule (the Default rule if nothing
+    else matched), or None."""
     requires = rule is not None and rule.outcome == RuleOutcomeChoices.REQUIRE
     change_request.required_approvals = max(1, rule.required_approvals or 1) if requires else 1
     days = rule.expire_after_days if requires and rule.expire_after_days is not None else default_expiry_days()

@@ -32,7 +32,7 @@ class RuleAccessTests(TestCase):
             'priority': 1, 'action': 'any', 'outcome': RuleOutcomeChoices.SKIP, 'enabled': True,
         })
         self.assertEqual(response.status_code, 403)
-        self.assertEqual(ApprovalRule.objects.count(), 1)
+        self.assertEqual(ApprovalRule.objects.filter(is_default=False).count(), 1)
 
     def test_staff_cannot_edit_or_delete_rule(self):
         self.client.force_login(self.staff)

@@ -62,17 +62,6 @@ class Setting:
 
 SETTINGS = (
     Setting(
-        'default_approver_group', _('Default approver group'),
-        _('Approves changes no "Needs approval" rule with its own approver group covers. '
-          'Without one, only superusers can decide those changes.'),
-        KIND_GROUP,
-    ),
-    Setting(
-        'expire_pending_after_days', _('Expire pending requests after (days)'),
-        _('For rules that don\'t set their own expiry. Empty or 0 means never.'),
-        KIND_DAYS,
-    ),
-    Setting(
         'pending_row_style', _('Pending row style'),
         _('How pending objects look in object lists and rack elevations.'),
         KIND_CHOICE,
@@ -214,8 +203,4 @@ def reset(key):
 
 
 def _after_change(key):
-    if key == 'default_approver_group':
-        # Members of the new default group should see "Approvals" right away.
-        from .permissions import sync_is_approver_permission
-
-        sync_is_approver_permission()
+    """Hook for settings that need more than a fresh read when they change."""

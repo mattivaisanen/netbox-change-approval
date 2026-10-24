@@ -16,7 +16,7 @@ from netbox.plugins import PluginMenu, PluginMenuItem
 #: just not directly off group membership: permissions.
 #: sync_is_approver_permission() keeps a real ObjectPermission's groups in
 #: sync with whoever is currently an approver (the approver_group of every
-#: enabled "Needs approval" ApprovalRule, plus the default_approver_group),
+#: enabled "Needs approval" ApprovalRule, the Default rule included),
 #: triggered automatically whenever a rule changes. See its docstring and
 #: DEVELOPER.md "The top-level nav tab, and why the ticker moved to the
 #: Approvals page".

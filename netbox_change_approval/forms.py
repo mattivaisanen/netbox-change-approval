@@ -50,7 +50,7 @@ class ApprovalRuleForm(BaseRuleForm):
         queryset=Group.objects.all(),
         required=False,
         label=_('Approver group'),
-        help_text=_('Only for "Needs approval". Leave blank to use the default approver group.'),
+        help_text=_('Only for "Needs approval". Leave blank to use the Default rule\'s approver group.'),
     )
 
     fieldsets = (
@@ -66,14 +66,39 @@ class ApprovalRuleForm(BaseRuleForm):
             'required_approvals', 'require_reason', 'expire_after_days', 'enabled', 'description', 'tags',
         )
 
+    #: What the Default rule's edit form leaves out: it matches everything no
+    #: other rule matches, always needs approval, and is always on.
+    DEFAULT_RULE_FIXED = ('priority', 'enabled', 'content_type', 'constraint', 'action', 'outcome')
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance.is_default:
+            for name in self.DEFAULT_RULE_FIXED:
+                self.fields.pop(name, None)
+            self.fields['approver_group'].help_text = _(
+                'Approves every change no other rule matches, and changes of "Needs approval" rules '
+                'that leave their approver group blank. Without one, only superusers can decide them.'
+            )
+            self.fields['expire_after_days'].help_text = _(
+                'Also used by "Needs approval" rules that leave it blank. Blank or 0 means never.'
+            )
+            self.fieldsets = (
+                FieldSet('description', name=_('Rule')),
+                FieldSet(
+                    'approver_group', 'required_approvals', 'require_reason', 'expire_after_days',
+                    name=_('Outcome: needs approval'),
+                ),
+            )
+
     def clean(self):
         super().clean()
         group = self.cleaned_data.get('approver_group')
         needed = self.cleaned_data.get('required_approvals') or 1
-        if self.cleaned_data.get('outcome') == RuleOutcomeChoices.REQUIRE and needed > 1:
+        outcome = RuleOutcomeChoices.REQUIRE if self.instance.is_default else self.cleaned_data.get('outcome')
+        if outcome == RuleOutcomeChoices.REQUIRE and needed > 1:
             if group is None:
-                from .gating import _default_approver_group
-                group = _default_approver_group()
+                from .gating import _config_approver_group, _default_approver_group
+                group = _config_approver_group() if self.instance.is_default else _default_approver_group()
             members = group.users.filter(is_active=True).count() if group is not None else 0
             # The submitter can't approve their own request, so one more member
             # than approvals needed is required for everyone to be able to submit.

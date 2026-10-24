@@ -123,8 +123,17 @@ class ApprovalRule(BaseMatchRule):
     - SKIP: the change goes through with no record, as if the plugin weren't
       installed for that object.
 
-    No match: needs approval from the default approver group.
+    The Default rule (is_default) is one row that always sits at the bottom
+    of the list: it decides every change no other rule matches. It always
+    means "Needs approval", can't be deleted or disabled, and its approver
+    group and expiry are also what "Needs approval" rules above it use when
+    they leave those blank. Migration 0017 creates it.
     """
+    #: Priority the Default rule is stored with, so sorting by priority still
+    #: puts it last. Ordering by is_default does the real work.
+    DEFAULT_PRIORITY = 2147483647
+
+    is_default = models.BooleanField(default=False, editable=False)
     action = models.CharField(
         max_length=10,
         choices=AutoApprovalActionChoices.choices,
@@ -141,7 +150,7 @@ class ApprovalRule(BaseMatchRule):
         related_name='+',
         null=True,
         blank=True,
-        help_text=_('Only for "Needs approval". Leave blank to use the default approver group.'),
+        help_text=_('Only for "Needs approval". Leave blank to use the Default rule\'s approver group.'),
     )
     required_approvals = models.PositiveSmallIntegerField(
         default=1,
@@ -166,14 +175,54 @@ class ApprovalRule(BaseMatchRule):
         verbose_name=_('expire after (days)'),
         help_text=_(
             'Only for "Needs approval". A request nobody decides within this many days expires '
-            'and the object is unlocked. Leave blank to use the plugin setting '
-            '(expire_pending_after_days); 0 means never.'
+            'and the object is unlocked. Leave blank to use the Default rule\'s expiry; 0 means never.'
         ),
     )
 
     class Meta(BaseMatchRule.Meta):
+        ordering = ['is_default', 'priority', 'pk']
         verbose_name = _('approval rule')
         verbose_name_plural = _('approval rules')
+        constraints = [
+            models.UniqueConstraint(
+                fields=['is_default'], condition=models.Q(is_default=True),
+                name='netbox_change_approval_one_default_rule',
+            ),
+        ]
+
+    def __str__(self):
+        if self.is_default and not self.description:
+            return str(_('Default rule'))
+        return super().__str__()
+
+    @classmethod
+    def get_default(cls):
+        """The Default rule. Migration 0017 creates it; if it's missing anyway
+        (a database flush, say), it's created again from configuration.py."""
+        from django.db import IntegrityError
+
+        rule = cls.objects.filter(is_default=True).select_related('approver_group').first()
+        if rule is not None:
+            return rule
+        from users.models import Group
+
+        from .plugin_settings import config_value
+
+        days = config_value('expire_pending_after_days')
+        try:
+            days = int(days) if days else None
+        except (TypeError, ValueError):
+            days = None
+        try:
+            with transaction.atomic():
+                return cls.objects.create(
+                    is_default=True, priority=cls.DEFAULT_PRIORITY, outcome=RuleOutcomeChoices.REQUIRE,
+                    action=AutoApprovalActionChoices.ANY, enabled=True, description=str(_('Default rule')),
+                    approver_group=Group.objects.filter(name=config_value('default_approver_group')).first(),
+                    expire_after_days=days,
+                )
+        except IntegrityError:  # another process created it first
+            return cls.objects.filter(is_default=True).select_related('approver_group').first()
 
     def get_absolute_url(self):
         return reverse('plugins:netbox_change_approval:approvalrule', args=[self.pk])
@@ -189,6 +238,8 @@ class ApprovalRule(BaseMatchRule):
         return self.action == AutoApprovalActionChoices.ANY or self.action == action
 
     def matches(self, instance, action=None):
+        if self.is_default:
+            return True
         if not self.enabled:
             return False
         if action is not None and not self.matches_action(action):
