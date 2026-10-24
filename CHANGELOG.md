@@ -38,6 +38,13 @@
   pop-up style instead of the browser's plain OK/Cancel box.
 
 ### Improvements
+- Auto-approved changes show the rule that approved them as the approver:
+  on the request page, in the Approval Inbox and request list, in activity
+  messages, and in the API (`auto_approved_by_rule`). The name stays even if
+  the rule is later renamed or deleted. Older requests keep showing "Rule".
+- The Approval Inbox button counts your open field work too. The badge is
+  red when approvals need your attention and gray when only field work is
+  left.
 - The default approver group and request expiry moved from the Settings
   page into the Default rule, so the Settings page only holds plugin-wide
   options. Upgrading copies the values in effect into the Default rule.
