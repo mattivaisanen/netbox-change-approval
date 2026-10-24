@@ -4,6 +4,8 @@ from django.db import transaction
 from django.http import Http404, HttpResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils import timezone
+from django.utils.formats import date_format
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils.translation import gettext as _
 from django.views.generic import View
@@ -519,7 +521,7 @@ class ChangeRequestApproveView(_ChangeRequestDecisionView):
         targets = _batch_targets(self.change_request)
         return _confirm_page(request, 'netbox_change_approval/changerequest_approve.html', {
             'object': self.change_request,
-            'form': ConfirmationForm(initial=request.GET),
+            'form': forms.ChangeRequestApproveForm(initial=request.GET),
             'return_url': _safe_return_url(request.GET.get('return_url')),
             'button_class': 'success',
             'batch_count': len(targets),
@@ -528,17 +530,22 @@ class ChangeRequestApproveView(_ChangeRequestDecisionView):
     def post(self, request, pk):
         if (denied := self.check_permission(request)) is not None:
             return denied
-        form = ConfirmationForm(request.POST)
+        form = forms.ChangeRequestApproveForm(request.POST)
         if not form.is_valid():
-            messages.error(request, _('Could not process request.'))
-            return redirect(_default_return_url())
+            messages.error(request, _('Could not process request: %(errors)s') % {
+                'errors': '; '.join(e for errors in form.errors.values() for e in errors),
+            })
+            return redirect(self.change_request.get_absolute_url())
 
+        apply_at = form.cleaned_data.get('apply_at')
+        if apply_at is not None and timezone.is_naive(apply_at):
+            apply_at = timezone.make_aware(apply_at)
         targets = _batch_targets(self.change_request)
         try:
             # All-or-nothing for a batch: one conflict or validation failure
             # rolls back every change already applied in this batch (and the
             # approvals just recorded), and every request stays pending.
-            result = approvals.approve(targets, request.user)
+            result = approvals.approve(targets, request.user, apply_at=apply_at)
         except ChangeConflict as e:
             messages.error(request, _('Not applied: %(error)s Reject this request and resubmit it.') % {'error': e})
             return redirect(self.change_request.get_absolute_url())
@@ -550,11 +557,41 @@ class ChangeRequestApproveView(_ChangeRequestDecisionView):
             return redirect(self.change_request.get_absolute_url())
         if result.applied:
             messages.success(request, _('Approved and applied %(count)d change(s).') % {'count': len(targets)})
+        elif result.scheduled_for:
+            messages.success(request, _('Approved. %(count)d change(s) will be applied at %(when)s.') % {
+                'count': len(targets),
+                'when': date_format(timezone.localtime(result.scheduled_for), 'SHORT_DATETIME_FORMAT'),
+            })
         else:
             messages.success(request, _(
                 'Approval recorded (%(have)d of %(need)d). It is applied once %(left)d more approver(s) approve.'
             ) % {'have': result.have, 'need': result.need, 'left': result.need - result.have})
         return redirect(_safe_return_url(form.cleaned_data.get('return_url')))
+
+
+@register_model_view(ChangeRequest, 'schedule')
+class ChangeRequestScheduleView(ConditionalLoginRequiredMixin, View):
+    """A scheduled request (scheduling.py): apply it now, or cancel the
+    schedule."""
+    def post(self, request, pk):
+        from . import scheduling
+
+        change_request = get_object_or_404(
+            ChangeRequest.objects.filter(status=StatusChoices.PENDING, scheduled_for__isnull=False), pk=pk,
+        )
+        if not (_can_decide(request.user, change_request) or change_request.scheduled_by_id == request.user.pk):
+            messages.error(request, _("You can't change this request's schedule."))
+            return redirect(change_request.get_absolute_url())
+        if request.POST.get('action') == 'apply_now':
+            change_request.scheduled_by = request.user
+            if scheduling.apply_scheduled(change_request):
+                messages.success(request, _('Applied now.'))
+            else:
+                messages.error(request, _('Could not be applied; the schedule was cancelled. See the request.'))
+        else:
+            scheduling.cancel(change_request)
+            messages.info(request, _('Schedule cancelled. The request waits for a decision again.'))
+        return redirect(change_request.get_absolute_url())
 
 
 @register_model_view(ChangeRequest, 'reject')

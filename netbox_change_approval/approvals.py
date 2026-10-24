@@ -43,13 +43,14 @@ def apply_rule_settings(change_request, rule):
 
 
 class ApprovalResult:
-    def __init__(self, applied, have, need):
+    def __init__(self, applied, have, need, scheduled_for=None):
         self.applied = applied
         self.have = have
         self.need = need
+        self.scheduled_for = scheduled_for
 
 
-def approve(members, user):
+def approve(members, user, apply_at=None):
     """
     Record `user`'s approval on every request in `members` (one request, or a
     whole bulk batch) and apply them all once each has enough approvals.
@@ -57,6 +58,10 @@ def approve(members, user):
     All in one transaction: if applying fails (a conflict, a validation
     error), the approvals just recorded are rolled back too, and every request
     stays pending. Raises whatever apply() raises.
+
+    With a future `apply_at`, the last approval schedules the requests
+    instead of applying them (scheduling.py): they stay pending and locked
+    until then.
     """
     with transaction.atomic():
         # Lock the rows so two approvers clicking at once can't both see
@@ -84,6 +89,16 @@ def approve(members, user):
             from .notifications import partly_approved
             partly_approved(locked[0], user, have, need)
             return ApprovalResult(False, have, need)
+
+        if apply_at is not None and apply_at > timezone.now():
+            _check_still_appliable(locked)
+            for change_request in locked:
+                change_request.scheduled_for = apply_at
+                change_request.scheduled_by = user
+                change_request.save(update_fields=['scheduled_for', 'scheduled_by', 'last_updated'])
+            from .notifications import scheduled
+            scheduled(locked[0], user, apply_at)
+            return ApprovalResult(False, have, need, scheduled_for=apply_at)
 
         for change_request in locked:
             change_request.apply(user=user)

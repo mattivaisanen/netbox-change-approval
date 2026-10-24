@@ -77,6 +77,21 @@
   {% endif %}
 </div>
 {% endif %}
+{% if object.status == 'pending' and object.scheduled_for %}
+<div class="alert alert-info d-flex flex-wrap align-items-center justify-content-between gap-2" role="alert">
+  <div>
+    <i class="mdi mdi-calendar-clock"></i>
+    {% blocktrans with when=object.scheduled_for who=object.scheduled_by|default:_("an approver") %}Approved. Will be applied at <strong>{{ when }}</strong> (scheduled by {{ who }}).{% endblocktrans %}
+  </div>
+  {% if can_decide or object.scheduled_by_id == request.user.pk %}
+  <form method="post" action="{% url 'plugins:netbox_change_approval:changerequest_schedule' pk=object.pk %}" class="d-flex gap-2 m-0">
+    {% csrf_token %}
+    <button type="submit" name="action" value="cancel" class="btn btn-sm btn-outline-secondary">{% trans "Cancel schedule" %}</button>
+    <button type="submit" name="action" value="apply_now" class="btn btn-sm btn-success"><i class="mdi mdi-check"></i> {% trans "Apply now" %}</button>
+  </form>
+  {% endif %}
+</div>
+{% endif %}
 {% if object_missing %}
 <div class="alert alert-danger" role="alert">
   <i class="mdi mdi-alert"></i>

@@ -42,6 +42,8 @@ SENT_BACK = 'netbox_change_approval.sent_back'
 EXPIRED = 'netbox_change_approval.expired'
 COMMENTED = 'netbox_change_approval.commented'
 PARTLY_APPROVED = 'netbox_change_approval.partly_approved'
+SCHEDULED = 'netbox_change_approval.scheduled'
+SCHEDULE_FAILED = 'netbox_change_approval.schedule_failed'
 
 
 def register_event_types():
@@ -66,6 +68,8 @@ def register_event_types():
         (EXPIRED, _('Change request expired'), EVENT_TYPE_KIND_DANGER),
         (COMMENTED, _('New comment on change request'), EVENT_TYPE_KIND_INFO),
         (PARTLY_APPROVED, _('Change request approved, needs more approvers'), EVENT_TYPE_KIND_INFO),
+        (SCHEDULED, _('Change request approved, scheduled'), EVENT_TYPE_KIND_SUCCESS),
+        (SCHEDULE_FAILED, _('Scheduled change could not be applied'), EVENT_TYPE_KIND_DANGER),
     ):
         if name not in registry['event_types']:
             TranslatedEventType(name, text, kind=kind).register()
@@ -353,6 +357,36 @@ def comment_added(comment):
         if ChangeRequestComment.objects.filter(pk=pk).exists():
             notify(recipients, change_request, COMMENTED, detail=detail, actor=comment.author, comment=comment.text)
     transaction.on_commit(send)
+
+
+def scheduled(change_request, user, when):
+    """Approved and scheduled (scheduling.py): tell the submitter when it
+    will be applied."""
+    from django.utils import timezone as tz
+    from django.utils.formats import date_format
+
+    if change_request.submitted_by_id is None or change_request.submitted_by_id == getattr(user, 'pk', None):
+        return
+    pk = change_request.pk
+    detail = str(_('approved by {who}, applies {when}').format(
+        who=user, when=date_format(tz.localtime(when), 'SHORT_DATETIME_FORMAT'),
+    ))
+
+    def send():
+        current = ChangeRequest.objects.filter(pk=pk).select_related('submitted_by').first()
+        if current is not None:
+            notify([current.submitted_by], current, SCHEDULED, detail=detail, actor=user)
+    transaction.on_commit(send)
+
+
+def schedule_failed(change_request, scheduler, error):
+    """A scheduled request couldn't be applied when due: tell the submitter
+    and whoever scheduled it."""
+    current = ChangeRequest.objects.filter(pk=change_request.pk).select_related('submitted_by').first()
+    if current is None:
+        return
+    notify([current.submitted_by, scheduler], current, SCHEDULE_FAILED,
+           detail=_said(_('not applied'), error), actor=scheduler, comment=error)
 
 
 def partly_approved(change_request, user, have, need):

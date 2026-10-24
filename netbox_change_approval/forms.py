@@ -111,6 +111,17 @@ class ChangeRequestFilterForm(NetBoxModelFilterSetForm):
         self.fields['content_type'].queryset = _gated_object_types()
 
 
+class ChangeRequestApproveForm(ConfirmationForm):
+    """Approve now, or at a chosen time (scheduling.py)."""
+    apply_at = forms.DateTimeField(
+        required=False,
+        label=_('Apply at'),
+        input_formats=['%Y-%m-%dT%H:%M', '%Y-%m-%d %H:%M'],
+        widget=forms.DateTimeInput(attrs={'type': 'datetime-local', 'class': 'form-control'}, format='%Y-%m-%dT%H:%M'),
+        help_text=_('Optional: apply it then (e.g. a maintenance window) instead of now. The object stays locked until then.'),
+    )
+
+
 class ChangeRequestRejectForm(ConfirmationForm):
     comment = forms.CharField(
         label=_('Reason'),

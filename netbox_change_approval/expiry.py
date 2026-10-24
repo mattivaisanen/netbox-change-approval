@@ -28,7 +28,9 @@ def expire_overdue(now=None):
     """Expire every pending request past its deadline. Returns how many."""
     now = now or timezone.now()
     count, done = 0, set()
-    overdue = ChangeRequest.objects.filter(status=StatusChoices.PENDING, expires_at__lte=now).order_by('pk')
+    overdue = ChangeRequest.objects.filter(
+        status=StatusChoices.PENDING, expires_at__lte=now, scheduled_for__isnull=True,
+    ).order_by('pk')
     for change_request in overdue:
         if change_request.pk in done:
             continue

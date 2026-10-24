@@ -58,6 +58,7 @@ class NetBoxChangeApprovalConfig(PluginConfig):
         from . import backstop, permissions, signals  # noqa: F401  (connects pre_delete/post_save receivers)
         from . import widgets  # noqa: F401  (runs @register_widget)
         from . import expiry  # noqa: F401  (registers the hourly expiry job)
+        from . import scheduling  # noqa: F401  (registers the scheduled-apply job)
         from . import notifications
         from .bulk import patch_bulk_views
         from .discovery import wire_up_gated_models

@@ -308,6 +308,21 @@ class ChangeRequest(NetBoxModel):
         help_text=_('Why: the changelog message typed with the change (reasons.py).'),
     )
 
+    # Approved, to be applied at a chosen time (scheduling.py). Still pending
+    # (and the object locked) until then.
+    scheduled_for = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text=_('Fully approved; applied automatically at this time.'),
+    )
+    scheduled_by = models.ForeignKey(
+        to=settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='+',
+    )
+
     # Copied from the matching rule at submission (and again on resubmission),
     # so editing a rule later doesn't change requests already waiting.
     required_approvals = models.PositiveSmallIntegerField(

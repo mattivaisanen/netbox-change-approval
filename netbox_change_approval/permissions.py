@@ -220,6 +220,8 @@ def approver_queue(user, queryset):
     if not user.is_authenticated:
         return queryset.none()
     queryset = queryset.exclude(submitted_by=user)
+    # Approved and scheduled (scheduling.py): nothing left to decide.
+    queryset = queryset.exclude(scheduled_for__isnull=False)
     from .changesets import draft_batch_ids
     drafts = draft_batch_ids()
     if drafts:

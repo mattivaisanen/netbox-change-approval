@@ -1,8 +1,15 @@
 {% load i18n %}
 <p>
-  {% trans "This will immediately apply:" %}
+  {% trans "This will apply:" %}
   <strong>{{ object.get_action_display }} {{ object.object_repr }}</strong>
 </p>
+{% if form.apply_at %}
+<div class="mb-3">
+  <label class="form-label" for="{{ form.apply_at.id_for_label }}">{{ form.apply_at.label }}</label>
+  {{ form.apply_at }}
+  <div class="form-text">{{ form.apply_at.help_text }}</div>
+</div>
+{% endif %}
 {% if batch_count > 1 %}
 <p class="text-warning">
   {% blocktrans %}This request is part of a batch of {{ batch_count }} pending changes — approving will apply all of them.{% endblocktrans %}

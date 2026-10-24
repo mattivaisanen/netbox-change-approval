@@ -3,6 +3,13 @@
 ## Unreleased
 
 ### New features
+- Approve now, apply later: the Approve dialog has an optional "Apply at"
+  time (a maintenance window, say). The last approval then schedules the
+  change instead of applying it: it stays pending and locked, shows its time
+  on the request and in the inbox, and NetBox's background worker applies it
+  when due (every five minutes). Approvers can apply it now or cancel the
+  schedule; if it can't be applied when due, the schedule is dropped and the
+  submitter and scheduler are notified.
 - Every request carries a reason: NetBox's "Changelog message" box (and
   `changelog_message` in the API) is saved as the request's reason and shown
   on the request page, in the inbox, in the approvers' notification and in
