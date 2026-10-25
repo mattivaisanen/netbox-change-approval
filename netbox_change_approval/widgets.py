@@ -27,7 +27,8 @@ from . import permissions
 from .models import ChangeRequest, StatusChoices
 
 
-# Shown, one at random per page load, when nothing waits on the user.
+# Shown, one at random per page load, when nothing waits on the user:
+# IDLE_LINES to approvers, REQUESTER_IDLE_LINES to everyone else.
 IDLE_LINES = (
     gettext_noop('Nothing waiting on you right now. The racks are humming quietly.'),
     gettext_noop('Inbox zero. Even the patch cables are relaxing.'),
@@ -37,6 +38,14 @@ IDLE_LINES = (
     gettext_noop('Quiet on the change front. Enjoy it while it lasts.'),
     gettext_noop('All caught up. The servers send their regards.'),
     gettext_noop('Nothing for you here. Even the LEDs are blinking slower.'),
+)
+REQUESTER_IDLE_LINES = (
+    gettext_noop('Nothing sent back to you. Your approvers must like your work.'),
+    gettext_noop('All your requests are through. The network thanks you.'),
+    gettext_noop('No revisions needed. Clean changes, happy approvers.'),
+    gettext_noop('Nothing to fix right now. Time for a coffee.'),
+    gettext_noop('Your queue is empty. The servers are taking it easy too.'),
+    gettext_noop('No changes bounced back. Every cable stayed where you put it.'),
 )
 
 
@@ -54,7 +63,10 @@ class ApprovalsWidget(DashboardWidget):
     def render(self, request):
         if not request.user.is_authenticated:
             return ''
-        idle_line = _(random.choice(IDLE_LINES))
+        is_approver = request.user.has_perm(
+            f'netbox_change_approval.{permissions.IS_APPROVER_ACTION}_changerequest'
+        )
+        idle_line = _(random.choice(IDLE_LINES if is_approver else REQUESTER_IDLE_LINES))
 
         queryset = permissions.approver_queue(
             request.user, ChangeRequest.objects.filter(status=StatusChoices.PENDING),

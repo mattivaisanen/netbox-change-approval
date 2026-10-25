@@ -397,12 +397,16 @@ class WidgetIdleStateTests(_Base):
     def test_empty_widget_shows_idle_line_and_drawing(self):
         from django.test import RequestFactory
 
-        from ..widgets import IDLE_LINES, ApprovalsWidget
+        from ..widgets import IDLE_LINES, REQUESTER_IDLE_LINES, ApprovalsWidget
 
         request = RequestFactory().get('/')
         request.user = self.submitter
         html = ApprovalsWidget().render(request)
         self.assertIn('nbca-idle', html)
+        self.assertTrue(any(line in html for line in REQUESTER_IDLE_LINES))
+
+        request.user = User.objects.create(username='idle-admin', is_superuser=True)
+        html = ApprovalsWidget().render(request)
         self.assertTrue(any(line in html for line in IDLE_LINES))
 
 

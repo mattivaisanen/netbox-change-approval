@@ -62,6 +62,7 @@ Upgrade: run `manage.py migrate` (adds one database index).
 - Pending Approvals widget: when nothing waits on you, it shows a small
   drawing of a server rack taking a coffee break and a light-hearted line
   that changes on each visit, instead of a plain sentence on an empty card.
+  Approvers and requesters get different lines.
   It follows the light and dark theme and stays still for users who turn
   off animations.
 - Sidebar: the change set button now sits left of the Approval Inbox, and
