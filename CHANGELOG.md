@@ -91,9 +91,9 @@ Upgrade: run `manage.py migrate` (adds one database index).
   off animations.
 - Sidebar: the change set button now sits left of the Approval Inbox, and
   the count has its own box on the right, the same size as the change set
-  button, in the same outlined style. When approvals need you it has a red
-  outline, a faint red fill and a slow red glow inside it; with field work only it is
-  gray. No box shows when nothing is waiting.
+  button, in the same outlined style. When approvals need you it has an
+  outline, a faint fill and a slow glow inside it, in NetBox's main colour;
+  with field work only it is gray. No box shows when nothing is waiting.
 - Saving an approval rule checks its constraint: a misspelled field
   (`{"stauts": "planned"}`) or a wrong kind of value (`{"site": "lab"}`) is
   refused with an explanation, instead of the rule silently never matching.

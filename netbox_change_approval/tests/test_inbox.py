@@ -114,7 +114,7 @@ class InboxTests(TestCase):
         self.client.force_login(self.approver)
         page = self.client.get(reverse('plugins:netbox_change_approval:changerequest_inbox'))
         # One decision plus one field work task, in red.
-        self.assertRegex(page.content.decode(), r'nbca-inbox-count btn-outline-red nbca-inbox-count-urgent"[^>]*>2<')
+        self.assertRegex(page.content.decode(), r'nbca-inbox-count btn-outline-primary nbca-inbox-count-urgent"[^>]*>2<')
 
     def test_no_count_box_at_zero(self):
         self.client.force_login(self.alice)
