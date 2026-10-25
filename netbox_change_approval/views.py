@@ -3,6 +3,7 @@ from django.core.exceptions import FieldDoesNotExist, ValidationError
 from django.db import transaction
 from django.http import Http404, HttpResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect, render
+from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.formats import date_format
@@ -494,8 +495,26 @@ class _PopupRedirectMixin:
     def dispatch(self, request, *args, **kwargs):
         response = super().dispatch(request, *args, **kwargs)
         if htmx_partial(request) and isinstance(response, HttpResponseRedirect):
+            if _decided_in_place(request, response):
+                # Sent from the dashboard widget: the page stays as it is.
+                # The answer is NetBox's toast container with the success
+                # message, and the widget drops the row itself.
+                return HttpResponse(
+                    render_to_string('inc/messages.html', request=request),
+                    headers={'X-NBCA-Done': '1'},
+                )
             return HttpResponse(headers={'HX-Redirect': response.url})
         return response
+
+
+def _decided_in_place(request, response):
+    """A pop-up's form asked to stay on its page (X-NBCA-Inplace) and the view
+    succeeded: it went where the form said to go back to. Failures go
+    somewhere else (usually the request's own page) and still move there."""
+    if request.method != 'POST' or not request.headers.get('X-NBCA-Inplace'):
+        return False
+    return_url = request.POST.get('return_url')
+    return bool(return_url) and response.url == _safe_return_url(return_url)
 
 
 class _ChangeRequestDecisionView(_PopupRedirectMixin, ConditionalLoginRequiredMixin, View):

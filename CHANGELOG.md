@@ -148,8 +148,11 @@ approver group and expiry settings, and adds a database index.
 
 ### Bug fixes
 - Approving, sending back, rejecting or discarding a request from the
-  Pending Approvals widget now brings you back to the dashboard instead of
-  the Change Requests list.
+  Pending Approvals widget no longer leaves the dashboard or reloads it:
+  after you confirm, the dialog closes, the usual message pops up and the
+  row slides out of the widget. Before, it opened the Change Requests list.
+  If the decision fails (for example someone else decided first), you are
+  still taken to the request's page to see why.
 - A scheduled change could still be applied after it was retracted or
   rejected, if that happened while the background job was applying it, and
   clicking "Apply now" while the job ran could apply it twice. It is now

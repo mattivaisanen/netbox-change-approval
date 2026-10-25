@@ -4,6 +4,7 @@ Pop-up dialog for confirmations, like NetBox's own delete dialog. Rendered in <h
    - Links and buttons marked data-nbca-modal load their confirmation page's dialog version into it. Without JavaScript they open the full page.
    - Buttons marked data-nbca-confirm="Details" ask first, in place of the browser's OK/Cancel box. Optional: data-nbca-confirm-title (short question), data-nbca-confirm-label, data-nbca-confirm-class.
    - After a confirmed button's form is sent, the page it comes back to keeps its scroll position.
+   - Links also marked data-nbca-inplace (the dashboard widget) send the dialog's form without leaving the page: on success the dialog closes, NetBox's message pops up and the link's row slides out (window.nbcaLive). Failures still move to the page the view sends them to.
 {% endcomment %}
 <template id="nbca-modal-template">
   <div class="modal fade" id="nbca-modal" tabindex="-1" aria-hidden="true">
@@ -57,6 +58,66 @@ Pop-up dialog for confirmations, like NetBox's own delete dialog. Rendered in <h
     body.appendChild(document.createTextNode(TEXT.loading));
     setContent(body);
   }
+
+  // The row of the data-nbca-inplace link whose dialog is open, if any.
+  var inplaceRow = null;
+
+  function showMessages(html) {
+    var tpl = document.createElement('template');
+    tpl.innerHTML = html.trim();
+    var fresh = tpl.content.querySelector('#django-messages');
+    if (!fresh) return;
+    var toasts = Array.prototype.slice.call(fresh.querySelectorAll('.toast'));
+    var box = document.getElementById('django-messages');
+    if (!box) document.body.appendChild(fresh);
+    else toasts.forEach(function (toast) { box.appendChild(toast); });
+    toasts.forEach(function (toast) {
+      if (window.Toast) {
+        toast.addEventListener('hidden.bs.toast', function () { toast.remove(); });
+        new window.Toast(toast).show();
+      } else { toast.classList.add('show'); setTimeout(function () { toast.remove(); }, 10000); }
+    });
+  }
+
+  // Send the open dialog's form in the background; see data-nbca-inplace above.
+  function sendInPlace(form, submitter) {
+    var row = inplaceRow;
+    var data = new FormData(form);
+    if (submitter && submitter.name) data.append(submitter.name, submitter.value || '');
+    form.querySelectorAll('[type=submit]').forEach(function (b) { b.disabled = true; });
+    function fallback() { inplaceRow = null; form.submit(); }
+    fetch(form.action, {
+      method: 'POST', body: data, credentials: 'same-origin',
+      headers: { 'HX-Request': 'true', 'HX-Current-URL': window.location.href, 'X-NBCA-Inplace': '1' }
+    }).then(function (response) {
+      var redirect = response.headers.get('HX-Redirect');
+      if (redirect) { window.location.href = redirect; return; }
+      if (!response.ok) throw new Error(response.status);
+      return response.text().then(function (html) {
+        if (!response.headers.get('X-NBCA-Done')) { setContent(html); return; }  // e.g. a comment is missing
+        inplaceRow = null;
+        close();
+        showMessages(html);
+        if (window.nbcaLive && row && document.contains(row)) {
+          window.nbcaLive.fadeOutRow(row);
+          window.nbcaLive.refresh();
+        } else {
+          window.location.reload();
+        }
+      });
+    }).catch(fallback);
+  }
+
+  document.addEventListener('submit', function (event) {
+    var form = event.target;
+    if (!inplaceRow || !form.closest('#nbca-modal-content')) return;
+    event.preventDefault();
+    sendInPlace(form, event.submitter);
+  });
+
+  document.addEventListener('hidden.bs.modal', function (event) {
+    if (event.target.id === 'nbca-modal') inplaceRow = null;
+  });
 
   // Load a confirmation's dialog version. If anything goes wrong, fall back to its full page.
   function load(url, options, fallback) {
@@ -132,6 +193,7 @@ Pop-up dialog for confirmations, like NetBox's own delete dialog. Rendered in <h
     event.preventDefault();
     event.stopPropagation();
     if (target.tagName === 'A') {
+      inplaceRow = target.hasAttribute('data-nbca-inplace') ? target.closest('tr') : null;
       load(target.href, { method: 'GET' }, function () { window.location.href = target.href; });
       return;
     }
@@ -140,6 +202,7 @@ Pop-up dialog for confirmations, like NetBox's own delete dialog. Rendered in <h
     var data = new FormData(form);
     if (target.name) data.append(target.name, target.value || '');
     var url = target.getAttribute('formaction') || form.action;
+    inplaceRow = null;
     load(url, { method: 'POST', body: data }, function () {
       close();
       target.removeAttribute('data-nbca-modal');
