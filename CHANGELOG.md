@@ -114,7 +114,10 @@ approver group and expiry settings, and adds a database index.
   a switch, a tumbleweed and more) with a light-hearted line, both picked at
   random on each visit, instead of a plain sentence on an empty card.
   Some have a twist: the clock's minute hand falls off, the rocket never
-  quite makes it, and the paper plane loops the loop. Approvers and requesters get different lines.
+  quite makes it, the paper plane loops the loop, the hammock tips its
+  server out, the fishing router reels in an old boot, birds on a cable
+  hop over a passing data packet and the tumbleweed knocks the sign.
+  Approvers and requesters get different lines.
   It follows the light and dark theme and stays still for users who turn
   off animations.
 - Sidebar: the change set button now sits left of the Approval Inbox, and

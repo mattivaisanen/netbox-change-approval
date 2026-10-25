@@ -1,10 +1,14 @@
-{# A router fishing off a pier. Animations: dashboard_widget.html. #}
+{# A router fishing off a pier that reels in an old boot. Animations: dashboard_widget.html. #}
 <svg viewBox="0 0 120 80" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
   <line x1="6" y1="48" x2="52" y2="48"/><line x1="14" y1="48" x2="14" y2="74"/><line x1="44" y1="48" x2="44" y2="74"/>
   <rect x="18" y="36" width="24" height="12" rx="2"/>
   <line x1="22" y1="36" x2="20" y2="27"/><line x1="38" y1="36" x2="40" y2="27"/>
   <circle class="nbca-led" cx="23" cy="42" r="1.5"/><circle class="nbca-led nbca-d1" cx="28" cy="42" r="1.5"/>
   <line x1="40" y1="40" x2="84" y2="14"/>
-  <g class="nbca-bob"><path d="M84 14 L94 58" stroke-width="1"/><circle cx="94" cy="59" r="2.6" fill="var(--nbca-main)" stroke="none"/></g>
+  <path class="nbca-fish-line" d="M84 14 L94 58" stroke-width="1"/>
+  <g class="nbca-fish-float">
+    <path class="nbca-boot" d="M94 61 v2 M90 63 h6 v5 h5 q2 0 2 2 v1 h-13 Z" stroke-width="1.5"/>
+    <circle cx="94" cy="59" r="2.6" fill="var(--nbca-main)" stroke="none"/>
+  </g>
   <path class="nbca-waves" d="M52 62 q5 -3 10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0 t10 0" stroke-width="1.5"/>
 </svg>

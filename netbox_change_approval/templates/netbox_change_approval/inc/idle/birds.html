@@ -1,8 +1,9 @@
-{# Two birds resting on a network cable. Animations: dashboard_widget.html. #}
+{# Two birds on a network cable, hopping as a data packet runs past. Animations: dashboard_widget.html. #}
 <svg viewBox="0 0 120 80" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
   <line x1="4" y1="72" x2="116" y2="72"/>
   <path d="M12 72 V30 M6 34 H18 M108 72 V30 M102 34 H114"/>
   <path d="M12 34 Q60 50 108 34" stroke="var(--nbca-main)" stroke-width="1.5"/>
-  <g transform="translate(44 41) scale(1.4)" stroke-width="1.5"><circle cx="0" cy="-6" r="5"/><circle cx="4" cy="-12" r="3"/><path d="M7 -12.5 l3 1 l-3 1 Z" fill="var(--nbca-alt)" stroke="var(--nbca-alt)" stroke-width="1"/><path d="M-5 -5 l-5 2"/><circle cx="4.8" cy="-12.6" r=".7" fill="currentColor" stroke="none"/></g>
-  <g class="nbca-hop"><g transform="translate(76 41) scale(-1.4 1.4)" stroke-width="1.5"><circle cx="0" cy="-6" r="5"/><circle cx="4" cy="-12" r="3"/><path d="M7 -12.5 l3 1 l-3 1 Z" fill="var(--nbca-alt)" stroke="var(--nbca-alt)" stroke-width="1"/><path d="M-5 -5 l-5 2"/><circle cx="4.8" cy="-12.6" r=".7" fill="currentColor" stroke="none"/></g></g>
+  <circle class="nbca-packet" cx="0" cy="0" r="2.6" fill="var(--nbca-alt)" stroke="none"/>
+  <g class="nbca-hop"><g transform="translate(44 41) scale(1.4)" stroke-width="1.5"><circle cx="0" cy="-6" r="5"/><circle cx="4" cy="-12" r="3"/><path d="M7 -12.5 l3 1 l-3 1 Z" fill="var(--nbca-alt)" stroke="var(--nbca-alt)" stroke-width="1"/><path d="M-5 -5 l-5 2"/><circle cx="4.8" cy="-12.6" r=".7" fill="currentColor" stroke="none"/></g></g>
+  <g class="nbca-hop nbca-late"><g transform="translate(76 41) scale(-1.4 1.4)" stroke-width="1.5"><circle cx="0" cy="-6" r="5"/><circle cx="4" cy="-12" r="3"/><path d="M7 -12.5 l3 1 l-3 1 Z" fill="var(--nbca-alt)" stroke="var(--nbca-alt)" stroke-width="1"/><path d="M-5 -5 l-5 2"/><circle cx="4.8" cy="-12.6" r=".7" fill="currentColor" stroke="none"/></g></g>
 </svg>

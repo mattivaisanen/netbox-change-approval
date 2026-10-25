@@ -108,7 +108,6 @@
   .nbca-idle .nbca-d3 { animation-delay: 3s; }
   .nbca-idle .nbca-z { font: 600 9px sans-serif; fill: currentColor; stroke: none; opacity: 0; animation: nbca-rise 4s ease-in-out infinite; }
   .nbca-idle .nbca-steam { opacity: 0; animation: nbca-rise 3s ease-in-out infinite; }
-  .nbca-idle .nbca-swing { transform-origin: 60px 32px; animation: nbca-swing 4s ease-in-out infinite; }
   .nbca-idle .nbca-tail { transform-box: fill-box; transform-origin: 0% 100%; animation: nbca-tail 2.6s ease-in-out infinite; }
   .nbca-idle .nbca-breathe { transform-box: fill-box; transform-origin: 50% 100%; animation: nbca-breathe 3.5s ease-in-out infinite; }
   .nbca-idle .nbca-waves { animation: nbca-waves 3s linear infinite; }
@@ -138,10 +137,22 @@
   .nbca-idle .nbca-thrust { animation: nbca-thrust 10s linear infinite; }
   .nbca-idle .nbca-boom { opacity: 0; transform-box: fill-box; transform-origin: center; animation: nbca-boom 10s ease-out infinite; }
   .nbca-idle .nbca-boom.nbca-late { animation-name: nbca-boom-late; }
-  .nbca-idle .nbca-hop { animation: nbca-hop 3s ease-in-out infinite; }
+  /* Birds: a packet runs along the cable; each bird hops as it passes underneath. */
+  .nbca-idle .nbca-packet { offset-path: path('M12 34 Q60 50 108 34'); offset-rotate: 0deg; offset-anchor: 0 0; transform-origin: 0 0;
+                            animation: nbca-packet 4s linear infinite; }
+  .nbca-idle .nbca-hop { animation: nbca-hop 4s ease-in-out infinite; }
+  .nbca-idle .nbca-hop.nbca-late { animation-name: nbca-hop-late; }
+  /* Hammock: swings higher and higher until the server flies out and lands upside down. */
+  .nbca-idle .nbca-hammock { transform-origin: 60px 32px; animation: nbca-hammock 12s ease-in-out infinite; }
+  .nbca-idle .nbca-hammock-load { transform-origin: 60px 32px; animation: nbca-hammock-load 12s ease-in-out infinite; }
+  /* Fishing: two nibbles, then the line comes up with an old boot. */
+  .nbca-idle .nbca-fish-line { transform-origin: 84px 14px; animation: nbca-fish-line 10s ease-in-out infinite; }
+  .nbca-idle .nbca-fish-float { animation: nbca-fish-float 10s ease-in-out infinite; }
+  .nbca-idle .nbca-boot { opacity: 0; animation: nbca-boot 10s ease-in-out infinite; }
+  /* Tumbleweed: knocks the sign as it rolls past. */
+  .nbca-idle .nbca-sign { transform-origin: 96px 72px; animation: nbca-sign 6s ease-out infinite; }
   @keyframes nbca-blink { 0%, 100% { opacity: 1; } 50% { opacity: .25; } }
   @keyframes nbca-rise { 0% { opacity: 0; transform: translateY(4px); } 40% { opacity: .8; } 100% { opacity: 0; transform: translateY(-6px); } }
-  @keyframes nbca-swing { 0%, 100% { transform: rotate(-4deg); } 50% { transform: rotate(4deg); } }
   @keyframes nbca-tail { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(18deg); } }
   @keyframes nbca-breathe { 0%, 100% { transform: scaleY(1); } 50% { transform: scaleY(1.08); } }
   @keyframes nbca-waves { from { transform: translateX(0); } to { transform: translateX(-20px); } }
@@ -158,7 +169,8 @@
   @keyframes nbca-swim { 0%, 100% { transform: translateX(-10px) scaleX(1); } 45% { transform: translateX(10px) scaleX(1); }
                          50% { transform: translateX(10px) scaleX(-1); } 95% { transform: translateX(-10px) scaleX(-1); } }
   @keyframes nbca-flicker { from { transform: scaleY(.9); opacity: .85; } to { transform: scaleY(1.1); opacity: 1; } }
-  @keyframes nbca-clock-h { 0% { transform: rotate(0); } 50%, 100% { transform: rotate(30deg); } }
+  @keyframes nbca-clock-h { 0% { transform: rotate(0); opacity: 0; } 4% { opacity: 1; } 50%, 92% { transform: rotate(30deg); opacity: 1; }
+                           100% { transform: rotate(30deg); opacity: 0; } }
   @keyframes nbca-clock-m {
     0% { transform: rotate(0); opacity: 0; } 4% { opacity: 1; }
     50% { transform: rotate(360deg); }
@@ -184,7 +196,32 @@
   @keyframes nbca-thrust { 0%, 6% { opacity: 0; } 8%, 36% { opacity: 1; } 40%, 100% { opacity: 0; } }
   @keyframes nbca-boom { 0%, 51% { opacity: 0; transform: scale(.4); } 54%, 60% { opacity: 1; transform: scale(1.2); } 76%, 100% { opacity: 0; transform: scale(2); } }
   @keyframes nbca-boom-late { 0%, 53% { opacity: 0; transform: scale(.4); } 57%, 63% { opacity: 1; transform: scale(1.2); } 80%, 100% { opacity: 0; transform: scale(2); } }
-  @keyframes nbca-hop { 0%, 70%, 100% { transform: translateY(0); } 78% { transform: translateY(-5px); } 86% { transform: translateY(0); } }
+  @keyframes nbca-packet { 0% { offset-distance: 0%; opacity: 0; } 6%, 94% { opacity: 1; } 100% { offset-distance: 100%; opacity: 0; } }
+  @keyframes nbca-hop { 0%, 24%, 44%, 100% { transform: translateY(0); } 33% { transform: translateY(-7px); } }
+  @keyframes nbca-hop-late { 0%, 57%, 77%, 100% { transform: translateY(0); } 66% { transform: translateY(-7px); } }
+  @keyframes nbca-hammock { 0%, 100% { transform: rotate(-4deg); } 9% { transform: rotate(5deg); } 18% { transform: rotate(-8deg); }
+                            28% { transform: rotate(11deg); } 38% { transform: rotate(-14deg); } 48% { transform: rotate(18deg); }
+                            58% { transform: rotate(-9deg); } 68% { transform: rotate(5deg); } 78% { transform: rotate(-3deg); }
+                            88% { transform: rotate(2deg); } }
+  @keyframes nbca-hammock-load {
+    0% { transform: rotate(-4deg); opacity: 0; } 5% { opacity: 1; } 9% { transform: rotate(5deg); } 18% { transform: rotate(-8deg); }
+    28% { transform: rotate(11deg); } 38% { transform: rotate(-14deg); } 48% { transform: rotate(18deg); animation-timing-function: ease-out; }
+    52% { transform: translate(4px, -2px) rotate(90deg); animation-timing-function: ease-in; }
+    57% { transform: translate(6px, 45px) rotate(180deg); animation-timing-function: ease-out; }
+    60% { transform: translate(6px, 42px) rotate(176deg); animation-timing-function: ease-in; }
+    63%, 88% { transform: translate(6px, 45px) rotate(180deg); opacity: 1; }
+    96% { transform: translate(6px, 45px) rotate(180deg); opacity: 0; }
+    100% { transform: rotate(-4deg); opacity: 0; }
+  }
+  @keyframes nbca-fish-float { 0%, 14%, 28% { transform: translateY(0); } 7%, 21% { transform: translateY(2.5px); }
+                               31%, 35% { transform: translateY(4px); } 33%, 37% { transform: translateY(0); }
+                               46%, 80% { transform: translateY(-22px); } 92%, 100% { transform: translateY(0); } }
+  @keyframes nbca-fish-line { 0%, 14%, 28% { transform: scaleY(1); } 7%, 21% { transform: scaleY(1.057); }
+                              31%, 35% { transform: scaleY(1.09); } 33%, 37% { transform: scaleY(1); }
+                              46%, 80% { transform: scaleY(.5); } 92%, 100% { transform: scaleY(1); } }
+  @keyframes nbca-boot { 0%, 38% { opacity: 0; } 44%, 78% { opacity: 1; } 84%, 100% { opacity: 0; } }
+  @keyframes nbca-sign { 0%, 70% { transform: rotate(0); } 74% { transform: rotate(12deg); } 79% { transform: rotate(-8deg); }
+                         84% { transform: rotate(4deg); } 89% { transform: rotate(-2deg); } 94%, 100% { transform: rotate(0); } }
   @media (prefers-reduced-motion: reduce) {
     .nbca-idle svg * { animation: none !important; }
     .nbca-idle .nbca-steam, .nbca-idle .nbca-z { opacity: .6; }
