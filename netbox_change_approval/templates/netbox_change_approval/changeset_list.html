@@ -31,8 +31,8 @@
         {% for cs in change_sets %}
         <tr>
           <td><a href="{{ cs.get_absolute_url }}">{{ cs.name }}</a>{% if cs.ticket %} <span class="text-muted">&middot; {{ cs.ticket }}</span>{% endif %}
-            {% if active and active.pk == cs.pk %}<span class="badge text-bg-blue ms-1">{% trans "active" %}</span>{% endif %}</td>
-          <td><span class="badge {% if cs.status == 'draft' %}text-bg-secondary{% else %}text-bg-yellow{% endif %}">{{ cs.get_status_display }}</span></td>
+            {% if active and active.pk == cs.pk %}<span class="badge text-bg-primary ms-1">{% trans "active" %}</span>{% endif %}</td>
+          <td><span class="badge text-bg-{{ cs.get_status_color }}">{{ cs.get_status_display }}</span></td>
           <td class="text-muted small text-end">{{ cs.created|timesince }} {% trans "ago" %}</td>
         </tr>
         {% endfor %}

@@ -10,6 +10,7 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from netbox.models import NetBoxModel
+from utilities.choices import ChoiceSet
 
 from .matching import rule_matches
 
@@ -59,6 +60,28 @@ class StatusChoices(models.TextChoices):
     # Nobody decided it within the rule's time limit. Ended like a rejection,
     # but by the clock, not a person. See expiry.py.
     EXPIRED = 'expired', _('Expired')
+
+
+class ChangeRequestStatusChoices(ChoiceSet):
+    """Badge colours of StatusChoices, as a NetBox ChoiceSet so they follow
+    NetBox's colour handling: a theme plugin that recolours statuses (keyed by
+    value, like "pending" or "applied") recolours these too."""
+    CHOICES = [
+        (StatusChoices.PENDING.value, StatusChoices.PENDING.label, 'yellow'),
+        (StatusChoices.APPLIED.value, StatusChoices.APPLIED.label, 'green'),
+        (StatusChoices.REJECTED.value, StatusChoices.REJECTED.label, 'red'),
+        (StatusChoices.RETRACTED.value, StatusChoices.RETRACTED.label, 'gray'),
+        (StatusChoices.RETURNED.value, StatusChoices.RETURNED.label, 'orange'),
+        (StatusChoices.EXPIRED.value, StatusChoices.EXPIRED.label, 'gray'),
+    ]
+
+
+class ChangeSetStatusChoices(ChoiceSet):
+    """Badge colours of ChangeSet.status, for the same reason."""
+    CHOICES = [
+        ('draft', _('Draft'), 'gray'),
+        ('submitted', _('Submitted'), 'yellow'),
+    ]
 
 
 class RuleOutcomeChoices(models.TextChoices):
@@ -229,9 +252,9 @@ class ApprovalRule(BaseMatchRule):
 
     def get_outcome_color(self):
         return {
-            RuleOutcomeChoices.REQUIRE: 'yellow',
-            RuleOutcomeChoices.AUTO: 'green',
-            RuleOutcomeChoices.SKIP: 'gray',
+            RuleOutcomeChoices.REQUIRE: 'warning',
+            RuleOutcomeChoices.AUTO: 'success',
+            RuleOutcomeChoices.SKIP: 'secondary',
         }.get(self.outcome, 'secondary')
 
     def matches_action(self, action):
@@ -441,15 +464,9 @@ class ChangeRequest(NetBoxModel):
         }.get(self.action, 'secondary')
 
     def get_status_color(self):
-        # Used by NetBox's ChoiceFieldColumn in lists and by the detail page badge.
-        return {
-            StatusChoices.PENDING: 'yellow',
-            StatusChoices.APPLIED: 'green',
-            StatusChoices.REJECTED: 'red',
-            StatusChoices.RETRACTED: 'gray',
-            StatusChoices.RETURNED: 'orange',
-            StatusChoices.EXPIRED: 'gray',
-        }.get(self.status, 'secondary')
+        # Used by NetBox's ChoiceFieldColumn in lists, the detail page badge
+        # and the widget. Through the ChoiceSet so themes can recolour it.
+        return ChangeRequestStatusChoices.colors.get(self.status, 'secondary')
 
     @classmethod
     def from_db(cls, db, field_names, values, *args, **kwargs):
@@ -943,6 +960,9 @@ class ChangeSet(models.Model):
 
     def __str__(self):
         return self.name
+
+    def get_status_color(self):
+        return ChangeSetStatusChoices.colors.get(self.status, 'secondary')
 
     def get_absolute_url(self):
         return reverse('plugins:netbox_change_approval:changeset', args=[self.pk])

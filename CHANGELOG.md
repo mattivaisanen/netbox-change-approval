@@ -73,6 +73,13 @@ Upgrade: run `manage.py migrate` (adds one database index).
   requests still pending. See "Uninstalling" in the README.
 
 ### Improvements
+- Colours follow NetBox and its theme: request and change set status badges
+  now use NetBox's own status colour handling, so a theme plugin that
+  recolours statuses (for example "Pending" or "Applied") recolours them in
+  the widget, inbox, lists and request pages too. Informational badges
+  ("batch", "auto-approved", "active", change set links) use NetBox's main
+  colour instead of a fixed blue, and rule outcome and "scheduled" badges
+  use NetBox's success/warning colours instead of fixed green/yellow.
 - Pending Approvals widget: a bulk edit, import or change set is now one
   row for approvers and in your sent-back list too, as in the Approval
   Inbox, instead of one row per object. The row reads like "Edit 3

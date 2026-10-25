@@ -81,13 +81,13 @@
           <td class="nbca-request">
             {% if count > 1 %}
               <a href="{{ cr.get_absolute_url }}">{% blocktrans with action=cr.get_action_display %}{{ action }} {{ count }} objects{% endblocktrans %}</a>
-              <span class="badge text-bg-blue ms-1" title="{% trans 'One bulk action. Deciding it decides all of them.' %}">{% trans "batch" %}</span>
+              <span class="badge text-bg-primary ms-1" title="{% trans 'One bulk action. Deciding it decides all of them.' %}">{% trans "batch" %}</span>
             {% else %}
               <a href="{{ cr.get_absolute_url }}" title="#{{ cr.pk }} {{ cr.nbca_title }}">{{ cr.nbca_title|default:cr.object_repr }}</a>
             {% endif %}
             {% if cr.revision > 1 %}<span class="badge text-bg-secondary ms-1">{% blocktrans with n=cr.revision %}rev {{ n }}{% endblocktrans %}</span>{% endif %}
-            {% if cr.auto_approved %}<span class="badge text-bg-blue ms-1">{% trans "auto-approved" %}</span>{% endif %}
-            {% if cr.scheduled_for and cr.status == 'pending' %}<span class="badge text-bg-green ms-1" title="{% trans 'Approved; applied automatically at this time' %}"><i class="mdi mdi-calendar-clock"></i> {{ cr.scheduled_for|date:"SHORT_DATETIME_FORMAT" }}</span>{% endif %}
+            {% if cr.auto_approved %}<span class="badge text-bg-primary ms-1">{% trans "auto-approved" %}</span>{% endif %}
+            {% if cr.scheduled_for and cr.status == 'pending' %}<span class="badge text-bg-success ms-1" title="{% trans 'Approved; applied automatically at this time' %}"><i class="mdi mdi-calendar-clock"></i> {{ cr.scheduled_for|date:"SHORT_DATETIME_FORMAT" }}</span>{% endif %}
             {% if cr.reason %}<span class="text-muted small ms-1" title="{% trans 'Reason' %}: {{ cr.reason }}"><i class="mdi mdi-comment-quote-outline"></i> {{ cr.reason }}</span>{% endif %}
           </td>
           <td class="d-none d-md-table-cell small nbca-who">

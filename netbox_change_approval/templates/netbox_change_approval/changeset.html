@@ -6,8 +6,8 @@
 
 {% block subtitle %}
   <div class="text-secondary d-flex flex-wrap align-items-center gap-2 mb-2">
-    <span class="badge {% if object.status == 'draft' %}text-bg-secondary{% else %}text-bg-yellow{% endif %}">{{ object.get_status_display }}</span>
-    {% if is_active %}<span class="badge text-bg-blue">{% trans "active" %}</span>{% endif %}
+    <span class="badge text-bg-{{ object.get_status_color }}">{{ object.get_status_display }}</span>
+    {% if is_active %}<span class="badge text-bg-primary">{% trans "active" %}</span>{% endif %}
     <span>{{ object.created_by|default:"" }} &middot; {{ object.created|timesince }} {% trans "ago" %}{% if object.ticket %} &middot; {% trans "ticket" %} {{ object.ticket }}{% endif %}</span>
   </div>
 {% endblock %}
