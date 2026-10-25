@@ -393,6 +393,19 @@ class ReviewPanelTests(_Base):
         self.assertIn(reverse('plugins:netbox_change_approval:changerequest_inbox'), html)
 
 
+class WidgetIdleStateTests(_Base):
+    def test_empty_widget_shows_idle_line_and_drawing(self):
+        from django.test import RequestFactory
+
+        from ..widgets import IDLE_LINES, ApprovalsWidget
+
+        request = RequestFactory().get('/')
+        request.user = self.submitter
+        html = ApprovalsWidget().render(request)
+        self.assertIn('nbca-idle', html)
+        self.assertTrue(any(line in html for line in IDLE_LINES))
+
+
 class WidgetTitleLinkTests(_Base):
     def test_widget_script_links_title_to_inbox(self):
         from django.test import RequestFactory

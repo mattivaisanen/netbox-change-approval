@@ -7,6 +7,8 @@ would want this on their homepage in the first place: "approve right from
 there" (see README "Task 9"). This one scopes to "routed to me, still pending"
 and links straight to approve/reject.
 """
+import random
+
 from django.template.loader import render_to_string
 # Not gettext_lazy: DashboardWidget.__str__ returns `self.title` (derived from
 # default_title) directly, with no str() wrapper — Python's __str__ dunder
@@ -16,12 +18,26 @@ from django.template.loader import render_to_string
 # the non-lazy gettext for exactly this reason — matching that here, not a
 # general lazy-vs-eager style choice.
 from django.utils.translation import gettext as _
+from django.utils.translation import gettext_noop
 
 from extras.dashboard.utils import register_widget
 from extras.dashboard.widgets import DashboardWidget
 
 from . import permissions
 from .models import ChangeRequest, StatusChoices
+
+
+# Shown, one at random per page load, when nothing waits on the user.
+IDLE_LINES = (
+    gettext_noop('Nothing waiting on you right now. The racks are humming quietly.'),
+    gettext_noop('Inbox zero. Even the patch cables are relaxing.'),
+    gettext_noop('All clear. Go on, refill your coffee.'),
+    gettext_noop('No approvals pending. The change window is all yours.'),
+    gettext_noop('Nothing to review. Every port is in its happy place.'),
+    gettext_noop('Quiet on the change front. Enjoy it while it lasts.'),
+    gettext_noop('All caught up. The servers send their regards.'),
+    gettext_noop('Nothing for you here. Even the LEDs are blinking slower.'),
+)
 
 
 @register_widget
@@ -38,6 +54,7 @@ class ApprovalsWidget(DashboardWidget):
     def render(self, request):
         if not request.user.is_authenticated:
             return ''
+        idle_line = _(random.choice(IDLE_LINES))
 
         queryset = permissions.approver_queue(
             request.user, ChangeRequest.objects.filter(status=StatusChoices.PENDING),
@@ -68,4 +85,6 @@ class ApprovalsWidget(DashboardWidget):
         attach_titles(shown)
         for cr in shown:
             cr.quick_rows = _diff_rows(cr, names=names)
-        return render_to_string(self.template_name, {'change_requests': rows, 'sent_back': sent_back})
+        return render_to_string(self.template_name, {
+            'change_requests': rows, 'sent_back': sent_back, 'idle_line': idle_line,
+        })
