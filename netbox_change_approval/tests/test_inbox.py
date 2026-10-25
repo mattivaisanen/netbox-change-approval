@@ -104,7 +104,7 @@ class InboxTests(TestCase):
 
         self.client.force_login(self.alice)
         page = self.client.get(reverse('plugins:netbox_change_approval:changerequest_inbox'))
-        self.assertRegex(page.content.decode(), r'nbca-inbox-count btn-secondary"\s+title="Field work only">1<')
+        self.assertRegex(page.content.decode(), r'nbca-inbox-count btn-outline-secondary"\s+title="Field work only">1<')
         self.assertNotContains(page, 'Nothing waiting on you.')
 
     def test_approvals_make_the_count_red(self):
@@ -114,13 +114,13 @@ class InboxTests(TestCase):
         self.client.force_login(self.approver)
         page = self.client.get(reverse('plugins:netbox_change_approval:changerequest_inbox'))
         # One decision plus one field work task, in red.
-        self.assertRegex(page.content.decode(), r'nbca-inbox-count btn-red"[^>]*>2<')
+        self.assertRegex(page.content.decode(), r'nbca-inbox-count btn-outline-red"[^>]*>2<')
 
     def test_no_count_box_at_zero(self):
         self.client.force_login(self.alice)
         page = self.client.get(reverse('plugins:netbox_change_approval:changerequest_inbox'))
         self.assertContains(page, 'nbca-inbox-nav')
-        self.assertNotContains(page, 'class="btn px-2 nbca-inbox-count')
+        self.assertNotContains(page, 'class="btn px-0 nbca-inbox-count')
 
     def test_my_requests_redirects_to_inbox(self):
         self.client.force_login(self.alice)
