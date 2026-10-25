@@ -73,6 +73,11 @@ Upgrade: run `manage.py migrate` (adds one database index).
   requests still pending. See "Uninstalling" in the README.
 
 ### Improvements
+- Animations follow the theme: the widget's idle drawings are drawn in the
+  theme's text colour (black or white), with their highlights (blinking
+  lights, check marks, sun, moon, beak, bobber) in NetBox's main and
+  secondary colours. Live-refresh highlights use the same pair: new rows
+  fade in from the main colour, changed rows flash the secondary colour.
 - Colours follow NetBox and its theme: request and change set status badges
   now use NetBox's own status colour handling, so a theme plugin that
   recolours statuses (for example "Pending" or "Applied") recolours them in

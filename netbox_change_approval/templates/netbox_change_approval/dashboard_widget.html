@@ -96,9 +96,12 @@
 <style>
   .nbca-idle { display: flex; flex-direction: column; align-items: center; justify-content: center;
                gap: .75rem; height: 100%; min-height: 10rem; text-align: center; }
-  .nbca-idle svg { width: 9rem; height: auto; color: var(--tblr-secondary); }
+  /* Drawn in the theme's text colour (black or white); highlights in NetBox's
+     main colour and its secondary (alt) colour, so they follow the theme. */
+  .nbca-idle { --nbca-main: var(--tblr-primary); --nbca-alt: var(--tblr-secondary); }
+  .nbca-idle svg { width: 9rem; height: auto; color: var(--tblr-body-color); }
   .nbca-idle svg text { font-family: sans-serif; }
-  .nbca-idle .nbca-led { fill: var(--tblr-green); stroke: none; animation: nbca-blink 3.2s ease-in-out infinite; }
+  .nbca-idle .nbca-led { fill: var(--nbca-main); stroke: none; animation: nbca-blink 3.2s ease-in-out infinite; }
   .nbca-idle .nbca-star { fill: currentColor; stroke: none; animation: nbca-blink 2.8s ease-in-out infinite; }
   .nbca-idle .nbca-d1 { animation-delay: 1.1s; }
   .nbca-idle .nbca-d2 { animation-delay: 2.2s; }
@@ -114,7 +117,7 @@
   .nbca-idle .nbca-roll { animation: nbca-roll 6s linear infinite; }
   .nbca-idle .nbca-roll > g { transform-box: fill-box; transform-origin: center; animation: nbca-spin 1.5s linear infinite; }
   .nbca-idle .nbca-rays { transform-origin: 96px 18px; animation: nbca-spin 20s linear infinite; }
-  .nbca-idle .nbca-check { stroke: var(--tblr-green); stroke-width: 2.5; stroke-dasharray: 14; stroke-dashoffset: 14;
+  .nbca-idle .nbca-check { stroke: var(--nbca-main); stroke-width: 2.5; stroke-dasharray: 14; stroke-dashoffset: 14;
                            animation: nbca-tick 6s ease-out infinite; }
   .nbca-idle .nbca-check.nbca-d1 { animation-name: nbca-tick1; animation-delay: 0s; }
   .nbca-idle .nbca-check.nbca-d2 { animation-name: nbca-tick2; animation-delay: 0s; }
