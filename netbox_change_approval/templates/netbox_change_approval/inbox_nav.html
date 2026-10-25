@@ -11,25 +11,31 @@
   }
   .nbca-cs-active { display: inline-block; animation: nbca-cs-icon 2s ease-in-out infinite; }
   .nbca-cs-button { animation: nbca-cs-halo 2s ease-in-out infinite; }
+  .nbca-inbox-count { justify-content: center; flex: 0 0 auto; }
   @media (prefers-reduced-motion: reduce) { .nbca-cs-active, .nbca-cs-button { animation: none; } }
 </style>
 <template id="nbca-inbox-nav">
+  {# Change set button on the left, Approval Inbox in the middle, count on the right in a box the size of the change set button. No count box when nothing is waiting. #}
   <div class="nbca-inbox-nav px-3 mt-2 mb-1 d-flex gap-1">
-    <a href="{% url 'plugins:netbox_change_approval:changerequest_inbox' %}"
-       class="btn {% if approval_count %}btn-outline-primary{% else %}btn-outline-secondary{% endif %} flex-grow-1 justify-content-between{% if active %} active{% endif %}"
-       title="{% trans 'Change requests waiting on you' %}">
-      <span><i class="mdi mdi-inbox{% if count %}-full{% endif %}-outline me-1"></i>{% trans "Approval Inbox" %}</span>
-      {% if count %}<span class="badge {% if approval_count %}text-bg-red{% else %}text-bg-secondary{% endif %} ms-2"{% if not approval_count %} title="{% trans 'Field work only' %}"{% endif %}>{{ count }}</span>{% endif %}
-    </a>
     {% if change_set_button %}
       {% if active_change_set %}
       <a href="{{ active_change_set.get_absolute_url }}" class="btn btn-outline-primary active px-2 nbca-cs-button"
          title="{% blocktrans with name=active_change_set.name %}Working in change set: {{ name }}{% endblocktrans %}"
          aria-label="{% trans 'Open the active change set' %}"><i class="mdi mdi-package-variant-closed m-0 nbca-cs-active"></i></a>
       {% else %}
-      <a href="{% url 'plugins:netbox_change_approval:changeset_list' %}" class="btn btn-outline-secondary px-2"
+      <a href="{% url 'plugins:netbox_change_approval:changeset_list' %}" class="btn btn-outline-secondary px-2 nbca-cs-button-idle"
          title="{% trans 'Start a change set' %}" aria-label="{% trans 'Start a change set' %}"><i class="mdi mdi-package-variant-plus m-0"></i></a>
       {% endif %}
+    {% endif %}
+    <a href="{% url 'plugins:netbox_change_approval:changerequest_inbox' %}"
+       class="btn {% if approval_count %}btn-outline-primary{% else %}btn-outline-secondary{% endif %} flex-grow-1{% if active %} active{% endif %}"
+       title="{% trans 'Change requests waiting on you' %}">
+      <i class="mdi mdi-inbox{% if count %}-full{% endif %}-outline me-1"></i>{% trans "Approval Inbox" %}
+    </a>
+    {% if count %}
+    <a href="{% url 'plugins:netbox_change_approval:changerequest_inbox' %}"
+       class="btn px-2 nbca-inbox-count {% if approval_count %}btn-red{% else %}btn-secondary{% endif %}"
+       title="{% if approval_count %}{% trans 'Change requests waiting on you' %}{% else %}{% trans 'Field work only' %}{% endif %}">{{ count }}</a>
     {% endif %}
   </div>
 </template>
@@ -39,5 +45,13 @@
     var menu = document.getElementById('sidebar-menu');
     if (!tpl || !menu || menu.querySelector('.nbca-inbox-nav')) return;
     menu.insertBefore(tpl.content.cloneNode(true), menu.firstChild);
+    // Count box: same size as the change set button (grows only for long numbers).
+    var nav = menu.querySelector('.nbca-inbox-nav');
+    var cs = nav.querySelector('.nbca-cs-button, .nbca-cs-button-idle');
+    var counter = nav.querySelector('.nbca-inbox-count');
+    if (cs && counter) {
+      counter.style.minWidth = cs.offsetWidth + 'px';
+      counter.style.height = cs.offsetHeight + 'px';
+    }
   });
 </script>
