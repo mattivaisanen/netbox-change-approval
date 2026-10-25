@@ -50,7 +50,9 @@ def _members(change_request):
 
 def apply_scheduled(change_request):
     """Apply a scheduled request (and the rest of its batch) now. Returns
-    True if applied; on failure drops the schedule and notifies."""
+    True if applied, None if it was decided or unscheduled meanwhile (by a
+    retract, say, or a second "Apply now"); on failure drops the schedule,
+    notifies and returns False."""
     from netbox.context_managers import event_tracking
 
     from . import notifications
@@ -60,13 +62,20 @@ def apply_scheduled(change_request):
     try:
         with event_tracking(_fake_request(user)):
             with transaction.atomic():
-                for member in members:
+                # Lock and re-check: the request may have been retracted,
+                # rejected or applied since it was read.
+                locked = list(ChangeRequest.objects.select_for_update().filter(
+                    pk__in=[m.pk for m in members], status=StatusChoices.PENDING, scheduled_for__isnull=False,
+                ).order_by('pk'))
+                if len(locked) != len(members):
+                    return None
+                for member in locked:
                     member.apply(user=user)
         return True
     except Exception as error:
         logger.warning('Scheduled change request #%s could not be applied: %s', change_request.pk, error)
-        for member in members:
-            ChangeRequest.objects.filter(pk=member.pk).update(scheduled_for=None, scheduled_by=None)
+        # scheduled_by stays: the notification's "By" line names it.
+        ChangeRequest.objects.filter(pk__in=[m.pk for m in members]).update(scheduled_for=None)
         notifications.schedule_failed(change_request, user, str(error))
         return False
 
@@ -91,8 +100,7 @@ def apply_due(now=None):
 
 def cancel(change_request):
     """Back to an ordinary pending request (approvals kept)."""
-    for member in _members(change_request):
-        ChangeRequest.objects.filter(pk=member.pk).update(scheduled_for=None, scheduled_by=None)
+    ChangeRequest.objects.filter(pk__in=[m.pk for m in _members(change_request)]).update(scheduled_for=None)
 
 
 try:

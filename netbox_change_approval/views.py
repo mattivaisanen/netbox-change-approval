@@ -604,8 +604,11 @@ class ChangeRequestScheduleView(ConditionalLoginRequiredMixin, View):
             return redirect(change_request.get_absolute_url())
         if request.POST.get('action') == 'apply_now':
             change_request.scheduled_by = request.user
-            if scheduling.apply_scheduled(change_request):
+            applied = scheduling.apply_scheduled(change_request)
+            if applied:
                 messages.success(request, _('Applied now.'))
+            elif applied is None:
+                messages.info(request, _('Already decided or unscheduled meanwhile.'))
             else:
                 messages.error(request, _('Could not be applied; the schedule was cancelled. See the request.'))
         else:

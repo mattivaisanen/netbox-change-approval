@@ -98,3 +98,16 @@ class ScheduledApplyTests(TestCase):
             scheduled_by=self.approver,
         )
         self.assertEqual(expiry.expire_overdue(), 0)
+
+    def test_not_applied_once_decided_meanwhile(self):
+        """A request retracted after the job read it is left alone."""
+        change_request = self._request()
+        ChangeRequest.objects.filter(pk=change_request.pk).update(
+            scheduled_for=timezone.now(), scheduled_by=self.approver,
+        )
+        change_request.refresh_from_db()
+        ChangeRequest.objects.filter(pk=change_request.pk).update(status=StatusChoices.RETRACTED)
+        self.assertIsNone(scheduling.apply_scheduled(change_request))
+        change_request.refresh_from_db()
+        self.assertEqual(change_request.status, StatusChoices.RETRACTED)
+        self.assertEqual(Manufacturer.objects.get(pk=change_request.object_id).description, '')

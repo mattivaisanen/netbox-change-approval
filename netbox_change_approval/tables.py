@@ -1,4 +1,5 @@
 import django_tables2 as tables
+from django.urls import reverse
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 
@@ -114,9 +115,10 @@ class ChangeRequestTable(NetBoxTable):
     def render_decided_by(self, value, record):
         # Auto-approved: the rule is the approver.
         if value is None and record.approving_rule:
-            rule = record.auto_approved_by_rule
-            if rule is not None:
-                return format_html('<a href="{}">{}</a>', rule.get_absolute_url(), record.approving_rule)
+            if record.auto_approved_by_rule_id:
+                # By id: loading each row's rule would cost a query per row.
+                url = reverse('plugins:netbox_change_approval:approvalrule', args=[record.auto_approved_by_rule_id])
+                return format_html('<a href="{}">{}</a>', url, record.approving_rule)
             return record.approving_rule
         if value is None:
             return '—'
