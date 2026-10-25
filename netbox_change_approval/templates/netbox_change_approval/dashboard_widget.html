@@ -1,4 +1,6 @@
 {% load i18n nbca_diff %}
+{# One root element: the background refresh (inbox_nav.html, nbcaLive) swaps it whole when data-nbca-sig changes. #}
+<div class="nbca-live-widget h-100" data-nbca-live="widget" data-nbca-sig="{{ live_sig }}">
 {% if change_requests or sent_back or closed %}
 <style>
   .nbca-widget .nbca-quick > td { background: var(--tblr-bg-surface-secondary); }
@@ -150,7 +152,7 @@
 
 <script>
   /* Mark as read without leaving the dashboard: drop the row (and its quick
-     view); reload for the idle drawing once the last row is gone. The form
+     view); redraw for the idle drawing once the last row is gone. The form
      still works on its own if this fails. */
   (function (script) {
     var card = script && script.closest('.grid-stack-item-content');
@@ -168,7 +170,9 @@
           var quick = row.nextElementSibling;
           if (quick && quick.classList.contains('nbca-quick')) quick.remove();
           row.remove();
-          if (!table.querySelector('tbody > tr')) window.location.reload();
+          if (!table.querySelector('tbody > tr')) {
+            if (window.nbcaLive) window.nbcaLive.refresh(); else window.location.reload();
+          }
         }).catch(function () { form.submit(); });
       });
     });
@@ -189,3 +193,4 @@
     link.appendChild(title);
   })(document.currentScript);
 </script>
+</div>

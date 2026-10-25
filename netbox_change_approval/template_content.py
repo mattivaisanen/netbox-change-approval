@@ -112,6 +112,29 @@ class PendingRowStyles(PluginTemplateExtension):
         return self.render('netbox_change_approval/pending_row_styles.html')
 
 
+def nav_context(request, path):
+    """Context for inc/inbox_nav_button.html; `path` is the page it sits on
+    (the button is highlighted on the inbox itself)."""
+    from django.urls import reverse
+
+    from . import changesets, permissions
+    from .inbox import field_work_count, inbox_count
+
+    # "Start a change set" beside it, for people whose changes need
+    # approval (not superusers or bypass users) when change sets are on.
+    change_set_button = changesets.enabled() and not permissions.has_any_bypass(request.user)
+    approval_count = inbox_count(request.user)
+    return {
+        # Red badge for approvals that need attention; gray when only
+        # field work is left.
+        'approval_count': approval_count,
+        'count': approval_count + field_work_count(request.user),
+        'active': path == reverse('plugins:netbox_change_approval:changerequest_inbox'),
+        'change_set_button': change_set_button,
+        'active_change_set': changesets.active_for(request) if change_set_button else None,
+    }
+
+
 class InboxNavButton(PluginTemplateExtension):
     """
     "Approval Inbox" button with a count, at the top of the sidebar on every
@@ -122,25 +145,7 @@ class InboxNavButton(PluginTemplateExtension):
         request = self.context.get('request')
         if request is None or not request.user.is_authenticated:
             return ''
-        from django.urls import reverse
-
-        from .inbox import field_work_count, inbox_count
-        inbox_url = reverse('plugins:netbox_change_approval:changerequest_inbox')
-        from . import changesets, permissions
-
-        # "Start a change set" beside it, for people whose changes need
-        # approval (not superusers or bypass users) when change sets are on.
-        change_set_button = changesets.enabled() and not permissions.has_any_bypass(request.user)
-        active_change_set = changesets.active_for(request) if change_set_button else None
-        return self.render('netbox_change_approval/inbox_nav.html', {
-            # Red badge for approvals that need attention; gray when only
-            # field work is left.
-            'approval_count': (approval_count := inbox_count(request.user)),
-            'count': approval_count + field_work_count(request.user),
-            'active': request.path == inbox_url,
-            'change_set_button': change_set_button,
-            'active_change_set': active_change_set,
-        })
+        return self.render('netbox_change_approval/inbox_nav.html', nav_context(request, request.path))
 
 
 class AmendEditNotice(PluginTemplateExtension):

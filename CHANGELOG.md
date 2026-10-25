@@ -5,6 +5,11 @@
 Upgrade: run `manage.py migrate` (adds one database index).
 
 ### New features
+- Live updates: the Pending Approvals widget and the sidebar's Approval
+  Inbox count now refresh on their own every 30 seconds, without reloading
+  the page. Only a tab you are looking at checks, and it checks at once
+  when you come back to it. The widget is only redrawn when its requests
+  changed, and waits while a dialog or a row's details are open.
 - Pending Approvals widget: your rejected and expired requests now show on
   the dashboard widget, with who decided and their comment. Click the eye
   ("Mark as read") to take one off the widget and out of the inbox count;

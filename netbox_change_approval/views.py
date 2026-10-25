@@ -1261,3 +1261,30 @@ class ChangeSetView(ConditionalLoginRequiredMixin, View):
             messages.success(request, _('Discarded the change set and withdrew %(count)d change(s).') % {'count': count})
             return redirect(reverse('plugins:netbox_change_approval:changeset_list'))
         return redirect(change_set.get_absolute_url())
+
+
+class LiveRefreshView(ConditionalLoginRequiredMixin, View):
+    """
+    What the page's background refresh (inbox_nav.html, nbcaLive) redraws: the
+    sidebar's Approval Inbox row and, with ?sig=, the Pending Approvals
+    dashboard widget (None when its signature still matches). Read-only.
+    """
+    def get(self, request):
+        from django.http import JsonResponse
+        from django.template.loader import render_to_string
+
+        if not request.user.is_authenticated:
+            return JsonResponse({}, status=403)
+        from .template_content import nav_context
+
+        path = request.GET.get('path') or ''
+        data = {'nav': render_to_string(
+            'netbox_change_approval/inc/inbox_nav_button.html', nav_context(request, path), request=request,
+        )}
+        if 'sig' in request.GET:
+            from .widgets import ApprovalsWidget
+
+            data['sig'], data['widget'] = ApprovalsWidget().live(request, request.GET['sig'])
+        response = JsonResponse(data)
+        response['Cache-Control'] = 'no-store'
+        return response

@@ -27,43 +27,91 @@
   @media (prefers-reduced-motion: reduce) { .nbca-cs-active, .nbca-cs-button, .nbca-inbox-count-urgent { animation: none; } }
 </style>
 <template id="nbca-inbox-nav">
-  {# Change set button on the left, Approval Inbox in the middle, count on the right in a box the size of the change set button. No count box when nothing is waiting. #}
-  <div class="nbca-inbox-nav px-3 mt-2 mb-1 d-flex gap-1">
-    {% if change_set_button %}
-      {% if active_change_set %}
-      <a href="{{ active_change_set.get_absolute_url }}" class="btn btn-outline-primary active px-2 nbca-cs-button"
-         title="{% blocktrans with name=active_change_set.name %}Working in change set: {{ name }}{% endblocktrans %}"
-         aria-label="{% trans 'Open the active change set' %}"><i class="mdi mdi-package-variant-closed m-0 nbca-cs-active"></i></a>
-      {% else %}
-      <a href="{% url 'plugins:netbox_change_approval:changeset_list' %}" class="btn btn-outline-secondary px-2 nbca-cs-button-idle"
-         title="{% trans 'Start a change set' %}" aria-label="{% trans 'Start a change set' %}"><i class="mdi mdi-package-variant-plus m-0"></i></a>
-      {% endif %}
-    {% endif %}
-    <a href="{% url 'plugins:netbox_change_approval:changerequest_inbox' %}"
-       class="btn {% if approval_count %}btn-outline-primary{% else %}btn-outline-secondary{% endif %} flex-grow-1{% if active %} active{% endif %}"
-       title="{% trans 'Change requests waiting on you' %}">
-      <i class="mdi mdi-inbox{% if count %}-full{% endif %}-outline me-1"></i>{% trans "Approval Inbox" %}
-    </a>
-    {% if count %}
-    <a href="{% url 'plugins:netbox_change_approval:changerequest_inbox' %}"
-       class="btn px-0 nbca-inbox-count {% if approval_count %}btn-outline-red nbca-inbox-count-urgent{% else %}btn-outline-secondary{% endif %}"
-       title="{% if approval_count %}{% trans 'Change requests waiting on you' %}{% else %}{% trans 'Field work only' %}{% endif %}">{{ count }}</a>
-    {% endif %}
-  </div>
+  {% include 'netbox_change_approval/inc/inbox_nav_button.html' %}
 </template>
 <script>
-  document.addEventListener('DOMContentLoaded', function () {
-    var tpl = document.getElementById('nbca-inbox-nav');
-    var menu = document.getElementById('sidebar-menu');
-    if (!tpl || !menu || menu.querySelector('.nbca-inbox-nav')) return;
-    menu.insertBefore(tpl.content.cloneNode(true), menu.firstChild);
+  (function () {
     // Count box: exactly the size of the change set button.
-    var nav = menu.querySelector('.nbca-inbox-nav');
-    var cs = nav.querySelector('.nbca-cs-button, .nbca-cs-button-idle');
-    var counter = nav.querySelector('.nbca-inbox-count');
-    if (cs && counter) {
-      counter.style.width = cs.offsetWidth + 'px';
-      counter.style.height = cs.offsetHeight + 'px';
+    function sizeCount(nav) {
+      var cs = nav.querySelector('.nbca-cs-button, .nbca-cs-button-idle');
+      var counter = nav.querySelector('.nbca-inbox-count');
+      if (cs && counter) {
+        counter.style.width = cs.offsetWidth + 'px';
+        counter.style.height = cs.offsetHeight + 'px';
+      }
     }
-  });
+
+    document.addEventListener('DOMContentLoaded', function () {
+      var tpl = document.getElementById('nbca-inbox-nav');
+      var menu = document.getElementById('sidebar-menu');
+      if (!tpl || !menu || menu.querySelector('.nbca-inbox-nav')) return;
+      menu.insertBefore(tpl.content.cloneNode(true), menu.firstChild);
+      sizeCount(menu.querySelector('.nbca-inbox-nav'));
+    });
+
+    /* Background refresh: every 30 seconds while the tab is visible (and at
+       once when you come back to it), redraw the sidebar count and the
+       Pending Approvals widget if anything changed. The widget waits while
+       a dialog or a quick view is open, so nothing moves under your hands.
+       Stops for good once you're signed out. */
+    if (window.nbcaLive) return;
+    var URL = "{% url 'plugins:netbox_change_approval:live_refresh' %}";
+    var EVERY = 30000;
+    var busy = false, stopped = false, last = Date.now(), lastNav = null;
+
+    function swapNav(html) {
+      var current = document.querySelector('#sidebar-menu .nbca-inbox-nav');
+      if (!current || !html || html === lastNav) return;
+      var tpl = document.createElement('template');
+      tpl.innerHTML = html.trim();
+      var fresh = tpl.content.firstElementChild;
+      if (!fresh) return;
+      current.replaceWith(fresh);
+      sizeCount(fresh);
+      lastNav = html;
+    }
+
+    function widgetBusy(root) {
+      return document.querySelector('.modal.show') ||
+        root.querySelector('.nbca-quick.show, .nbca-quick.collapsing');
+    }
+
+    function swapWidget(root, html) {
+      if (!document.contains(root)) return;
+      // Scripts in a contextual fragment run when inserted, as on page load.
+      root.replaceWith(document.createRange().createContextualFragment(html));
+    }
+
+    function refresh() {
+      if (busy || stopped || document.hidden) return;
+      busy = true;
+      last = Date.now();
+      var root = document.querySelector('[data-nbca-live="widget"]');
+      // A busy widget sends no signature, so it's left as it is this time.
+      var sendSig = root && !widgetBusy(root);
+      var url = URL + '?path=' + encodeURIComponent(window.location.pathname) +
+        (sendSig ? '&sig=' + encodeURIComponent(root.getAttribute('data-nbca-sig') || '') : '');
+      fetch(url, {credentials: 'same-origin', headers: {'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest'}})
+        .then(function (response) {
+          if (response.redirected || response.status === 401 || response.status === 403 || response.status === 404) {
+            stopped = true;  // signed out (or the plugin is gone)
+            return null;
+          }
+          return response.ok ? response.json() : null;
+        })
+        .then(function (data) {
+          if (!data) return;
+          swapNav(data.nav);
+          if (sendSig && data.widget && !widgetBusy(root)) swapWidget(root, data.widget);
+        })
+        .catch(function () { /* offline for a moment: try again next time */ })
+        .then(function () { busy = false; });
+    }
+
+    window.nbcaLive = {refresh: refresh};
+    setInterval(refresh, EVERY);
+    document.addEventListener('visibilitychange', function () {
+      if (!document.hidden && Date.now() - last >= EVERY) refresh();
+    });
+  })();
 </script>

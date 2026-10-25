@@ -1,0 +1,25 @@
+{% load i18n %}
+{# The sidebar's Approval Inbox row (see inbox_nav.html). Also rendered alone for the background refresh (views.LiveRefreshView). #}
+{# Change set button on the left, Approval Inbox in the middle, count on the right in a box the size of the change set button. No count box when nothing is waiting. #}
+<div class="nbca-inbox-nav px-3 mt-2 mb-1 d-flex gap-1">
+  {% if change_set_button %}
+    {% if active_change_set %}
+    <a href="{{ active_change_set.get_absolute_url }}" class="btn btn-outline-primary active px-2 nbca-cs-button"
+       title="{% blocktrans with name=active_change_set.name %}Working in change set: {{ name }}{% endblocktrans %}"
+       aria-label="{% trans 'Open the active change set' %}"><i class="mdi mdi-package-variant-closed m-0 nbca-cs-active"></i></a>
+    {% else %}
+    <a href="{% url 'plugins:netbox_change_approval:changeset_list' %}" class="btn btn-outline-secondary px-2 nbca-cs-button-idle"
+       title="{% trans 'Start a change set' %}" aria-label="{% trans 'Start a change set' %}"><i class="mdi mdi-package-variant-plus m-0"></i></a>
+    {% endif %}
+  {% endif %}
+  <a href="{% url 'plugins:netbox_change_approval:changerequest_inbox' %}"
+     class="btn {% if approval_count %}btn-outline-primary{% else %}btn-outline-secondary{% endif %} flex-grow-1{% if active %} active{% endif %}"
+     title="{% trans 'Change requests waiting on you' %}">
+    <i class="mdi mdi-inbox{% if count %}-full{% endif %}-outline me-1"></i>{% trans "Approval Inbox" %}
+  </a>
+  {% if count %}
+  <a href="{% url 'plugins:netbox_change_approval:changerequest_inbox' %}"
+     class="btn px-0 nbca-inbox-count {% if approval_count %}btn-outline-red nbca-inbox-count-urgent{% else %}btn-outline-secondary{% endif %}"
+     title="{% if approval_count %}{% trans 'Change requests waiting on you' %}{% else %}{% trans 'Field work only' %}{% endif %}">{{ count }}</a>
+  {% endif %}
+</div>

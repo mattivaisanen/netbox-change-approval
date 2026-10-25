@@ -8,6 +8,7 @@ app_name = 'netbox_change_approval'
 
 urlpatterns = [
     path('away/', views.AwayView.as_view(), name='away'),
+    path('live/', views.LiveRefreshView.as_view(), name='live_refresh'),
     path('work-sheet/', views.WorkSheetView.as_view(), name='worksheet'),
     path('settings/', settings_page.PluginSettingsView.as_view(), name='settings'),
     path('change-sets/', views.ChangeSetListView.as_view(), name='changeset_list'),

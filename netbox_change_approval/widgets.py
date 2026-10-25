@@ -7,6 +7,7 @@ would want this on their homepage in the first place: "approve right from
 there" (see README "Task 9"). This one scopes to "routed to me, still pending"
 and links straight to approve/reject.
 """
+import hashlib
 import random
 
 from django.middleware.csrf import get_token
@@ -73,16 +74,36 @@ class ApprovalsWidget(DashboardWidget):
     def render(self, request):
         if not request.user.is_authenticated:
             return ''
-        is_approver = request.user.has_perm(
-            f'netbox_change_approval.{permissions.IS_APPROVER_ACTION}_changerequest'
-        )
-        idle_line = _(random.choice(IDLE_LINES if is_approver else REQUESTER_IDLE_LINES))
+        return self._render(request, self._items(request.user))
 
+    def live(self, request, known_sig=None):
+        """
+        (signature, html) for the page's background refresh (views.LiveRefreshView).
+        html is None when nothing in the widget changed since `known_sig`, so
+        an unchanged widget isn't redrawn (and its idle drawing doesn't swap).
+        """
+        items = self._items(request.user)
+        sig = self.signature(*items)
+        if sig == known_sig:
+            return sig, None
+        return sig, self._render(request, items)
+
+    @staticmethod
+    def signature(rows, sent_back, closed):
+        """Short fingerprint of what the widget shows: which requests, whether
+        you may decide them, which revision, and how many are in each batch."""
+        parts = (
+            [('p', cr.pk, cr.revision, can) for cr, can in rows]
+            + [('s', cr.pk, cr.revision, str(cr.decided_at)) for cr in sent_back]
+            + [('c', item['lead'].pk, len(item['members'])) for item in closed]
+        )
+        return hashlib.sha1(repr(parts).encode()).hexdigest()[:16]
+
+    def _items(self, user):
         queryset = permissions.approver_queue(
-            request.user, ChangeRequest.objects.filter(status=StatusChoices.PENDING),
+            user, ChangeRequest.objects.filter(status=StatusChoices.PENDING),
         ).select_related('content_type', 'submitted_by', 'approver_group').order_by('-submitted_at')[:10]
 
-        user = request.user
         from .absence import decide_group_ids
         group_ids = decide_group_ids(user)
         rows = [
@@ -94,9 +115,9 @@ class ApprovalsWidget(DashboardWidget):
             for cr in queryset
         ]
         # Your own requests sent back to you (or retracted to edit), with Revise.
-        sent_back = ChangeRequest.objects.filter(
+        sent_back = list(ChangeRequest.objects.filter(
             submitted_by=user, status=StatusChoices.RETURNED,
-        ).select_related('content_type', 'submitted_by', 'approver_group').order_by('-decided_at')[:10]
+        ).select_related('content_type', 'submitted_by', 'approver_group').order_by('-decided_at')[:10])
         # Your rejected and expired requests not read yet, one row per batch,
         # each with Mark as read (opening the request marks it read too).
         from .inbox import _rejected, group_items
@@ -105,10 +126,17 @@ class ApprovalsWidget(DashboardWidget):
             _rejected(user).select_related('content_type', 'submitted_by', 'decided_by', 'approver_group'),
             limit=10,
         )
+        return rows, sent_back, closed
+
+    def _render(self, request, items):
+        rows, sent_back, closed = items
+        is_approver = request.user.has_perm(
+            f'netbox_change_approval.{permissions.IS_APPROVER_ACTION}_changerequest'
+        )
+        idle_line = _(random.choice(IDLE_LINES if is_approver else REQUESTER_IDLE_LINES))
         # Field changes for each row's quick view (the arrow), as in the inbox.
         from .views import _diff_rows, prefetch_display_names
 
-        sent_back = list(sent_back)
         shown = [cr for cr, _can in rows] + sent_back + [item['lead'] for item in closed]
         names = prefetch_display_names(shown)
         from .titles import attach_titles
@@ -117,6 +145,7 @@ class ApprovalsWidget(DashboardWidget):
             cr.quick_rows = _diff_rows(cr, names=names)
         return render_to_string(self.template_name, {
             'change_requests': rows, 'sent_back': sent_back, 'closed': closed, 'idle_line': idle_line,
+            'live_sig': self.signature(rows, sent_back, closed),
             'csrf_token': get_token(request) if closed else '',
             'idle_drawing': f'netbox_change_approval/inc/idle/{random.choice(IDLE_DRAWINGS)}.html',
         })
