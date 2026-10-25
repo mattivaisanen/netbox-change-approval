@@ -125,8 +125,9 @@
   .nbca-idle .nbca-sway { animation: nbca-sway 3.5s ease-in-out infinite; }
   .nbca-idle .nbca-swim { transform-box: fill-box; transform-origin: center; animation: nbca-swim 8s ease-in-out infinite; }
   .nbca-idle .nbca-flicker { transform-box: fill-box; transform-origin: 50% 100%; animation: nbca-flicker .9s ease-in-out infinite alternate; }
-  .nbca-idle .nbca-hand-h { animation: nbca-spin 60s linear infinite; }
-  .nbca-idle .nbca-hand-m { animation: nbca-spin 6s linear infinite; }
+  /* Clock: the minute hand makes one turn, wobbles, falls off and lands below. */
+  .nbca-idle .nbca-hand-h { animation: nbca-clock-h 12s linear infinite; }
+  .nbca-idle .nbca-hand-m { animation: nbca-clock-m 12s linear infinite; }
   .nbca-idle .nbca-turbine { animation: nbca-spin 4s linear infinite; }
   .nbca-idle .nbca-turbine.nbca-slow { animation-duration: 6s; }
   .nbca-idle .nbca-hop { animation: nbca-hop 3s ease-in-out infinite; }
@@ -149,6 +150,17 @@
   @keyframes nbca-swim { 0%, 100% { transform: translateX(-10px) scaleX(1); } 45% { transform: translateX(10px) scaleX(1); }
                          50% { transform: translateX(10px) scaleX(-1); } 95% { transform: translateX(-10px) scaleX(-1); } }
   @keyframes nbca-flicker { from { transform: scaleY(.9); opacity: .85; } to { transform: scaleY(1.1); opacity: 1; } }
+  @keyframes nbca-clock-h { 0% { transform: rotate(0); } 50%, 100% { transform: rotate(30deg); } }
+  @keyframes nbca-clock-m {
+    0% { transform: rotate(0); opacity: 0; } 4% { opacity: 1; }
+    50% { transform: rotate(360deg); }
+    53% { transform: rotate(378deg); } 56% { transform: rotate(350deg); }
+    59% { transform: rotate(362deg); animation-timing-function: ease-in; }
+    68% { transform: translate(8px, 33px) rotate(450deg); animation-timing-function: ease-out; }
+    71% { transform: translate(9px, 29px) rotate(444deg); animation-timing-function: ease-in; }
+    74%, 92% { transform: translate(10px, 33px) rotate(450deg); opacity: 1; }
+    100% { transform: translate(10px, 33px) rotate(450deg); opacity: 0; }
+  }
   @keyframes nbca-hop { 0%, 70%, 100% { transform: translateY(0); } 78% { transform: translateY(-5px); } 86% { transform: translateY(0); } }
   @media (prefers-reduced-motion: reduce) {
     .nbca-idle svg * { animation: none !important; }
