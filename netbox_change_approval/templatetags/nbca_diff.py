@@ -18,10 +18,11 @@ def is_blank(value):
 
 @register.filter
 def short_age(value):
-    """How long ago, in its largest unit only ("10 hours", not "10 hours,
-    47 minutes"), so it fits a narrow column. The full time is in the title."""
+    """How long ago, in its largest unit only ("10 hours ago", not "10 hours,
+    47 minutes ago"), so it fits a narrow column. The full time is in the title."""
     from django.utils.timesince import timesince
+    from django.utils.translation import gettext
 
     if not value:
         return ''
-    return timesince(value, depth=1)
+    return gettext('%(time)s ago') % {'time': timesince(value, depth=1)}

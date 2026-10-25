@@ -44,5 +44,5 @@ class ShortAgeTests(SimpleTestCase):
         from django.utils import timezone
 
         from ..templatetags.nbca_diff import short_age
-        self.assertEqual(short_age(timezone.now() - timedelta(hours=10, minutes=47)), '10\xa0hours')
+        self.assertEqual(short_age(timezone.now() - timedelta(hours=10, minutes=47)), '10\xa0hours ago')
         self.assertEqual(short_age(None), '')
