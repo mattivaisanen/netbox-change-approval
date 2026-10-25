@@ -8,11 +8,15 @@
 - The waiting-for-approval banners, the menu and the notifications panel
   can now be translated, like the rest of the plugin.
 - Pending colors on NetBox pages come straight from NetBox's theme, with no
-  built-in fallback colors. The rack elevation drawing, which can't see the
-  page's theme, defines its own named colors.
+  built-in fallback colors, including the Approval Inbox button's glow. The
+  rack elevation drawing, which can't see the page's theme, defines its own
+  named colors.
 - Shorter README with a feature overview. The full guide moved to
   [docs/usage.md](docs/usage.md), and installing, upgrading and
   uninstalling to [docs/installation.md](docs/installation.md).
+- README has its own short Upgrading section and names both tested NetBox
+  versions (4.7.0 and 4.7.3). The configuration reference is now titled
+  "Configuration", like the other plugins' docs.
 - Package metadata: correct project links, an SPDX license entry, and the
   same description as in NetBox's plugin list.
 - American spelling throughout ("color", "canceled").

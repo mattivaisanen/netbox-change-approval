@@ -10,4 +10,5 @@ venv/
 .ruff_cache/
 # Local assistant notes, not part of the project
 CLAUDE.md
+CLAUDE.local.md
 .claude/

@@ -1,18 +1,18 @@
-# Configuration reference
+# Configuration
 
 All settings live under `PLUGINS_CONFIG['netbox_change_approval']` in your
 NetBox `configuration.py`.
 
 | Key | Type | Default | Description |
 |---|---|---|---|
-| `default_approver_group` | `str` | `'Change Approvers'` | Name of the NetBox `Group` (`users.Group`) the **Default rule** (bottom of Change Approval → Approval Rules) starts with when it is created, and its fallback while it leaves the approver group blank. Set the group on the Default rule instead. If no such group exists, changes are still queued but only superusers can decide them. |
-| `exempt_models` | `list[str]` | `[]` | Emergency off switch: models the plugin doesn't touch at all, as `'app_label.model_name'` strings (e.g. `'extras.tag'`). Needs a restart; for normal use prefer a "Skip approval" Approval Rule. Applies in addition to this plugin's own models, which are always excluded regardless of this setting. |
-| `expire_pending_after_days` | `int` or `None` | `None` | Only the starting **Expire after (days)** of the Default rule when it is created. Set expiry on the Default rule instead. |
-| `pending_row_style` | `str` | `'by_action'` | How pending objects look in object lists and rack elevations: `'by_action'` (green new, blue edit, red delete, with the requested values) or `'outline'` (a single yellow outline). |
-| `group_components_with_parent` | `bool` | `True` | While a new device or VM waits for approval, its interfaces, ports, bays, modules, inventory items, VM disks and IP/MAC addresses on its interfaces belong to its request instead of getting their own. `False` gives each its own request again. |
-| `work_sheets` | `bool` | `True` | Field work: approved changes that need work on site (mounting a device, patching a cable, configuring an IP address, ...) become tasks in the **Field work** section of the Approval Inbox, with a printable work sheet by rack. `False` turns it off. |
-| `change_sets` | `bool` | `True` | Change sets (Change Approval → Change Sets): collect several changes and submit them for approval as one item. `False` turns them off. |
-| `netbox_url` | `str` | `''` | NetBox's address as users reach it, e.g. `https://netbox.example.com`. Puts full links (`link`) in webhook data; see [webhooks.md](webhooks.md). Only in `configuration.py`. |
+| `default_approver_group` | str | `'Change Approvers'` | Name of the NetBox `Group` (`users.Group`) the **Default rule** (bottom of Change Approval → Approval Rules) starts with when it is created, and its fallback while it leaves the approver group blank. Set the group on the Default rule instead. If no such group exists, changes are still queued but only superusers can decide them. |
+| `exempt_models` | list[str] | `[]` | Emergency off switch: models the plugin doesn't touch at all, as `'app_label.model_name'` strings (e.g. `'extras.tag'`). Needs a restart; for normal use prefer a "Skip approval" Approval Rule. Applies in addition to this plugin's own models, which are always excluded regardless of this setting. |
+| `expire_pending_after_days` | int or None | `None` | Only the starting **Expire after (days)** of the Default rule when it is created. Set expiry on the Default rule instead. |
+| `pending_row_style` | str | `'by_action'` | How pending objects look in object lists and rack elevations: `'by_action'` (green new, blue edit, red delete, with the requested values) or `'outline'` (a single yellow outline). |
+| `group_components_with_parent` | bool | `True` | While a new device or VM waits for approval, its interfaces, ports, bays, modules, inventory items, VM disks and IP/MAC addresses on its interfaces belong to its request instead of getting their own. `False` gives each its own request again. |
+| `work_sheets` | bool | `True` | Field work: approved changes that need work on site (mounting a device, patching a cable, configuring an IP address, ...) become tasks in the **Field work** section of the Approval Inbox, with a printable work sheet by rack. `False` turns it off. |
+| `change_sets` | bool | `True` | Change sets (Change Approval → Change Sets): collect several changes and submit them for approval as one item. `False` turns them off. |
+| `netbox_url` | str | `''` | NetBox's address as users reach it, e.g. `https://netbox.example.com`. Puts full links (`link`) in webhook data; see [webhooks.md](webhooks.md). Only in `configuration.py`. |
 
 Example:
 

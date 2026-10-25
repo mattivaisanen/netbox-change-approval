@@ -41,8 +41,8 @@ models, in the web UI, the REST API, background jobs and custom scripts.
 
 ## Requirements
 
-- NetBox 4.7 or later (tested with 4.7.3). NetBox refuses to load the plugin
-  on older versions.
+- NetBox 4.7 or later (tested with 4.7.0 and 4.7.3). NetBox refuses to load
+  the plugin on older versions.
 - No other plugins. Works alongside netbox-branching; see
   [docs/installation.md](docs/installation.md#with-netbox-branching).
 
@@ -74,15 +74,25 @@ cd /opt/netbox/netbox && python manage.py migrate netbox_change_approval
 ```
 
 Then create the approver group under **Admin > Groups** and add your
-approvers to it. Upgrading and uninstalling are covered in
-[docs/installation.md](docs/installation.md).
+approvers to it. Uninstalling is covered in
+[docs/installation.md](docs/installation.md#uninstalling).
+
+## Upgrading
+
+```bash
+pip install --upgrade --force-reinstall --no-deps git+https://github.com/mattivaisanen/netbox-change-approval.git
+cd /opt/netbox/netbox && python manage.py migrate
+```
+
+Then restart NetBox and its worker. The [changelog](CHANGELOG.md) lists what
+each version needs.
 
 ## Documentation
 
 - [Installation, upgrading and uninstalling](docs/installation.md)
 - [Using the plugin](docs/usage.md): editors, approvers, approval rules,
   change sets, notifications and limitations
-- [Configuration reference](docs/configuration.md)
+- [Configuration](docs/configuration.md)
 - [Notifications by e-mail, Teams or webhooks](docs/webhooks.md)
 - [Developer notes](DEVELOPER.md)
 - [Changelog](CHANGELOG.md)
