@@ -59,9 +59,10 @@ Upgrade: run `manage.py migrate` (adds one database index).
   requests still pending. See "Uninstalling" in the README.
 
 ### Improvements
-- Pending Approvals widget: when nothing waits on you, it shows a small
-  drawing of a server rack taking a coffee break and a light-hearted line
-  that changes on each visit, instead of a plain sentence on an empty card.
+- Pending Approvals widget: when nothing waits on you, it shows one of ten
+  small animated drawings (a server rack on a coffee break, a cat asleep on
+  a switch, a tumbleweed and more) with a light-hearted line, both picked at
+  random on each visit, instead of a plain sentence on an empty card.
   Approvers and requesters get different lines.
   It follows the light and dark theme and stays still for users who turn
   off animations.

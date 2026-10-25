@@ -409,6 +409,15 @@ class WidgetIdleStateTests(_Base):
         html = ApprovalsWidget().render(request)
         self.assertTrue(any(line in html for line in IDLE_LINES))
 
+    def test_every_idle_drawing_renders(self):
+        from django.template.loader import render_to_string
+
+        from ..widgets import IDLE_DRAWINGS
+
+        for name in IDLE_DRAWINGS:
+            html = render_to_string(f'netbox_change_approval/inc/idle/{name}.html')
+            self.assertIn('<svg', html, name)
+
 
 class WidgetTitleLinkTests(_Base):
     def test_widget_script_links_title_to_inbox(self):

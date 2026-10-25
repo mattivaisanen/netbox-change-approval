@@ -27,25 +27,34 @@ from . import permissions
 from .models import ChangeRequest, StatusChoices
 
 
-# Shown, one at random per page load, when nothing waits on the user:
-# IDLE_LINES to approvers, REQUESTER_IDLE_LINES to everyone else.
+# Shown when nothing waits on the user: a random drawing from
+# templates/netbox_change_approval/inc/idle/ and a random line, IDLE_LINES
+# for approvers and REQUESTER_IDLE_LINES for everyone else.
+IDLE_DRAWINGS = (
+    'coffee', 'hammock', 'cat', 'duck', 'fishing',
+    'night', 'plane', 'tumbleweed', 'checklist', 'beach',
+)
 IDLE_LINES = (
-    gettext_noop('Nothing waiting on you right now. The racks are humming quietly.'),
+    gettext_noop('Nothing awaiting approval. The racks are humming quietly.'),
     gettext_noop('Inbox zero. Even the patch cables are relaxing.'),
-    gettext_noop('All clear. Go on, refill your coffee.'),
-    gettext_noop('No approvals pending. The change window is all yours.'),
-    gettext_noop('Nothing to review. Every port is in its happy place.'),
-    gettext_noop('Quiet on the change front. Enjoy it while it lasts.'),
-    gettext_noop('All caught up. The servers send their regards.'),
-    gettext_noop('Nothing for you here. Even the LEDs are blinking slower.'),
+    gettext_noop('Not a single change request in sight.'),
+    gettext_noop('The approval queue has taken the day off.'),
+    gettext_noop('Quiet on the change front.'),
+    gettext_noop('Every port in its happy place.'),
+    gettext_noop('Nothing to sign off. The network is behaving itself.'),
+    gettext_noop('All quiet. Even the LEDs are blinking slower.'),
+    gettext_noop('Change window wide open, nobody climbing through.'),
+    gettext_noop('The rubber stamp is gathering dust.'),
 )
 REQUESTER_IDLE_LINES = (
-    gettext_noop('Nothing sent back to you. Your approvers must like your work.'),
-    gettext_noop('All your requests are through. The network thanks you.'),
-    gettext_noop('No revisions needed. Clean changes, happy approvers.'),
-    gettext_noop('Nothing to fix right now. Time for a coffee.'),
-    gettext_noop('Your queue is empty. The servers are taking it easy too.'),
-    gettext_noop('No changes bounced back. Every cable stayed where you put it.'),
+    gettext_noop('Nothing sent back. Clean changes all round.'),
+    gettext_noop('No revisions needed. The approvers seem pleased.'),
+    gettext_noop('Every request through. The network says thanks.'),
+    gettext_noop('Nothing bounced back. Every cable stayed put.'),
+    gettext_noop('No changes waiting on a fix.'),
+    gettext_noop('All requests settled. A fine moment for coffee.'),
+    gettext_noop('Nothing to revise. The servers are taking it easy too.'),
+    gettext_noop('Paperwork done. Tumbleweed territory.'),
 )
 
 
@@ -99,4 +108,5 @@ class ApprovalsWidget(DashboardWidget):
             cr.quick_rows = _diff_rows(cr, names=names)
         return render_to_string(self.template_name, {
             'change_requests': rows, 'sent_back': sent_back, 'idle_line': idle_line,
+            'idle_drawing': f'netbox_change_approval/inc/idle/{random.choice(IDLE_DRAWINGS)}.html',
         })
