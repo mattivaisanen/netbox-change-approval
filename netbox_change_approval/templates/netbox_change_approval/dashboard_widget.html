@@ -130,6 +130,11 @@
   .nbca-idle .nbca-hand-m { animation: nbca-clock-m 12s linear infinite; }
   .nbca-idle .nbca-turbine { animation: nbca-spin 4s linear infinite; }
   .nbca-idle .nbca-turbine.nbca-slow { animation-duration: 6s; }
+  /* Rocket: shakes on the pad, struggles up, stalls, tips over and crashes. */
+  .nbca-idle .nbca-launch { transform-origin: 60px 48px; animation: nbca-launch 10s linear infinite; }
+  .nbca-idle .nbca-thrust { animation: nbca-thrust 10s linear infinite; }
+  .nbca-idle .nbca-boom { opacity: 0; transform-box: fill-box; transform-origin: center; animation: nbca-boom 10s ease-out infinite; }
+  .nbca-idle .nbca-boom.nbca-late { animation-name: nbca-boom-late; }
   .nbca-idle .nbca-hop { animation: nbca-hop 3s ease-in-out infinite; }
   @keyframes nbca-blink { 0%, 100% { opacity: 1; } 50% { opacity: .25; } }
   @keyframes nbca-rise { 0% { opacity: 0; transform: translateY(4px); } 40% { opacity: .8; } 100% { opacity: 0; transform: translateY(-6px); } }
@@ -161,11 +166,27 @@
     74%, 92% { transform: translate(10px, 33px) rotate(450deg); opacity: 1; }
     100% { transform: translate(10px, 33px) rotate(450deg); opacity: 0; }
   }
+  @keyframes nbca-launch {
+    0% { transform: translate(0, 0); opacity: 0; } 4% { opacity: 1; }
+    8% { transform: translate(-.7px, 0); } 10% { transform: translate(.7px, 0); }
+    12% { transform: translate(-.7px, 0); } 14% { transform: translate(0, 0); animation-timing-function: ease-out; }
+    30% { transform: translate(0, -26px); }
+    36% { transform: translate(1px, -28px) rotate(8deg); animation-timing-function: ease-in; }
+    40% { transform: translate(4px, -26px) rotate(22deg); animation-timing-function: ease-in; }
+    52% { transform: translate(28px, 12px) rotate(96deg); }
+    55% { transform: translate(28px, 9px) rotate(88deg); }
+    58%, 90% { transform: translate(28px, 12px) rotate(90deg); opacity: 1; }
+    100% { transform: translate(28px, 12px) rotate(90deg); opacity: 0; }
+  }
+  @keyframes nbca-thrust { 0%, 6% { opacity: 0; } 8%, 36% { opacity: 1; } 40%, 100% { opacity: 0; } }
+  @keyframes nbca-boom { 0%, 51% { opacity: 0; transform: scale(.4); } 54%, 60% { opacity: 1; transform: scale(1.2); } 76%, 100% { opacity: 0; transform: scale(2); } }
+  @keyframes nbca-boom-late { 0%, 53% { opacity: 0; transform: scale(.4); } 57%, 63% { opacity: 1; transform: scale(1.2); } 80%, 100% { opacity: 0; transform: scale(2); } }
   @keyframes nbca-hop { 0%, 70%, 100% { transform: translateY(0); } 78% { transform: translateY(-5px); } 86% { transform: translateY(0); } }
   @media (prefers-reduced-motion: reduce) {
     .nbca-idle svg * { animation: none !important; }
     .nbca-idle .nbca-steam, .nbca-idle .nbca-z { opacity: .6; }
     .nbca-idle .nbca-check { stroke-dashoffset: 0; }
+    .nbca-idle .nbca-boom { opacity: 0; }
   }
 </style>
 <div class="card-body nbca-idle">

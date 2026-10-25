@@ -112,7 +112,8 @@ Upgrade: run `manage.py migrate` (adds one database index).
   small animated drawings (a server rack on a coffee break, a cat asleep on
   a switch, a tumbleweed and more) with a light-hearted line, both picked at
   random on each visit, instead of a plain sentence on an empty card.
-  Approvers and requesters get different lines.
+  Some have a twist: the clock's minute hand falls off, and the rocket
+  never quite makes it. Approvers and requesters get different lines.
   It follows the light and dark theme and stays still for users who turn
   off animations.
 - Sidebar: the change set button now sits left of the Approval Inbox, and
