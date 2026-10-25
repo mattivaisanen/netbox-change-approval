@@ -2,7 +2,16 @@
 
 ## Unreleased
 
+Upgrade: run `manage.py migrate` (adds one database index).
+
 ### New features
+- Change Requests tab: every gated object's page has a "Change Requests"
+  tab (before Changelog) listing that object's requests, pending and
+  decided, with a count. It shows only when there are any.
+- `manage.py prune_change_requests --older-than DAYS` deletes finished
+  requests (applied, rejected, retracted, expired) older than that, with
+  their approvals, comments and field work. Pending and sent-back requests,
+  and ones with field work still open, are kept. `--dry-run` only counts.
 - Notifications say who did it: each one in the bell's drop-down has a
   "By: <user>" line, and the Notifications page has a "By" column. This
   covers NetBox's own notifications too, such as an Event Rule's "Object
@@ -50,6 +59,15 @@
   requests still pending. See "Uninstalling" in the README.
 
 ### Improvements
+- Saving an approval rule checks its constraint: a misspelled field
+  (`{"stauts": "planned"}`) or a wrong kind of value (`{"site": "lab"}`) is
+  refused with an explanation, instead of the rule silently never matching.
+- `prepare_uninstall` also deletes custom fields whose values are change
+  requests or rules (they keep NetBox from cleaning up after the plugin),
+  takes the plugin's events off event rules, and cancels its queued
+  background jobs.
+- The change request list loads faster when it shows many auto-approved
+  requests.
 - Auto-approved changes show the rule that approved them as the approver:
   on the request page, in the Approval Inbox and request list, in activity
   messages, and in the API (`auto_approved_by_rule`). The name stays even if
@@ -66,6 +84,12 @@
   page, whose header already has the same buttons.
 
 ### Bug fixes
+- A scheduled change could still be applied after it was retracted or
+  rejected, if that happened while the background job was applying it, and
+  clicking "Apply now" while the job ran could apply it twice. It is now
+  checked again right before applying.
+- A notification about a cancelled or failed schedule now says who
+  scheduled it on its "By" line.
 - `migrate netbox_change_approval zero` no longer brings back the old
   "Pending Approval" tag on objects with a pending create.
 - A delete request records what it removes: every field with a value and,
