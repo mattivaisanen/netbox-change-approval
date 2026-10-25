@@ -34,7 +34,7 @@
     </a>
     {% if count %}
     <a href="{% url 'plugins:netbox_change_approval:changerequest_inbox' %}"
-       class="btn px-0 nbca-inbox-count {% if approval_count %}btn-outline-red{% else %}btn-outline-secondary{% endif %}"
+       class="btn px-0 nbca-inbox-count {% if approval_count %}btn-red{% else %}btn-outline-secondary{% endif %}"
        title="{% if approval_count %}{% trans 'Change requests waiting on you' %}{% else %}{% trans 'Field work only' %}{% endif %}">{{ count }}</a>
     {% endif %}
   </div>
