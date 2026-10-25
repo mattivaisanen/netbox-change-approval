@@ -166,13 +166,14 @@
         }).then(function (response) {
           if (!response.ok) { form.submit(); return; }
           var row = form.closest('tr');
+          // With the background refresh, the row slides out and the widget
+          // redraws (animated, idle drawing included).
+          if (window.nbcaLive) { window.nbcaLive.fadeOutRow(row); window.nbcaLive.refresh(); return; }
           var table = row.closest('table');
           var quick = row.nextElementSibling;
           if (quick && quick.classList.contains('nbca-quick')) quick.remove();
           row.remove();
-          if (!table.querySelector('tbody > tr')) {
-            if (window.nbcaLive) window.nbcaLive.refresh(); else window.location.reload();
-          }
+          if (!table.querySelector('tbody > tr')) window.location.reload();
         }).catch(function () { form.submit(); });
       });
     });
