@@ -445,13 +445,13 @@ use `add_widget()`/`delete_widget()`, never edit either collection alone.
 
 ## Long-term data lifecycle, and what happens if you uninstall this
 
-This plugin has no retention, archival, or pruning of its own — every single
-change request, approved or rejected, from the day it's installed onward,
-stays in `ChangeRequest` forever. Over months or years of real use this table
-only grows. There's no built-in management command to prune old rows; if that
-becomes a problem, it's a manual `ChangeRequest.objects.filter(status__in=
-[APPLIED, REJECTED], decided_at__lt=...).delete()` (or an export-then-delete)
-an operator would have to do themselves.
+Change requests stay in `ChangeRequest` until pruned:
+`manage.py prune_change_requests --older-than DAYS` deletes finished ones
+(applied, rejected, retracted, expired) whose end (`decided_at`, else
+`applied_at`, else `submitted_at`) is older than that. It keeps pending and
+sent-back requests and applied ones with open field work. A plain ORM
+delete is enough: NetBoxModel's generic relations take the request's
+notifications, bookmarks, subscriptions, journal entries and tags with it.
 
 **Approver groups become permanently undeletable.** `approver_group` is
 `on_delete=models.PROTECT` in *two* places — `ApprovalRule` and

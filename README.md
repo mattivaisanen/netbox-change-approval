@@ -154,7 +154,9 @@ them, and a dashboard with the Pending Approvals widget falls back to the
 default one. `prepare_uninstall` deletes those rows, takes the plugin's
 object types off custom fields, custom links, export templates, saved
 filters, tags, event rules and permissions (deleting the ones only about
-change approval), and removes the widget. Clear them first, while the
+change approval), deletes custom fields whose values are change requests or
+rules, takes the plugin's events off event rules, removes the widget and
+cancels the plugin's queued background jobs. Clear them first, while the
 plugin is still installed:
 
 ```bash
@@ -432,7 +434,8 @@ NetBox's "view" permission on approval rules can read them. Each rule has:
 - **Object type**: leave blank to match anything, or pick a model.
 - **Constraint**: an optional filter in the same JSON format as NetBox
   permission constraints, e.g. `{"tenant__slug": "acme"}`. A list means "any
-  of these". Leave blank to match every object of that type.
+  of these". Leave blank to match every object of that type. Saving a rule
+  checks it: a misspelled field or a wrong kind of value is refused.
 - **Action**: Create, Update, Delete, or Any.
 - **Outcome**:
   - **Needs approval**: from the chosen **Approver group**, or the Default
@@ -497,6 +500,9 @@ Because it is the emergency off switch, only `configuration.py` sets it: the
 settings page shows it but can't change it.
 
 ### Activity log
+
+An object's page has a **Change Requests** tab (before Changelog) once the
+object has any: every request about it, pending and decided, newest first.
 
 Each action shows up once in NetBox's activity (changelog) list. Submitting a
 new object, approving, or rejecting a new object logs the object itself, with
@@ -570,13 +576,16 @@ that fixed group rather than to each request's own people.
   custom scripts run from NetBox are gated (a script's edits and new objects
   become requests from the user who ran it). `manage.py` commands and
   `nbshell` have no user and are not gated.
-- **No retention policy.** Every change request — approved, rejected, auto-
-  approved — stays in the database forever; there's no built-in pruning. Also
-  worth knowing before years of use: approver groups become permanently
-  undeletable once any historical request references them, and uninstalling
-  the plugin doesn't clean up permissions, or (unless you reverse-
-  migrate) its own tables (see "Uninstalling"). See DEVELOPER.md "Long-term data lifecycle, and
-  what happens if you uninstall this" before committing to this long-term.
+- **Request history grows until pruned.** Every change request stays in
+  the database until you delete old ones:
+  `python manage.py prune_change_requests --older-than 365` deletes
+  requests that ended (applied, rejected, retracted or expired) more than
+  that many days ago, with their approvals, comments and field work.
+  Pending and sent-back requests, and applied ones with field work still
+  open, are kept; the changes themselves stay in NetBox's changelog.
+  `--dry-run` only counts. Approver groups can't be deleted while a rule or
+  request refers to them. See DEVELOPER.md "Long-term data lifecycle, and
+  what happens if you uninstall this".
 
 ---
 
