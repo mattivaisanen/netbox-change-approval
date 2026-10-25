@@ -17,6 +17,8 @@ queryset semantics (e.g. it cannot evaluate a constraint against a related objec
 that hasn't been assigned on the in-memory instance yet). This is a documented
 limitation — see README.md "Auto-approval and routing rules on new objects".
 """
+import json
+
 from django.core.exceptions import FieldError
 from django.db.models import Manager, QuerySet
 
@@ -222,3 +224,43 @@ def rule_matches(rule, instance, check_new_state=False):
     if check_new_state:
         return _matches_new_state(instance, constraints)
     return True
+
+
+def _path_error(model, constraint):
+    """Why `constraint` (one filter dict) can't work on `model`, or None."""
+    try:
+        str(model.objects.filter(qs_filter_from_constraints([constraint])).query)
+        return None
+    except FieldError as error:
+        # Not a database field. Paths through a Python property (a cable's
+        # a_terminations, say) are matched in memory, so accept those.
+        if all(hasattr(model, _split_lookup(path)[0][0]) for path in constraint):
+            return None
+        return str(error)
+    except (ValueError, TypeError) as error:  # {"site": "abc"}: wrong kind of value
+        return str(error)
+    except Exception as error:  # noqa: BLE001  anything else the ORM rejects
+        return str(error)
+
+
+def constraint_errors(constraint, models):
+    """
+    Problems with a rule's constraint, as messages for the rule form; empty
+    if it's fine. `models` are the object types the rule can apply to: the
+    constraint must work on at least one of them (a rule for any object type
+    may well name a field only some types have).
+    """
+    if not constraint:
+        return []
+    filters = constraint if isinstance(constraint, list) else [constraint]
+    if not all(isinstance(f, dict) and all(isinstance(k, str) for k in f) for f in filters):
+        return ['Must be an object such as {"status": "planned"}, or a list of them.']
+    messages = []
+    for constraint_dict in filters:
+        if not constraint_dict:
+            continue
+        errors = [_path_error(model, constraint_dict) for model in models]
+        if errors and all(errors):
+            messages.append(errors[0] if len(models) == 1 else
+                            f'{json.dumps(constraint_dict, default=str)} fits none of the object types: {errors[0]}')
+    return messages

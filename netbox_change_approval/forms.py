@@ -44,6 +44,21 @@ class BaseRuleForm(NetBoxModelForm):
         super().__init__(*args, **kwargs)
         self.fields['content_type'].queryset = _gated_object_types()
 
+    def clean(self):
+        super().clean()
+        # A typo in the constraint would otherwise only show by the rule
+        # silently never matching.
+        if self.cleaned_data.get('constraint'):
+            from .matching import constraint_errors
+
+            object_type = self.cleaned_data.get('content_type')
+            model = object_type.model_class() if object_type is not None else None
+            models = [model] if model is not None else list(iter_gated_models())
+            errors = constraint_errors(self.cleaned_data['constraint'], models)
+            if errors:
+                self.add_error('constraint', errors)
+        return self.cleaned_data
+
 
 class ApprovalRuleForm(BaseRuleForm):
     approver_group = DynamicModelChoiceField(
@@ -124,6 +139,21 @@ class ApprovalRuleFilterForm(NetBoxModelFilterSetForm):
         super().__init__(*args, **kwargs)
         self.fields['content_type'].queryset = _gated_object_types()
 
+    def clean(self):
+        super().clean()
+        # A typo in the constraint would otherwise only show by the rule
+        # silently never matching.
+        if self.cleaned_data.get('constraint'):
+            from .matching import constraint_errors
+
+            object_type = self.cleaned_data.get('content_type')
+            model = object_type.model_class() if object_type is not None else None
+            models = [model] if model is not None else list(iter_gated_models())
+            errors = constraint_errors(self.cleaned_data['constraint'], models)
+            if errors:
+                self.add_error('constraint', errors)
+        return self.cleaned_data
+
 
 class ChangeRequestFilterForm(NetBoxModelFilterSetForm):
     model = ChangeRequest
@@ -134,6 +164,21 @@ class ChangeRequestFilterForm(NetBoxModelFilterSetForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['content_type'].queryset = _gated_object_types()
+
+    def clean(self):
+        super().clean()
+        # A typo in the constraint would otherwise only show by the rule
+        # silently never matching.
+        if self.cleaned_data.get('constraint'):
+            from .matching import constraint_errors
+
+            object_type = self.cleaned_data.get('content_type')
+            model = object_type.model_class() if object_type is not None else None
+            models = [model] if model is not None else list(iter_gated_models())
+            errors = constraint_errors(self.cleaned_data['constraint'], models)
+            if errors:
+                self.add_error('constraint', errors)
+        return self.cleaned_data
 
 
 class ChangeRequestApproveForm(ConfirmationForm):

@@ -63,3 +63,35 @@ class ApprovalRuleOrderTests(TestCase):
 
         self.assertIsNone(result)
         self.assertFalse(ChangeRequest.objects.filter(object_id=obj.pk).exists())
+
+
+class ConstraintCheckTests(TestCase):
+    """The rule form refuses a constraint that can't match anything."""
+
+    def _form(self, constraint, model=None):
+        from core.models import ObjectType
+        from dcim.models import Device
+
+        from ..forms import ApprovalRuleForm
+
+        object_type = ObjectType.objects.get_for_model(model or Device)
+        return ApprovalRuleForm(data={
+            'priority': 10, 'content_type': object_type.pk, 'constraint': constraint,
+            'action': 'any', 'outcome': 'auto', 'required_approvals': 1, 'enabled': True,
+        })
+
+    def test_good_constraint_accepted(self):
+        self.assertTrue(self._form('{"status": "planned", "site__slug": "lab"}').is_valid())
+
+    def test_property_path_accepted(self):
+        from dcim.models import Cable
+        form = self._form('{"a_terminations__device__name": "sw1"}', model=Cable)
+        self.assertTrue(form.is_valid(), form.errors)
+
+    def test_typo_refused(self):
+        form = self._form('{"stauts": "planned"}')
+        self.assertFalse(form.is_valid())
+        self.assertIn('stauts', str(form.errors['constraint']))
+
+    def test_wrong_value_refused(self):
+        self.assertFalse(self._form('{"site": "lab"}').is_valid())
