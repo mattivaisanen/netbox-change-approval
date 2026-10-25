@@ -1,8 +1,10 @@
 # Changelog
 
-## Unreleased
+## 0.4.0 (2026-10-25)
 
-Upgrade: run `manage.py migrate` (adds one database index).
+Upgrade: run `manage.py migrate`. It adds new fields (reason, schedule,
+approving rule), creates the Default rule from your current default
+approver group and expiry settings, and adds a database index.
 
 ### New features
 - Live updates: the Pending Approvals widget and the sidebar's Approval
@@ -59,7 +61,6 @@ Upgrade: run `manage.py migrate` (adds one database index).
   pages still work for direct links and browsers without JavaScript.
 - Discarding a change set and marking field work done ask in the same
   pop-up style instead of the browser's plain OK/Cancel box.
-
 - `manage.py prepare_uninstall`: run it before removing the plugin. It
   deletes notifications, bookmarks and subscriptions about change requests
   and removes the Pending Approvals widget from dashboards, which would
