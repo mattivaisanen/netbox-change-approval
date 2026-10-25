@@ -73,6 +73,11 @@ Upgrade: run `manage.py migrate` (adds one database index).
   requests still pending. See "Uninstalling" in the README.
 
 ### Improvements
+- Confirmation dialogs (approve, reject, send back, retract, discard and the
+  bulk approve/reject dialogs) are spaced like NetBox's own dialogs: even
+  gaps between their parts, no extra empty space above the buttons, and the
+  "Reason" label sits above its box without a colon. The reason box now
+  also shows its help text.
 - Times in the Pending Approvals widget and the Approval Inbox read "4 hours
   ago" instead of a bare "4 hours". The full date and time shows on hover.
 - Approval Inbox and Pending Approvals widget: row buttons and text no
