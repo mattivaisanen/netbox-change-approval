@@ -12,6 +12,8 @@
   .nbca-cs-active { display: inline-block; animation: nbca-cs-icon 2s ease-in-out infinite; }
   .nbca-cs-button { animation: nbca-cs-halo 2s ease-in-out infinite; }
   .nbca-inbox-count { justify-content: center; flex: 0 0 auto; }
+  /* A filled button's border is transparent, which made its gap look wider than the others: paint it the fill colour. */
+  .nbca-inbox-count.btn-red { --tblr-btn-border-color: var(--tblr-btn-bg); --tblr-btn-hover-border-color: var(--tblr-btn-hover-bg); }
   @media (prefers-reduced-motion: reduce) { .nbca-cs-active, .nbca-cs-button { animation: none; } }
 </style>
 <template id="nbca-inbox-nav">
