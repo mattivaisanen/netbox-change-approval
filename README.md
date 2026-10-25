@@ -306,8 +306,11 @@ NetBox homepage (**Add Widget → Pending Approvals**). Unlike pointing NetBox's
 generic Object List widget at Change Request (which works, but shows every
 request unfiltered with no way to act on them), this one shows only what's
 routed to you and still pending, with Approve/Reject buttons right there —
-decide without leaving the homepage. Like the inbox, it shows one compact
-line per request, and clicking a row opens a quick view of its changes.
+decide without leaving the homepage. It also lists your own requests sent
+back to you, and your rejected or expired ones until you read them: open the
+request, or click its **Mark as read** eye to take it off the widget (and out
+of the inbox count). Like the inbox, it shows one compact line per request,
+and clicking a row opens a quick view of its changes.
 
 Each entry shows the object, the action (Create/Update/Delete, color-coded
 green/blue/red in the list — matching NetBox's own change-log convention),

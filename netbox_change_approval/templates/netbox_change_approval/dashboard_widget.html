@@ -1,5 +1,5 @@
 {% load i18n nbca_diff %}
-{% if change_requests or sent_back %}
+{% if change_requests or sent_back or closed %}
 <style>
   .nbca-widget .nbca-quick > td { background: var(--tblr-bg-surface-secondary); }
   .nbca-widget .nbca-quick table { margin-bottom: 0; }
@@ -37,6 +37,34 @@
       <td colspan="4">{% include 'netbox_change_approval/inc/quick_diff.html' with rows=cr.quick_rows %}</td>
     </tr>
     {% endfor %}
+    {% for item in closed %}{% with cr=item.lead %}
+    <tr>
+      <td>
+        <a href="{{ cr.get_absolute_url }}" title="{{ cr.nbca_title }}">{{ cr.nbca_title|default:cr.object_repr }}</a>
+        {% if item.members|length > 1 %}<span class="badge text-bg-secondary ms-1" title="{% trans "Changes in this batch" %}">{{ item.members|length }}</span>{% endif %}
+        <span class="badge text-bg-{{ cr.get_status_color }} ms-1">{{ cr.get_status_display }}</span>
+      </td>
+      <td class="small text-muted nbca-who" title="{{ cr.decision_comment }}">
+        {% if cr.status == 'expired' %}{% trans "Not decided in time" %}{% else %}{{ cr.decided_by|default:_("An approver") }}{% if cr.decision_comment %}: &ldquo;{{ cr.decision_comment|truncatechars:80 }}&rdquo;{% endif %}{% endif %}
+      </td>
+      <td class="small text-muted text-nowrap" title="{{ cr.decided_at }}">{{ cr.decided_at|short_age }}</td>
+      <td class="text-end text-nowrap">
+        <button type="button" class="btn btn-sm btn-ghost-secondary nbca-toggle" data-bs-toggle="collapse"
+                data-bs-target="#nbca-wq-{{ cr.pk }}" aria-expanded="false" aria-controls="nbca-wq-{{ cr.pk }}"
+                title="{% trans 'Show details' %}"><i class="mdi mdi-chevron-down"></i></button>
+        <form method="post" action="{% url 'plugins:netbox_change_approval:changerequest_mark_read' pk=cr.pk %}"
+              class="d-inline nbca-mark-read">
+          <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+          <input type="hidden" name="return_url" value="/">
+          <button type="submit" class="btn btn-sm btn-ghost-secondary" title="{% trans "Mark as read" %}"
+                  aria-label="{% trans "Mark as read" %}"><i class="mdi mdi-eye-check-outline"></i></button>
+        </form>
+      </td>
+    </tr>
+    <tr class="collapse nbca-quick" id="nbca-wq-{{ cr.pk }}">
+      <td colspan="4">{% include 'netbox_change_approval/inc/quick_diff.html' with rows=cr.quick_rows %}</td>
+    </tr>
+    {% endwith %}{% endfor %}
     {% for cr, can_decide in change_requests %}
     <tr>
       <td><a href="{{ cr.get_absolute_url }}" title="{{ cr.nbca_title }}">{{ cr.nbca_title|default:cr.object_repr }}</a></td>
@@ -114,6 +142,33 @@
   <div class="text-muted">{{ idle_line }}</div>
 </div>
 {% endif %}
+
+<script>
+  /* Mark as read without leaving the dashboard: drop the row (and its quick
+     view); reload for the idle drawing once the last row is gone. The form
+     still works on its own if this fails. */
+  (function (script) {
+    var card = script && script.closest('.grid-stack-item-content');
+    var root = card || document;
+    root.querySelectorAll('form.nbca-mark-read').forEach(function (form) {
+      form.addEventListener('submit', function (event) {
+        event.preventDefault();
+        fetch(form.action, {
+          method: 'POST', body: new FormData(form), credentials: 'same-origin',
+          headers: {'X-Requested-With': 'XMLHttpRequest'},
+        }).then(function (response) {
+          if (!response.ok) { form.submit(); return; }
+          var row = form.closest('tr');
+          var table = row.closest('table');
+          var quick = row.nextElementSibling;
+          if (quick && quick.classList.contains('nbca-quick')) quick.remove();
+          row.remove();
+          if (!table.querySelector('tbody > tr')) window.location.reload();
+        }).catch(function () { form.submit(); });
+      });
+    });
+  })(document.currentScript);
+</script>
 
 <script>
   /* The widget's title (drawn by NetBox) opens the Approval Inbox too. */

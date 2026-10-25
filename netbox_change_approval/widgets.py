@@ -9,6 +9,7 @@ and links straight to approve/reject.
 """
 import random
 
+from django.middleware.csrf import get_token
 from django.template.loader import render_to_string
 # Not gettext_lazy: DashboardWidget.__str__ returns `self.title` (derived from
 # default_title) directly, with no str() wrapper — Python's __str__ dunder
@@ -63,7 +64,7 @@ class ApprovalsWidget(DashboardWidget):
     default_title = _('Pending Approvals')
     description = _(
         'Change requests routed to you for approval, and your own requests sent back to you, '
-        'with quick links to act on each one.'
+        'rejected or expired, with quick links to act on each one.'
     )
     template_name = 'netbox_change_approval/dashboard_widget.html'
     width = 12
@@ -96,17 +97,26 @@ class ApprovalsWidget(DashboardWidget):
         sent_back = ChangeRequest.objects.filter(
             submitted_by=user, status=StatusChoices.RETURNED,
         ).select_related('content_type', 'submitted_by', 'approver_group').order_by('-decided_at')[:10]
+        # Your rejected and expired requests not read yet, one row per batch,
+        # each with Mark as read (opening the request marks it read too).
+        from .inbox import _rejected, group_items
+
+        closed = group_items(
+            _rejected(user).select_related('content_type', 'submitted_by', 'decided_by', 'approver_group'),
+            limit=10,
+        )
         # Field changes for each row's quick view (the arrow), as in the inbox.
         from .views import _diff_rows, prefetch_display_names
 
         sent_back = list(sent_back)
-        shown = [cr for cr, _can in rows] + sent_back
+        shown = [cr for cr, _can in rows] + sent_back + [item['lead'] for item in closed]
         names = prefetch_display_names(shown)
         from .titles import attach_titles
         attach_titles(shown)
         for cr in shown:
             cr.quick_rows = _diff_rows(cr, names=names)
         return render_to_string(self.template_name, {
-            'change_requests': rows, 'sent_back': sent_back, 'idle_line': idle_line,
+            'change_requests': rows, 'sent_back': sent_back, 'closed': closed, 'idle_line': idle_line,
+            'csrf_token': get_token(request) if closed else '',
             'idle_drawing': f'netbox_change_approval/inc/idle/{random.choice(IDLE_DRAWINGS)}.html',
         })

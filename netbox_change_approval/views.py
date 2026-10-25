@@ -804,6 +804,24 @@ class ChangeRequestDiscardView(_SentBackView):
         return redirect(reverse('plugins:netbox_change_approval:changerequest_inbox'))
 
 
+@register_model_view(ChangeRequest, 'mark_read', path='mark-read')
+class ChangeRequestMarkReadView(ConditionalLoginRequiredMixin, View):
+    """The dashboard widget's "Mark as read" on your rejected or expired
+    request (and the rest of its batch): takes it out of the widget and the
+    inbox count, the same as opening it."""
+    def post(self, request, pk):
+        if request.user.is_authenticated:
+            change_request = ChangeRequest.objects.filter(pk=pk, submitted_by=request.user).first()
+            if change_request is not None:
+                targets = ChangeRequest.objects.filter(pk=change_request.pk)
+                if change_request.batch_id:
+                    targets = ChangeRequest.objects.filter(batch_id=change_request.batch_id)
+                inbox.mark_rejections_seen(request.user, targets)
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return HttpResponse(status=204)
+        return redirect(_safe_return_url(request.POST.get('return_url'), '/'))
+
+
 @register_model_view(ChangeRequest, 'comment')
 class ChangeRequestCommentView(ConditionalLoginRequiredMixin, View):
     """Add a comment to a request: ask or answer something without deciding
