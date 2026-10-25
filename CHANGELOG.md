@@ -8,7 +8,8 @@ Upgrade: run `manage.py migrate` (adds one database index).
 - Pending Approvals widget: your rejected and expired requests now show on
   the dashboard widget, with who decided and their comment. Click the eye
   ("Mark as read") to take one off the widget and out of the inbox count;
-  opening the request does the same.
+  opening the request does the same. The Approval Inbox's "Rejected or
+  expired" rows have the same button.
 - Change Requests tab: every gated object's page has a "Change Requests"
   tab (before Changelog) listing that object's requests, pending and
   decided, with a count. It shows only when there are any.
@@ -63,6 +64,8 @@ Upgrade: run `manage.py migrate` (adds one database index).
   requests still pending. See "Uninstalling" in the README.
 
 ### Improvements
+- Approval Inbox and Pending Approvals widget: row buttons and text no
+  longer sit flush against the card edge; they line up with the card header.
 - Pending Approvals widget: when nothing waits on you, it shows one of ten
   small animated drawings (a server rack on a coffee break, a cat asleep on
   a switch, a tumbleweed and more) with a light-hearted line, both picked at

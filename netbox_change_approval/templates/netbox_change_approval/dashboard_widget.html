@@ -7,6 +7,9 @@
   .nbca-widget .nbca-quick table th { padding: .25rem .5rem; font-size: .8125rem; }
   .nbca-widget { table-layout: fixed; width: 100%; }
   .nbca-widget > tbody > tr:not(.nbca-quick) > td { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* Buttons and text line up with the card header, not flush to the edge. */
+  .nbca-widget > tbody > tr > :first-child { padding-left: var(--tblr-card-cap-padding-x, 1rem); }
+  .nbca-widget > tbody > tr > :last-child { padding-right: var(--tblr-card-cap-padding-x, 1rem); }
 </style>
 {% include 'netbox_change_approval/inc/quick_toggle.html' %}
 <table class="table table-sm table-hover mb-0 align-middle nbca-widget">
@@ -56,7 +59,7 @@
               class="d-inline nbca-mark-read">
           <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
           <input type="hidden" name="return_url" value="/">
-          <button type="submit" class="btn btn-sm btn-ghost-secondary" title="{% trans "Mark as read" %}"
+          <button type="submit" class="btn btn-sm btn-primary" title="{% trans "Mark as read" %}"
                   aria-label="{% trans "Mark as read" %}"><i class="mdi mdi-eye-check-outline"></i></button>
         </form>
       </td>

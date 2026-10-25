@@ -25,6 +25,9 @@
     .nbca-inbox .nbca-rows { table-layout: fixed; width: 100%; }
     .nbca-inbox .nbca-rows > tbody > tr:not(.nbca-quick) > td { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     @media (max-width: 767.98px) { .nbca-inbox .nbca-rows col.nbca-col-md { width: 0 !important; } }
+    /* Line the row text and buttons up with the card header's title and buttons. */
+    .nbca-inbox .nbca-rows > * > tr > :first-child { padding-left: var(--tblr-card-cap-padding-x, 1rem); }
+    .nbca-inbox .nbca-rows > * > tr > :last-child { padding-right: var(--tblr-card-cap-padding-x, 1rem); }
   </style>
   {% include 'netbox_change_approval/inc/quick_toggle.html' %}
 {% endblock %}
@@ -127,6 +130,14 @@
             {% elif section.key == 'waiting' %}
               <a data-nbca-modal href="{% url 'plugins:netbox_change_approval:changerequest_retract' pk=cr.pk %}?return_url={{ request.path|urlencode }}"
                  class="btn btn-sm btn-primary" title="{% trans "Retract" %}" aria-label="{% trans "Retract" %}"><i class="mdi mdi-undo"></i></a>
+            {% endif %}
+            {% if section.key == 'rejected' %}
+              <form method="post" action="{% url 'plugins:netbox_change_approval:changerequest_mark_read' pk=cr.pk %}" class="m-0 d-inline">
+                {% csrf_token %}
+                <input type="hidden" name="return_url" value="{{ request.get_full_path }}">
+                <button type="submit" class="btn btn-sm btn-primary" title="{% trans "Mark as read" %}"
+                        aria-label="{% trans "Mark as read" %}"><i class="mdi mdi-eye-check-outline"></i></button>
+              </form>
             {% endif %}
             {% if section.key == 'waiting' or section.key == 'approved' %}
               <a href="{% url 'plugins:netbox_change_approval:changerequest_changelog' pk=cr.pk %}"

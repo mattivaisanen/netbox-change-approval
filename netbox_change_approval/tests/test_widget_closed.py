@@ -77,3 +77,14 @@ class WidgetClosedRequestsTests(_Base):
         self.client.force_login(self.submitter)
         self.client.post(self._mark_read_url(first))
         self.assertFalse(ChangeRequest.objects.filter(pk__in=(first.pk, second.pk), seen_by_submitter=False).exists())
+
+    def test_inbox_rejected_rows_have_mark_as_read(self):
+        rejected = self._update_request()
+        rejected.reject(self.alice, '')
+        self.client.force_login(self.submitter)
+        inbox_url = reverse('plugins:netbox_change_approval:changerequest_inbox')
+        self.assertContains(self.client.get(inbox_url), self._mark_read_url(rejected))
+
+        response = self.client.post(self._mark_read_url(rejected), {'return_url': inbox_url})
+        self.assertRedirects(response, inbox_url, fetch_redirect_response=False)
+        self.assertNotContains(self.client.get(inbox_url), self._mark_read_url(rejected))
