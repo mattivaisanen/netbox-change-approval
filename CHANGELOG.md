@@ -108,7 +108,7 @@ Upgrade: run `manage.py migrate` (adds one database index).
   ago" instead of a bare "4 hours". The full date and time shows on hover.
 - Approval Inbox and Pending Approvals widget: row buttons and text no
   longer sit flush against the card edge; they line up with the card header.
-- Pending Approvals widget: when nothing waits on you, it shows one of ten
+- Pending Approvals widget: when nothing waits on you, it shows one of twenty
   small animated drawings (a server rack on a coffee break, a cat asleep on
   a switch, a tumbleweed and more) with a light-hearted line, both picked at
   random on each visit, instead of a plain sentence on an empty card.

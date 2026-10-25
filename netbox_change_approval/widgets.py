@@ -34,6 +34,8 @@ from . import permissions
 IDLE_DRAWINGS = (
     'coffee', 'hammock', 'cat', 'duck', 'fishing',
     'night', 'plane', 'tumbleweed', 'checklist', 'beach',
+    'snail', 'kite', 'balloon', 'plant', 'fishbowl',
+    'rocket', 'campfire', 'clock', 'windmill', 'birds',
 )
 IDLE_LINES = (
     gettext_noop('Nothing awaiting approval. The racks are humming quietly.'),

@@ -1,0 +1,15 @@
+{# Wind turbines powering a small server room. Animations: dashboard_widget.html. #}
+<svg viewBox="0 0 120 80" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <line x1="4" y1="72" x2="116" y2="72"/>
+  <rect x="10" y="58" width="22" height="14" rx="1.5"/>
+  <circle class="nbca-led" cx="16" cy="65" r="1.6"/><circle class="nbca-led nbca-d1" cx="21" cy="65" r="1.6"/>
+  <path d="M58 72 L60 30 L62 72"/>
+  <g class="nbca-turbine" style="transform-origin: 60px 30px;" fill="var(--nbca-main)" fill-opacity=".25" stroke-width="1.5">
+    <g transform="translate(60 30)"><path d="M0 0 Q3 -12 0 -22 Q-3 -12 0 0 Z"/></g><g transform="translate(60 30) rotate(120)"><path d="M0 0 Q3 -12 0 -22 Q-3 -12 0 0 Z"/></g><g transform="translate(60 30) rotate(240)"><path d="M0 0 Q3 -12 0 -22 Q-3 -12 0 0 Z"/></g>
+  </g>
+  <circle cx="60" cy="30" r="2" fill="currentColor" stroke="none"/>
+  <path d="M91 72 L92.5 48 L94 72" stroke-width="1.5"/>
+  <g class="nbca-turbine nbca-slow" style="transform-origin: 92.5px 48px;" fill="var(--nbca-alt)" fill-opacity=".25" stroke-width="1.2">
+    <g transform="translate(92.5 48) scale(.6)"><path d="M0 0 Q3 -12 0 -22 Q-3 -12 0 0 Z"/></g><g transform="translate(92.5 48) rotate(120) scale(.6)"><path d="M0 0 Q3 -12 0 -22 Q-3 -12 0 0 Z"/></g><g transform="translate(92.5 48) rotate(240) scale(.6)"><path d="M0 0 Q3 -12 0 -22 Q-3 -12 0 0 Z"/></g>
+  </g>
+</svg>

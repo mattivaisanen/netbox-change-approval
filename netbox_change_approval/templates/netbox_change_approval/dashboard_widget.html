@@ -121,6 +121,15 @@
                            animation: nbca-tick 6s ease-out infinite; }
   .nbca-idle .nbca-check.nbca-d1 { animation-name: nbca-tick1; animation-delay: 0s; }
   .nbca-idle .nbca-check.nbca-d2 { animation-name: nbca-tick2; animation-delay: 0s; }
+  .nbca-idle .nbca-crawl { animation: nbca-crawl 14s linear infinite; }
+  .nbca-idle .nbca-sway { animation: nbca-sway 3.5s ease-in-out infinite; }
+  .nbca-idle .nbca-swim { transform-box: fill-box; transform-origin: center; animation: nbca-swim 8s ease-in-out infinite; }
+  .nbca-idle .nbca-flicker { transform-box: fill-box; transform-origin: 50% 100%; animation: nbca-flicker .9s ease-in-out infinite alternate; }
+  .nbca-idle .nbca-hand-h { animation: nbca-spin 60s linear infinite; }
+  .nbca-idle .nbca-hand-m { animation: nbca-spin 6s linear infinite; }
+  .nbca-idle .nbca-turbine { animation: nbca-spin 4s linear infinite; }
+  .nbca-idle .nbca-turbine.nbca-slow { animation-duration: 6s; }
+  .nbca-idle .nbca-hop { animation: nbca-hop 3s ease-in-out infinite; }
   @keyframes nbca-blink { 0%, 100% { opacity: 1; } 50% { opacity: .25; } }
   @keyframes nbca-rise { 0% { opacity: 0; transform: translateY(4px); } 40% { opacity: .8; } 100% { opacity: 0; transform: translateY(-6px); } }
   @keyframes nbca-swing { 0%, 100% { transform: rotate(-4deg); } 50% { transform: rotate(4deg); } }
@@ -135,6 +144,12 @@
   @keyframes nbca-tick { 0%, 5% { stroke-dashoffset: 14; } 15%, 90% { stroke-dashoffset: 0; } 100% { stroke-dashoffset: 14; } }
   @keyframes nbca-tick1 { 0%, 25% { stroke-dashoffset: 14; } 35%, 90% { stroke-dashoffset: 0; } 100% { stroke-dashoffset: 14; } }
   @keyframes nbca-tick2 { 0%, 45% { stroke-dashoffset: 14; } 55%, 90% { stroke-dashoffset: 0; } 100% { stroke-dashoffset: 14; } }
+  @keyframes nbca-crawl { 0% { transform: translateX(-34px); opacity: 0; } 10%, 85% { opacity: 1; } 100% { transform: translateX(24px); opacity: 0; } }
+  @keyframes nbca-sway { 0%, 100% { transform: rotate(-4deg); } 50% { transform: rotate(4deg); } }
+  @keyframes nbca-swim { 0%, 100% { transform: translateX(-10px) scaleX(1); } 45% { transform: translateX(10px) scaleX(1); }
+                         50% { transform: translateX(10px) scaleX(-1); } 95% { transform: translateX(-10px) scaleX(-1); } }
+  @keyframes nbca-flicker { from { transform: scaleY(.9); opacity: .85; } to { transform: scaleY(1.1); opacity: 1; } }
+  @keyframes nbca-hop { 0%, 70%, 100% { transform: translateY(0); } 78% { transform: translateY(-5px); } 86% { transform: translateY(0); } }
   @media (prefers-reduced-motion: reduce) {
     .nbca-idle svg * { animation: none !important; }
     .nbca-idle .nbca-steam, .nbca-idle .nbca-z { opacity: .6; }
