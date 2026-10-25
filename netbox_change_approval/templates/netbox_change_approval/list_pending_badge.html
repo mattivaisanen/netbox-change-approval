@@ -1,6 +1,6 @@
 {% load i18n %}
 <a href="{% url 'plugins:netbox_change_approval:changerequest_list' %}?content_type={{ content_type_label }}&status=pending"
-   class="btn btn-outline-warning"
+   class="btn btn-outline-warning" data-nbca-themed
    title="{% blocktrans %}{{ count }} pending approval in this list{% endblocktrans %}">
   <i class="mdi mdi-clock-alert-outline"></i>
   {% blocktrans count counter=count %}{{ counter }} pending approval{% plural %}{{ counter }} pending approvals{% endblocktrans %}

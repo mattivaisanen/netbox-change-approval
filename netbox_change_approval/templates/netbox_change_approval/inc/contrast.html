@@ -1,0 +1,170 @@
+{% comment %}
+  Keeps the plugin's buttons and badges readable under any NetBox colour theme.
+
+  Their colours come from NetBox's own variables (btn-success, text-bg-orange…),
+  so a theme can make them unreadable: a white "warning" button with white
+  icons, or a "danger" button the same colour as the page. For each of our
+  buttons and badges this checks the colours the browser actually shows:
+  - text or icon too close to the button's own colour: use the theme's text
+    or background colour, whichever stands out more (on outline buttons,
+    shift the button's own colour towards it just enough to read);
+  - button too close to what is behind it: draw a thin outline in that same
+    contrasting colour (only then, so normal themes look unchanged).
+  It runs again when the light/dark mode changes and when parts of the page
+  are replaced (live refresh, htmx).
+
+  Ours means: every button and badge on the plugin's own pages, and elsewhere
+  those inside an element with an nbca class or a data-nbca-themed attribute.
+{% endcomment %}
+<script>
+  (function () {
+    if (window.nbcaContrast) return;
+    var TEXT_MIN = 2.5;    // below this text or an icon gets hard to see (NetBox's own white-on-green is 2.6)
+    var EDGE_MIN = 1.5;    // below this a button melts into its background
+    var FIXED = 'data-nbca-contrast';
+    var PROPS = ['color', '--tblr-btn-color', '--tblr-btn-hover-color', '--tblr-btn-active-color',
+                 'border-color', '--tblr-btn-border-color', '--tblr-btn-hover-border-color',
+                 '--tblr-btn-active-border-color', 'border'];
+    var ownPage = location.pathname.indexOf('/plugins/change-approval/') !== -1;
+    var ctx = document.createElement('canvas').getContext('2d', {willReadFrequently: true});
+    var cache = {};
+
+    // Any CSS colour string (rgb(), color(srgb …), oklch() …) -> [r, g, b, a 0-1].
+    function parse(value) {
+      if (cache[value]) return cache[value];
+      ctx.clearRect(0, 0, 1, 1);
+      ctx.fillStyle = 'rgba(0,0,0,0)';
+      ctx.fillStyle = value;
+      ctx.fillRect(0, 0, 1, 1);
+      var d = ctx.getImageData(0, 0, 1, 1).data;
+      return (cache[value] = [d[0], d[1], d[2], d[3] / 255]);
+    }
+    function over(top, below) {
+      var a = top[3];
+      return [0, 1, 2].map(function (i) { return top[i] * a + below[i] * (1 - a); }).concat(1);
+    }
+    function luminance(c) {
+      var v = c.slice(0, 3).map(function (x) {
+        x /= 255;
+        return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4);
+      });
+      return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2];
+    }
+    function contrast(a, b) {
+      var x = luminance(a), y = luminance(b);
+      return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
+    }
+    // The solid colour an element sits on: its ancestors' backgrounds, layered.
+    function backdrop(el) {
+      var layers = [];
+      for (var node = el; node && node.nodeType === 1; node = node.parentElement) {
+        var c = parse(getComputedStyle(node).backgroundColor);
+        if (c[3] > 0) layers.push(c);
+        if (c[3] >= 1) break;
+      }
+      var base = layers.length && layers[layers.length - 1][3] >= 1
+        ? layers.pop() : parse(getComputedStyle(document.body).backgroundColor);
+      if (base[3] < 1) base = over(base, [255, 255, 255, 1]);
+      while (layers.length) base = over(layers.pop(), base);
+      return base;
+    }
+    function rgbText(c) { return 'rgb(' + c.slice(0, 3).map(Math.round).join(',') + ')'; }
+
+    function candidates() {
+      var root = getComputedStyle(document.documentElement);
+      var list = [root.getPropertyValue('--tblr-body-color'), root.getPropertyValue('--tblr-body-bg')]
+        .filter(function (v) { return v && v.trim(); }).map(function (v) { return parse(v.trim()); });
+      return list.length ? list : [parse('#000000'), parse('#ffffff')];
+    }
+
+    function fix(el, choices) {
+      // Measure the theme's own colours, not a fade between old and new.
+      el.style.setProperty('transition', 'none', 'important');
+      if (el.hasAttribute(FIXED)) {
+        PROPS.forEach(function (p) { el.style.removeProperty(p); });
+        el.removeAttribute(FIXED);
+      }
+      var style = getComputedStyle(el);
+      var behind = backdrop(el.parentElement || el);
+      var own = parse(style.backgroundColor);
+      var fill = own[3] > 0 ? over(own, behind) : behind;
+      var text = over(parse(style.color), fill);
+      var best = null;
+      function better(a, b) { return contrast(b, fill) > contrast(a, fill) ? b : a; }
+      function pick() {
+        if (!best) {
+          // The theme's own text or background colour; plain black or white
+          // only if neither of those is readable.
+          best = better(choices[0], choices[1] || choices[0]);
+          if (contrast(best, fill) < 4.5) best = better(best, better(parse('#ffffff'), parse('#000000')));
+        }
+        return best;
+      }
+      var changed = false;
+      if (contrast(text, fill) < TEXT_MIN) {
+        // On a filled button: the theme's text or background colour. On an
+        // outline button: its own colour shifted towards that just enough to
+        // read, so an orange outline button stays orange-ish.
+        var target = pick(), shifted = target;
+        for (var t = 0.1; own[3] <= 0.5 && t < 1; t += 0.1) {
+          var mix = [0, 1, 2].map(function (i) { return text[i] + (target[i] - text[i]) * t; }).concat(1);
+          if (contrast(mix, fill) >= 4.5) { shifted = mix; break; }
+        }
+        var colour = rgbText(shifted);
+        ['color', '--tblr-btn-color', '--tblr-btn-hover-color', '--tblr-btn-active-color'].forEach(function (p) {
+          el.style.setProperty(p, colour, 'important');
+        });
+        changed = true;
+      }
+      // Only buttons and badges with a fill of their own get an outline, and
+      // only when the fill and its border both blend into the background.
+      if (own[3] > 0.5 && contrast(fill, behind) < EDGE_MIN) {
+        var border = parse(style.borderTopColor);
+        var edge = style.borderTopWidth !== '0px' && border[3] > 0 ? over(border, behind) : fill;
+        if (contrast(edge, behind) < EDGE_MIN) {
+          var line = rgbText(pick());
+          ['border-color', '--tblr-btn-border-color', '--tblr-btn-hover-border-color',
+           '--tblr-btn-active-border-color'].forEach(function (p) { el.style.setProperty(p, line, 'important'); });
+          if (style.borderTopWidth === '0px' || style.borderTopStyle === 'none') {
+            el.style.setProperty('border', '1px solid ' + line, 'important');
+          }
+          changed = true;
+        }
+      }
+      if (changed) el.setAttribute(FIXED, '');
+      void el.offsetWidth;
+      el.style.removeProperty('transition');
+    }
+
+    var SELECTOR = '.btn, .badge';
+    var SCOPE = '[class*="nbca"], [data-nbca-themed], [data-nbca-modal]';
+    function run() {
+      var choices = candidates();
+      var els = ownPage ? document.querySelectorAll(SELECTOR)
+        : Array.prototype.filter.call(document.querySelectorAll(SELECTOR), function (el) {
+          return el.closest(SCOPE);
+        });
+      Array.prototype.forEach.call(els, function (el) { fix(el, choices); });
+    }
+
+    var queued = false;
+    function schedule() {
+      if (queued) return;
+      queued = true;
+      // After any colour transition (Tabler buttons ease .15s).
+      setTimeout(function () { queued = false; run(); }, 200);
+    }
+    window.nbcaContrast = {run: schedule};
+
+    function start() {
+      run();
+      new MutationObserver(schedule).observe(document.documentElement, {attributes: true, attributeFilter: ['data-bs-theme']});
+      new MutationObserver(function (records) {
+        // Ignore our own style edits; react to new or replaced content.
+        if (records.some(function (r) { return r.type === 'childList' && r.addedNodes.length; })) schedule();
+      }).observe(document.body, {childList: true, subtree: true});
+    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
+    else start();
+  })();
+</script>

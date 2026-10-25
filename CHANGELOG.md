@@ -73,6 +73,13 @@ Upgrade: run `manage.py migrate` (adds one database index).
   requests still pending. See "Uninstalling" in the README.
 
 ### Improvements
+- Colour themes: the plugin's buttons and badges stay readable under any
+  NetBox colour theme, light or dark. When a theme makes an icon or label
+  too close to its button's colour (say, a white button with a white
+  icon), it switches to the theme's text or background colour, whichever
+  stands out more. When a button is nearly the same colour as what is
+  behind it, it gets a thin outline; otherwise buttons look exactly as the
+  theme draws them. Follows light/dark switches and live updates.
 - Confirmation dialogs (approve, reject, send back, retract, discard and the
   bulk approve/reject dialogs) are spaced like NetBox's own dialogs: even
   gaps between their parts, no extra empty space above the buttons, and the
