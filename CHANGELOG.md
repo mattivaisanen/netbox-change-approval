@@ -5,6 +5,10 @@
 Upgrade: run `manage.py migrate` (adds one database index).
 
 ### New features
+- Pending Approvals widget: your rejected and expired requests now show on
+  the dashboard widget, with who decided and their comment. Click the eye
+  ("Mark as read") to take one off the widget and out of the inbox count;
+  opening the request does the same.
 - Change Requests tab: every gated object's page has a "Change Requests"
   tab (before Changelog) listing that object's requests, pending and
   decided, with a count. It shows only when there are any.
