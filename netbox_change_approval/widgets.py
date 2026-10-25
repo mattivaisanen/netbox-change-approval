@@ -26,7 +26,6 @@ from extras.dashboard.utils import register_widget
 from extras.dashboard.widgets import DashboardWidget
 
 from . import permissions
-from .models import ChangeRequest, StatusChoices
 
 
 # Shown when nothing waits on the user: a random drawing from
@@ -90,42 +89,39 @@ class ApprovalsWidget(DashboardWidget):
 
     @staticmethod
     def signature(rows, sent_back, closed):
-        """Short fingerprint of what the widget shows: which requests, whether
-        you may decide them, which revision, and how many are in each batch."""
+        """Short fingerprint of what the widget shows: which requests (a batch
+        is one row), whether you may decide them, which revision, and how many
+        are in each batch."""
         parts = (
-            [('p', cr.pk, cr.revision, can) for cr, can in rows]
-            + [('s', cr.pk, cr.revision, str(cr.decided_at)) for cr in sent_back]
+            [('p', item['lead'].pk, item['lead'].revision, can, len(item['members'])) for item, can in rows]
+            + [('s', item['lead'].pk, item['lead'].revision, str(item['lead'].decided_at), len(item['members']))
+               for item in sent_back]
             + [('c', item['lead'].pk, len(item['members'])) for item in closed]
         )
         return hashlib.sha1(repr(parts).encode()).hexdigest()[:16]
 
     def _items(self, user):
-        queryset = permissions.approver_queue(
-            user, ChangeRequest.objects.filter(status=StatusChoices.PENDING),
-        ).select_related('content_type', 'submitted_by', 'approver_group').order_by('-submitted_at')[:10]
-
+        """(pending, sent back, rejected or expired), each a list of inbox
+        items ({'lead', 'members'}): a bulk edit or change set is one row,
+        as in the Approval Inbox, because deciding it decides the batch."""
         from .absence import decide_group_ids
+        from .inbox import _decide, _rejected, _sent_back, group_items
+
+        related = ('content_type', 'submitted_by', 'decided_by', 'approver_group')
         group_ids = decide_group_ids(user)
         rows = [
             (
-                cr,
-                cr.submitted_by_id != user.pk
-                and (user.is_superuser or cr.approver_group_id in group_ids),
+                item,
+                item['lead'].submitted_by_id != user.pk
+                and (user.is_superuser or item['lead'].approver_group_id in group_ids),
             )
-            for cr in queryset
+            for item in group_items(_decide(user).select_related(*related), limit=10)
         ]
         # Your own requests sent back to you (or retracted to edit), with Revise.
-        sent_back = list(ChangeRequest.objects.filter(
-            submitted_by=user, status=StatusChoices.RETURNED,
-        ).select_related('content_type', 'submitted_by', 'approver_group').order_by('-decided_at')[:10])
-        # Your rejected and expired requests not read yet, one row per batch,
-        # each with Mark as read (opening the request marks it read too).
-        from .inbox import _rejected, group_items
-
-        closed = group_items(
-            _rejected(user).select_related('content_type', 'submitted_by', 'decided_by', 'approver_group'),
-            limit=10,
-        )
+        sent_back = group_items(_sent_back(user).select_related(*related), limit=10)
+        # Your rejected and expired requests not read yet, each with Mark as
+        # read (opening the request marks it read too).
+        closed = group_items(_rejected(user).select_related(*related), limit=10)
         return rows, sent_back, closed
 
     def _render(self, request, items):
@@ -137,7 +133,10 @@ class ApprovalsWidget(DashboardWidget):
         # Field changes for each row's quick view (the arrow), as in the inbox.
         from .views import _diff_rows, prefetch_display_names
 
-        shown = [cr for cr, _can in rows] + sent_back + [item['lead'] for item in closed]
+        # Every member of each batch (its quick view lists them all), and each
+        # lead (a separate instance when it heads a batch).
+        items_shown = [item for item, _can in rows] + sent_back + closed
+        shown = [item['lead'] for item in items_shown] + [cr for item in items_shown for cr in item['members']]
         names = prefetch_display_names(shown)
         from .titles import attach_titles
         attach_titles(shown)

@@ -20,10 +20,10 @@
   {# Fixed widths: opening a quick view must not move the other columns. #}
   <colgroup><col><col style="width: 9rem;"><col style="width: 7rem;"><col style="width: 11rem;"></colgroup>
   <tbody>
-    {% for cr in sent_back %}
+    {% for item in sent_back %}{% with cr=item.lead %}
     <tr>
       <td>
-        <a href="{{ cr.get_absolute_url }}">{{ cr.nbca_title|default:cr.object_repr }}</a>
+        {% include 'netbox_change_approval/inc/widget_item_title.html' %}
         <span class="badge text-bg-orange ms-1">{% trans "Sent back" %}</span>
       </td>
       <td class="small text-muted nbca-who" title="{{ cr.decision_comment }}">
@@ -34,21 +34,20 @@
         <button type="button" class="btn btn-sm btn-ghost-secondary nbca-toggle" data-bs-toggle="collapse"
                 data-bs-target="#nbca-wq-{{ cr.pk }}" aria-expanded="false" aria-controls="nbca-wq-{{ cr.pk }}"
                 title="{% trans 'Show details' %}"><i class="mdi mdi-chevron-down"></i></button>
+        {% if item.members|length == 1 %}
         <a href="{% url 'plugins:netbox_change_approval:changerequest_revise' pk=cr.pk %}"
            class="btn btn-sm btn-primary" title="{% trans "Revise and resubmit" %}"><i class="mdi mdi-pencil"></i> {% trans "Revise" %}</a>
+        {% endif %}
         <a data-nbca-modal href="{% url 'plugins:netbox_change_approval:changerequest_discard' pk=cr.pk %}"
            class="btn btn-sm btn-primary" title="{% trans "Discard" %}" aria-label="{% trans "Discard" %}"><i class="mdi mdi-delete-outline"></i></a>
       </td>
     </tr>
-    <tr class="collapse nbca-quick" id="nbca-wq-{{ cr.pk }}">
-      <td colspan="4">{% include 'netbox_change_approval/inc/quick_diff.html' with rows=cr.quick_rows %}</td>
-    </tr>
-    {% endfor %}
+    {% include 'netbox_change_approval/inc/widget_item_quick.html' with revise=True %}
+    {% endwith %}{% endfor %}
     {% for item in closed %}{% with cr=item.lead %}
     <tr>
       <td>
-        <a href="{{ cr.get_absolute_url }}" title="{{ cr.nbca_title }}">{{ cr.nbca_title|default:cr.object_repr }}</a>
-        {% if item.members|length > 1 %}<span class="badge text-bg-secondary ms-1" title="{% trans "Changes in this batch" %}">{{ item.members|length }}</span>{% endif %}
+        {% include 'netbox_change_approval/inc/widget_item_title.html' %}
         <span class="badge text-bg-{{ cr.get_status_color }} ms-1">{{ cr.get_status_display }}</span>
       </td>
       <td class="small text-muted nbca-who" title="{{ cr.decision_comment }}">
@@ -68,13 +67,11 @@
         </form>
       </td>
     </tr>
-    <tr class="collapse nbca-quick" id="nbca-wq-{{ cr.pk }}">
-      <td colspan="4">{% include 'netbox_change_approval/inc/quick_diff.html' with rows=cr.quick_rows %}</td>
-    </tr>
+    {% include 'netbox_change_approval/inc/widget_item_quick.html' %}
     {% endwith %}{% endfor %}
-    {% for cr, can_decide in change_requests %}
+    {% for item, can_decide in change_requests %}{% with cr=item.lead %}
     <tr>
-      <td><a href="{{ cr.get_absolute_url }}" title="{{ cr.nbca_title }}">{{ cr.nbca_title|default:cr.object_repr }}</a></td>
+      <td>{% include 'netbox_change_approval/inc/widget_item_title.html' %}</td>
       <td class="small text-muted nbca-who">{% if cr.submitted_by %}{{ cr.submitted_by }}{% else %}{% trans "unknown user" %}{% endif %}</td>
       <td class="small text-muted text-nowrap" title="{{ cr.submitted_at }}">{{ cr.submitted_at|short_age }}</td>
       <td class="text-end text-nowrap">
@@ -91,10 +88,8 @@
         {% endif %}
       </td>
     </tr>
-    <tr class="collapse nbca-quick" id="nbca-wq-{{ cr.pk }}">
-      <td colspan="4">{% include 'netbox_change_approval/inc/quick_diff.html' with rows=cr.quick_rows %}</td>
-    </tr>
-    {% endfor %}
+    {% include 'netbox_change_approval/inc/widget_item_quick.html' %}
+    {% endwith %}{% endfor %}
   </tbody>
 </table>
 {% else %}

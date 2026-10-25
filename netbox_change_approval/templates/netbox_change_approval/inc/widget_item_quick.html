@@ -1,0 +1,22 @@
+{% load i18n %}
+{# Quick view of one dashboard widget row: each request of a batch with its changes. #}
+{% with count=item.members|length %}
+<tr class="collapse nbca-quick" id="nbca-wq-{{ item.lead.pk }}">
+  <td colspan="4">
+    {% for member in item.members %}
+      <div class="{% if not forloop.last %}mb-2{% endif %}">
+        {% if count > 1 %}
+          <div class="d-flex align-items-center mb-1">
+            <a href="{{ member.get_absolute_url }}" class="fw-semibold flex-grow-1">{{ member.nbca_title|default:member.object_repr }}</a>
+            {% if revise %}
+              <a href="{% url 'plugins:netbox_change_approval:changerequest_revise' pk=member.pk %}"
+                 class="btn btn-sm btn-primary"><i class="mdi mdi-pencil"></i> {% trans "Revise" %}</a>
+            {% endif %}
+          </div>
+        {% endif %}
+        {% include 'netbox_change_approval/inc/quick_diff.html' with rows=member.quick_rows %}
+      </div>
+    {% endfor %}
+  </td>
+</tr>
+{% endwith %}

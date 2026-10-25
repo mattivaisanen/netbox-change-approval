@@ -1,0 +1,10 @@
+{% load i18n %}
+{# Title of one dashboard widget row: a batch reads "Edit 3 objects", as in the Approval Inbox. #}
+{% with cr=item.lead count=item.members|length %}
+{% if count > 1 %}
+  <a href="{{ cr.get_absolute_url }}">{% blocktrans with action=cr.get_action_display %}{{ action }} {{ count }} objects{% endblocktrans %}</a>
+  <span class="badge text-bg-blue ms-1" title="{% trans 'One bulk action. Deciding it decides all of them.' %}">{% trans "batch" %}</span>
+{% else %}
+  <a href="{{ cr.get_absolute_url }}" title="{{ cr.nbca_title }}">{{ cr.nbca_title|default:cr.object_repr }}</a>
+{% endif %}
+{% endwith %}
