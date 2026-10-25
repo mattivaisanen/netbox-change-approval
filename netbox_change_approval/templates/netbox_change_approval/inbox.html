@@ -28,6 +28,7 @@
     /* Line the row text and buttons up with the card header's title and buttons. */
     .nbca-inbox .nbca-rows > * > tr > :first-child { padding-left: var(--tblr-card-cap-padding-x, 1rem); }
     .nbca-inbox .nbca-rows > * > tr > :last-child { padding-right: var(--tblr-card-cap-padding-x, 1rem); }
+    .nbca-inbox .nbca-rows > tbody > tr:not(.nbca-quick) > td:last-child { overflow: visible; }
   </style>
   {% include 'netbox_change_approval/inc/quick_toggle.html' %}
 {% endblock %}

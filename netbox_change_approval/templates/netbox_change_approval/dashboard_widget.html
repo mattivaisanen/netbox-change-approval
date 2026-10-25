@@ -10,11 +10,13 @@
   /* Buttons and text line up with the card header, not flush to the edge. */
   .nbca-widget > tbody > tr > :first-child { padding-left: var(--tblr-card-cap-padding-x, 1rem); }
   .nbca-widget > tbody > tr > :last-child { padding-right: var(--tblr-card-cap-padding-x, 1rem); }
+  /* Never clip the row buttons, even if the column is too narrow. */
+  .nbca-widget > tbody > tr:not(.nbca-quick) > td:last-child { overflow: visible; }
 </style>
 {% include 'netbox_change_approval/inc/quick_toggle.html' %}
 <table class="table table-sm table-hover mb-0 align-middle nbca-widget">
   {# Fixed widths: opening a quick view must not move the other columns. #}
-  <colgroup><col><col style="width: 9rem;"><col style="width: 7rem;"><col style="width: 9.5rem;"></colgroup>
+  <colgroup><col><col style="width: 9rem;"><col style="width: 7rem;"><col style="width: 11rem;"></colgroup>
   <tbody>
     {% for cr in sent_back %}
     <tr>
