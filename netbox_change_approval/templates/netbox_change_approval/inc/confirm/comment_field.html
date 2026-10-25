@@ -1,0 +1,5 @@
+{# The reason box in reject / send back dialogs: label above, NetBox spacing, help text and errors below. #}
+<label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+{{ field }}
+{% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
+{% if field.errors %}<div class="invalid-feedback d-block">{{ field.errors|join:" " }}</div>{% endif %}

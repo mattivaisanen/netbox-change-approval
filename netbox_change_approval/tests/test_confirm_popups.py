@@ -57,6 +57,15 @@ class ConfirmPopupTests(TestCase):
         response = self.client.get(_url('reject', self.cr), **POPUP)
         self.assertRegex(response.content.decode(), r'<textarea[^>]* required')
 
+    def test_reject_popup_uses_netbox_form_spacing(self):
+        # Label above the box like NetBox's own forms, no trailing colon, and
+        # the help text shown, so the dialog's gaps match NetBox's dialogs.
+        self.client.force_login(self.approver)
+        response = self.client.get(_url('reject', self.cr), **POPUP)
+        self.assertContains(response, '<label class="form-label" for="id_comment">Reason</label>', html=True)
+        self.assertContains(response, 'class="form-text"')
+        self.assertContains(response, 'class="vstack gap-3"')
+
     def test_retract_popup_has_both_choices(self):
         self.client.force_login(self.alice)
         response = self.client.get(_url('retract', self.cr), **POPUP)

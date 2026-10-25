@@ -1,19 +1,22 @@
 {% load i18n %}
-<p>
-  {% trans "This will withdraw your own request:" %}
-  <strong>{{ object.get_action_display }} {{ object.object_repr }}</strong>
-</p>
-<ul class="mb-2">
-  <li>{% blocktrans %}<strong>Retract and edit</strong> opens the form with what you submitted. Saving it resubmits this same request.{% endblocktrans %}</li>
-  <li>{% blocktrans %}<strong>Retract and discard</strong> drops it for good.{% endblocktrans %}</li>
-</ul>
-{% if object.action == "create" %}
-<p class="text-warning">
-  {% trans "The new object is removed either way. Retract and edit lets you create it again from the same form." %}
-</p>
-{% endif %}
-{% if batch_count > 1 %}
-<p class="text-warning">
-  {% blocktrans %}This request is part of a batch of {{ batch_count }} pending changes. Retracting withdraws all of them.{% endblocktrans %}
-</p>
-{% endif %}
+{# Children sit in a vstack with mb-0: even 1rem gaps and no extra space before the footer, like NetBox's own dialogs. #}
+<div class="vstack gap-3">
+  <p class="mb-0">
+    {% trans "This will withdraw your own request:" %}
+    <strong>{{ object.get_action_display }} {{ object.object_repr }}</strong>
+  </p>
+  <ul class="mb-0">
+    <li>{% blocktrans %}<strong>Retract and edit</strong> opens the form with what you submitted. Saving it resubmits this same request.{% endblocktrans %}</li>
+    <li>{% blocktrans %}<strong>Retract and discard</strong> drops it for good.{% endblocktrans %}</li>
+  </ul>
+  {% if object.action == "create" %}
+  <p class="mb-0 text-warning">
+    {% trans "The new object is removed either way. Retract and edit lets you create it again from the same form." %}
+  </p>
+  {% endif %}
+  {% if batch_count > 1 %}
+  <p class="mb-0 text-warning">
+    {% blocktrans %}This request is part of a batch of {{ batch_count }} pending changes. Retracting withdraws all of them.{% endblocktrans %}
+  </p>
+  {% endif %}
+</div>

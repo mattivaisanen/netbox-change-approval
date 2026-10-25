@@ -2,10 +2,7 @@
 {% if decision == 'approve' %}
   <p class="text-muted mb-0">{% trans "Each request is applied on its own. One that can't be applied stays pending and is listed afterwards." %}</p>
 {% else %}
-  <div class="mb-2">
-    {{ form.comment.label_tag }}
-    {{ form.comment }}
-    <div class="form-text">{{ form.comment.help_text }}</div>
-    {% if form.comment.errors %}<div class="text-danger small">{{ form.comment.errors }}</div>{% endif %}
+  <div>
+    {% include 'netbox_change_approval/inc/confirm/comment_field.html' with field=form.comment %}
   </div>
 {% endif %}
