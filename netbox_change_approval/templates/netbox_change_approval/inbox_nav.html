@@ -24,7 +24,24 @@
     font-weight: 700;
     animation: nbca-count-halo 2s ease-in-out infinite;
   }
-  @media (prefers-reduced-motion: reduce) { .nbca-cs-active, .nbca-cs-button, .nbca-inbox-count-urgent { animation: none; } }
+  /* Background refresh (see the script below): a count that changed pops
+     once, new widget rows fade in with a short blue highlight, and a widget
+     switching between rows and its idle drawing fades in. */
+  @keyframes nbca-count-pop { 0%, 100% { transform: scale(1); } 40% { transform: scale(1.3); } }
+  @keyframes nbca-row-in {
+    from { opacity: 0; background-color: rgba(var(--tblr-primary-rgb, 32, 107, 196), .25); }
+    30% { opacity: 1; }
+    to { background-color: transparent; }
+  }
+  @keyframes nbca-fade-in { from { opacity: 0; } to { opacity: 1; } }
+  .nbca-inbox-count.nbca-count-pop { animation: nbca-count-pop .5s ease-out, nbca-count-halo 2s ease-in-out .5s infinite; }
+  .nbca-inbox-count.nbca-count-pop:not(.nbca-inbox-count-urgent) { animation: nbca-count-pop .5s ease-out; }
+  tr.nbca-live-new > td { animation: nbca-row-in 2.5s ease-out; }
+  .nbca-live-widget.nbca-live-fade { animation: nbca-fade-in .4s ease-out; }
+  @media (prefers-reduced-motion: reduce) {
+    .nbca-cs-active, .nbca-cs-button, .nbca-inbox-count-urgent, .nbca-inbox-count.nbca-count-pop,
+    tr.nbca-live-new > td, .nbca-live-widget.nbca-live-fade { animation: none; }
+  }
 </style>
 <template id="nbca-inbox-nav">
   {% include 'netbox_change_approval/inc/inbox_nav_button.html' %}
@@ -49,14 +66,14 @@
       sizeCount(menu.querySelector('.nbca-inbox-nav'));
     });
 
-    /* Background refresh: every 30 seconds while the tab is visible (and at
+    /* Background refresh: every 10 seconds while the tab is visible (and at
        once when you come back to it), redraw the sidebar count and the
        Pending Approvals widget if anything changed. The widget waits while
        a dialog or a quick view is open, so nothing moves under your hands.
        Stops for good once you're signed out. */
     if (window.nbcaLive) return;
     var URL = "{% url 'plugins:netbox_change_approval:live_refresh' %}";
-    var EVERY = 30000;
+    var EVERY = 10000;
     var busy = false, stopped = false, last = Date.now(), lastNav = null;
 
     function swapNav(html) {
@@ -66,8 +83,13 @@
       tpl.innerHTML = html.trim();
       var fresh = tpl.content.firstElementChild;
       if (!fresh) return;
+      var before = current.querySelector('.nbca-inbox-count');
       current.replaceWith(fresh);
       sizeCount(fresh);
+      var after = fresh.querySelector('.nbca-inbox-count');
+      if (after && lastNav !== null && (!before || before.textContent !== after.textContent)) {
+        after.classList.add('nbca-count-pop');
+      }
       lastNav = html;
     }
 
@@ -78,8 +100,25 @@
 
     function swapWidget(root, html) {
       if (!document.contains(root)) return;
+      function shownRows(el) {
+        var ids = {};
+        el.querySelectorAll('.nbca-toggle[data-bs-target]').forEach(function (toggle) {
+          ids[toggle.getAttribute('data-bs-target')] = true;
+        });
+        return ids;
+      }
+      var old = shownRows(root);
+      var hadRows = Object.keys(old).length > 0;
       // Scripts in a contextual fragment run when inserted, as on page load.
-      root.replaceWith(document.createRange().createContextualFragment(html));
+      var fragment = document.createRange().createContextualFragment(html);
+      var fresh = fragment.firstElementChild;
+      root.replaceWith(fragment);
+      if (!fresh) return;
+      var rows = fresh.querySelectorAll('.nbca-toggle[data-bs-target]');
+      if (hadRows !== rows.length > 0) { fresh.classList.add('nbca-live-fade'); return; }
+      rows.forEach(function (toggle) {
+        if (!old[toggle.getAttribute('data-bs-target')]) toggle.closest('tr').classList.add('nbca-live-new');
+      });
     }
 
     function refresh() {
