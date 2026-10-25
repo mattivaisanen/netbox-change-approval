@@ -67,6 +67,8 @@ class NetBoxChangeApprovalConfig(PluginConfig):
         from .table_styling import patch_netbox_table
 
         wire_up_gated_models()
+        from . import object_tab
+        object_tab.register()
         from netbox.utils import register_request_processor
 
         from .middleware import background_job_scope

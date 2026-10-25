@@ -401,6 +401,10 @@ class ChangeRequest(NetBoxModel):
         ordering = ['-submitted_at']
         verbose_name = _('change request')
         verbose_name_plural = _('change requests')
+        indexes = [
+            # An object's requests: its Change Requests tab (object_tab.py).
+            models.Index(fields=['content_type', 'object_id', 'status'], name='nbca_cr_object'),
+        ]
         constraints = [
             # At most one *pending* request per object — this is the object lock.
             # NULL object_id (pending creates) are not constrained against each other,
