@@ -75,7 +75,7 @@ on all of them, and connect one `pre_delete` receiver to all of them.
 ## Plugin settings
 
 Always read a setting with `plugin_settings.get_setting(key)`, never NetBox's
-`get_plugin_config()`: a value saved on **Change Approvals → Settings** (a
+`get_plugin_config()`: a value saved on **Change Approval → Settings** (a
 `PluginSetting` row) overrides `configuration.py`, and only `get_setting()`
 knows that. Saved values are read when used (cached for one web request at
 most), never at startup, so a change applies at once in every process and in
@@ -402,7 +402,7 @@ DashboardWidget` — registered via `@register_widget` the same way NetBox's own
 `ObjectListWidget` at `ChangeRequest` (which works fine — confirmed live, it's
 a real option in the picker), this one scopes to "routed to me, still pending"
 via `permissions.approver_queue()` and links straight to approve/reject, which
-is the actual point of putting this on a dashboard (see README "Task 9": a
+is the actual point of putting this on a dashboard (the original request: a
 widget to "approve right from there").
 
 Two real failures surfaced while building and testing this, neither of them

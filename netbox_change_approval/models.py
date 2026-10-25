@@ -63,9 +63,9 @@ class StatusChoices(models.TextChoices):
 
 
 class ChangeRequestStatusChoices(ChoiceSet):
-    """Badge colours of StatusChoices, as a NetBox ChoiceSet so they follow
-    NetBox's colour handling: a theme plugin that recolours statuses (keyed by
-    value, like "pending" or "applied") recolours these too."""
+    """Badge colors of StatusChoices, as a NetBox ChoiceSet so they follow
+    NetBox's color handling: a theme plugin that recolors statuses (keyed by
+    value, like "pending" or "applied") recolors these too."""
     CHOICES = [
         (StatusChoices.PENDING.value, StatusChoices.PENDING.label, 'yellow'),
         (StatusChoices.APPLIED.value, StatusChoices.APPLIED.label, 'green'),
@@ -77,7 +77,7 @@ class ChangeRequestStatusChoices(ChoiceSet):
 
 
 class ChangeSetStatusChoices(ChoiceSet):
-    """Badge colours of ChangeSet.status, for the same reason."""
+    """Badge colors of ChangeSet.status, for the same reason."""
     CHOICES = [
         ('draft', _('Draft'), 'gray'),
         ('submitted', _('Submitted'), 'yellow'),
@@ -465,7 +465,7 @@ class ChangeRequest(NetBoxModel):
 
     def get_status_color(self):
         # Used by NetBox's ChoiceFieldColumn in lists, the detail page badge
-        # and the widget. Through the ChoiceSet so themes can recolour it.
+        # and the widget. Through the ChoiceSet so themes can recolor it.
         return ChangeRequestStatusChoices.colors.get(self.status, 'secondary')
 
     @classmethod

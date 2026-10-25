@@ -1,3 +1,4 @@
+from django.utils.translation import gettext_lazy as _
 from netbox.plugins import PluginMenu, PluginMenuItem
 
 #: A top-level `menu` (singular) gets its own nav tab, like "Organization" or
@@ -21,41 +22,41 @@ from netbox.plugins import PluginMenu, PluginMenuItem
 #: DEVELOPER.md "The top-level nav tab, and why the ticker moved to the
 #: Approvals page".
 menu = PluginMenu(
-    label='Change Approvals',
+    label=_('Change Approval'),
     icon_class='mdi mdi-check-decagram-outline',
     groups=(
-        ('Change Approval', (
+        (_('Change Approval'), (
             PluginMenuItem(
                 link='plugins:netbox_change_approval:changerequest_inbox',
-                link_text='Approval Inbox',
+                link_text=_('Approval Inbox'),
             ),
             PluginMenuItem(
                 link='plugins:netbox_change_approval:changerequest_approvals',
-                link_text='Approvals',
+                link_text=_('Approvals'),
                 permissions=['netbox_change_approval.is_approver_changerequest'],
             ),
             PluginMenuItem(
                 # Not changerequest_list: see views.AllChangeRequestsView.
                 link='plugins:netbox_change_approval:changerequest_all',
-                link_text='All Change Requests',
+                link_text=_('All Change Requests'),
             ),
             PluginMenuItem(
                 link='plugins:netbox_change_approval:changeset_list',
-                link_text='Change Sets',
+                link_text=_('Change Sets'),
             ),
             PluginMenuItem(
                 link='plugins:netbox_change_approval:away',
-                link_text='Away / Stand-in',
+                link_text=_('Away / Stand-in'),
                 permissions=['netbox_change_approval.is_approver_changerequest'],
             ),
             PluginMenuItem(
                 link='plugins:netbox_change_approval:approvalrule_list',
-                link_text='Approval Rules',
+                link_text=_('Approval Rules'),
                 permissions=['netbox_change_approval.view_approvalrule'],
             ),
             PluginMenuItem(
                 link='plugins:netbox_change_approval:settings',
-                link_text='Settings',
+                link_text=_('Settings'),
                 staff_only=True,  # superusers only, see above
             ),
         )),

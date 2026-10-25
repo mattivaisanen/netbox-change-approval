@@ -1,15 +1,15 @@
 {% comment %}
-  Keeps the plugin's buttons and badges readable under any NetBox colour theme.
+  Keeps the plugin's buttons and badges readable under any NetBox color theme.
 
-  Their colours come from NetBox's own variables (btn-success, text-bg-orange…),
+  Their colors come from NetBox's own variables (btn-success, text-bg-orange…),
   so a theme can make them unreadable: a white "warning" button with white
-  icons, or a "danger" button the same colour as the page. For each of our
-  buttons and badges this checks the colours the browser actually shows:
-  - text or icon too close to the button's own colour: use the theme's text
-    or background colour, whichever stands out more (on outline buttons,
-    shift the button's own colour towards it just enough to read);
+  icons, or a "danger" button the same color as the page. For each of our
+  buttons and badges this checks the colors the browser actually shows:
+  - text or icon too close to the button's own color: use the theme's text
+    or background color, whichever stands out more (on outline buttons,
+    shift the button's own color towards it just enough to read);
   - button too close to what is behind it: draw a thin outline in that same
-    contrasting colour (only then, so normal themes look unchanged).
+    contrasting color (only then, so normal themes look unchanged).
   It runs again when the light/dark mode changes and when parts of the page
   are replaced (live refresh, htmx).
 
@@ -29,7 +29,7 @@
     var ctx = document.createElement('canvas').getContext('2d', {willReadFrequently: true});
     var cache = {};
 
-    // Any CSS colour string (rgb(), color(srgb …), oklch() …) -> [r, g, b, a 0-1].
+    // Any CSS color string (rgb(), color(srgb …), oklch() …) -> [r, g, b, a 0-1].
     function parse(value) {
       if (cache[value]) return cache[value];
       ctx.clearRect(0, 0, 1, 1);
@@ -54,7 +54,7 @@
       var x = luminance(a), y = luminance(b);
       return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
     }
-    // The solid colour an element sits on: its ancestors' backgrounds, layered.
+    // The solid color an element sits on: its ancestors' backgrounds, layered.
     function backdrop(el) {
       var layers = [];
       for (var node = el; node && node.nodeType === 1; node = node.parentElement) {
@@ -78,7 +78,7 @@
     }
 
     function fix(el, choices) {
-      // Measure the theme's own colours, not a fade between old and new.
+      // Measure the theme's own colors, not a fade between old and new.
       el.style.setProperty('transition', 'none', 'important');
       if (el.hasAttribute(FIXED)) {
         PROPS.forEach(function (p) { el.style.removeProperty(p); });
@@ -93,7 +93,7 @@
       function better(a, b) { return contrast(b, fill) > contrast(a, fill) ? b : a; }
       function pick() {
         if (!best) {
-          // The theme's own text or background colour; plain black or white
+          // The theme's own text or background color; plain black or white
           // only if neither of those is readable.
           best = better(choices[0], choices[1] || choices[0]);
           if (contrast(best, fill) < 4.5) best = better(best, better(parse('#ffffff'), parse('#000000')));
@@ -102,17 +102,17 @@
       }
       var changed = false;
       if (contrast(text, fill) < TEXT_MIN) {
-        // On a filled button: the theme's text or background colour. On an
-        // outline button: its own colour shifted towards that just enough to
+        // On a filled button: the theme's text or background color. On an
+        // outline button: its own color shifted towards that just enough to
         // read, so an orange outline button stays orange-ish.
         var target = pick(), shifted = target;
         for (var t = 0.1; own[3] <= 0.5 && t < 1; t += 0.1) {
           var mix = [0, 1, 2].map(function (i) { return text[i] + (target[i] - text[i]) * t; }).concat(1);
           if (contrast(mix, fill) >= 4.5) { shifted = mix; break; }
         }
-        var colour = rgbText(shifted);
+        var color = rgbText(shifted);
         ['color', '--tblr-btn-color', '--tblr-btn-hover-color', '--tblr-btn-active-color'].forEach(function (p) {
-          el.style.setProperty(p, colour, 'important');
+          el.style.setProperty(p, color, 'important');
         });
         changed = true;
       }
@@ -151,7 +151,7 @@
     function schedule() {
       if (queued) return;
       queued = true;
-      // After any colour transition (Tabler buttons ease .15s).
+      // After any color transition (Tabler buttons ease .15s).
       setTimeout(function () { queued = false; run(); }, 200);
     }
     window.nbcaContrast = {run: schedule};

@@ -14,16 +14,17 @@ an extra unfilled rect on top of any device with a pending ChangeRequest.
 """
 from core.models import ObjectType
 
-from .models import ChangeRequest, StatusChoices
+from .models import ActionChoices, ChangeRequest, StatusChoices
 
-#: var(--tblr-warning) is what pending_row_styles.html uses on the *host* page,
-#: but this SVG is a separate document (see module docstring) with its own
-#: stylesheet bundle, compiled straight from bootstrap's variables.scss rather
-#: than inheriting the host page's cascade — unclear whether --tblr-warning
-#: even exists in that bundle. The CSS fallback covers it either way: resolves
-#: to the real theme color if the var happens to be defined, else this hex
-#: (Tabler's own default --tblr-warning) if not.
-PENDING_DEVICE_STROKE = 'var(--tblr-warning, #f59f00)'
+#: The elevation is a separate SVG document (see module docstring): NetBox's
+#: page variables such as --tblr-warning don't reach it. So the SVG gets its
+#: own color variables, set to Tabler's default warning/green/blue/red, and
+#: every rule below uses them. Alpha tints use color-mix().
+SVG_COLOR_VARIABLES = (
+    ':root { --nbca-pending: #f59f00; --nbca-create: #2fb344; '
+    '--nbca-update: #206bc4; --nbca-delete: #d63939; }'
+)
+PENDING_DEVICE_STROKE = 'var(--nbca-pending)'
 
 _patched = False
 
@@ -57,22 +58,22 @@ def patch_rack_elevation_svg():
         drawing = original_setup_drawing(self)
         from . import pending_marks
 
-        rules = (
-            f'.nbca-pending-device {{ fill: none; stroke: {PENDING_DEVICE_STROKE}; '
+        rules = SVG_COLOR_VARIABLES + (
+            f' .nbca-pending-device {{ fill: none; stroke: {PENDING_DEVICE_STROKE}; '
             f'stroke-width: 2px; pointer-events: none; }}'
         )
         if pending_marks.by_action():
             # Same colors as the object lists: green new, blue edit, red
             # (dashed) delete. See pending_marks.py.
-            for action, (_var, hex_color) in pending_marks.ACTION_COLORS.items():
-                rules += f' .nbca-pending-{action} {{ stroke: {hex_color}; stroke-width: 3px; }}'
+            for action in ActionChoices.values:
+                rules += f' .nbca-pending-{action} {{ stroke: var(--nbca-{action}); stroke-width: 3px; }}'
             rules += ' .nbca-pending-delete { stroke-dasharray: 6 3; }'
-            blue = pending_marks.ACTION_COLORS['update'][1]
             rules += (
-                f' .nbca-requested-move {{ fill: {blue}22; stroke: {blue}; stroke-width: 2px;'
-                f' stroke-dasharray: 4 3; pointer-events: none; }}'
-                f' .nbca-requested-label {{ fill: {blue}; font-size: 12px; font-weight: 600;'
-                f' text-anchor: middle; dominant-baseline: middle; pointer-events: none; }}'
+                ' .nbca-requested-move { fill: color-mix(in srgb, var(--nbca-update) 13%, transparent);'
+                ' stroke: var(--nbca-update); stroke-width: 2px;'
+                ' stroke-dasharray: 4 3; pointer-events: none; }'
+                ' .nbca-requested-label { fill: var(--nbca-update); font-size: 12px; font-weight: 600;'
+                ' text-anchor: middle; dominant-baseline: middle; pointer-events: none; }'
             )
         drawing.defs.add(drawing.style(rules))
         # Cached per-instance (not per-call): _draw_device fires once per

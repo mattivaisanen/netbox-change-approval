@@ -12,7 +12,7 @@ def has_old_values(rows):
 
 @register.filter
 def is_blank(value):
-    """None or an empty string: shown the same way, as a grey dash."""
+    """None or an empty string: shown the same way, as a gray dash."""
     return value is None or value == ''
 
 

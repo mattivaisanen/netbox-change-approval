@@ -212,7 +212,7 @@ class ComponentChangeLogTests(TestCase):
         InterfaceTemplate.objects.create(device_type=cls.device_type, name='eth0', type='1000base-t')
         cls.role = DeviceRole.objects.create(name='R', slug='r')
 
-    def test_interface_edit_is_labelled(self):
+    def test_interface_edit_is_labeled(self):
         from core.models import ObjectChange
 
         device = Device(name='sw1', site=self.site, device_type=self.device_type, role=self.role)

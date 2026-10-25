@@ -5,7 +5,7 @@ Default ('by_action'): what is pending is visible at a glance.
 - New objects: green stripe and a "+ new" chip.
 - Edits: blue stripe, an "edit pending" chip, and each changed cell shows
   the current value struck through next to the requested one.
-- Deletes: red stripe, a "delete pending" chip, and the row greyed out and
+- Deletes: red stripe, a "delete pending" chip, and the row grayed out and
   struck through.
 Colors match NetBox's own change log (and this plugin's request list). The
 chip links to the request.
@@ -20,14 +20,6 @@ from .models import ActionChoices, ChangeRequest, StatusChoices
 
 STYLE_BY_ACTION = 'by_action'
 STYLE_OUTLINE = 'outline'
-
-#: Tabler's own default colors, used where a CSS variable may not exist (the
-#: rack elevation is its own SVG document).
-ACTION_COLORS = {
-    ActionChoices.CREATE: ('var(--tblr-green, #2fb344)', '#2fb344'),
-    ActionChoices.UPDATE: ('var(--tblr-blue, #206bc4)', '#206bc4'),
-    ActionChoices.DELETE: ('var(--tblr-red, #d63939)', '#d63939'),
-}
 
 
 def style():

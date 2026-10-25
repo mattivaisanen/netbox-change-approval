@@ -1,3 +1,7 @@
+"""
+NetBox plugin that requires approval-group sign-off on changes to NetBox
+objects before they take effect. See README.md and docs/.
+"""
 from netbox.plugins import PluginConfig
 
 

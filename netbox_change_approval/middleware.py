@@ -257,8 +257,8 @@ class ChangeApprovalMiddleware:
         create, but for a *gated* one, landing back on a list is what lets someone
         add several objects in a row without each one bouncing them off to a
         single-object page (which also tempts re-clicking "Add" if it's not
-        obvious the first one already went through — see README "Pending creates
-        are visible immediately"). Rather than hardcode per-model redirect targets,
+        obvious the first one already went through — see docs/usage.md "As an
+        editor"). Rather than hardcode per-model redirect targets,
         reuse whatever page the user actually came from: on the initial GET to the
         add form (not a POST, and only when the URL doesn't already carry a
         return_url — e.g. from a "Clone" link), redirect once to the same URL with

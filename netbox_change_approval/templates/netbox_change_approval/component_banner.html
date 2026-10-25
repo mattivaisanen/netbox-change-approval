@@ -1,14 +1,16 @@
-{% load helpers %}
-<div data-nbca-themed class="alert alert-warning d-flex align-items-center justify-content-between" role="alert" style="border-left: 4px solid var(--tblr-green, #2fb344)">
+{% load helpers i18n %}
+<div data-nbca-themed class="alert alert-warning d-flex align-items-center justify-content-between" role="alert" style="border-left: 4px solid var(--tblr-green)">
   <div>
     <i class="mdi mdi-clock-alert-outline"></i>
-    <strong>Part of a new object waiting for approval</strong>
+    <strong>{% trans "Part of a new object waiting for approval" %}</strong>
     &mdash;
-    {% if change_request.target_object %}{{ change_request.target_object|linkify }}{% else %}{{ change_request.object_repr }}{% endif %}
-    was requested by {{ change_request.submitted_by|default:"unknown user" }}.
-    {% if is_submitter %}You can change this; it goes into that request.{% else %}Only the submitter can change this until it is decided.{% endif %}
+    {% trans "unknown user" as unknown_user %}
+    {% with parent=change_request.target_object|linkify|default:change_request.object_repr user=change_request.submitted_by|default:unknown_user %}
+    {% blocktrans %}{{ parent }} was requested by {{ user }}.{% endblocktrans %}
+    {% endwith %}
+    {% if is_submitter %}{% trans "You can change this; it goes into that request." %}{% else %}{% trans "Only the submitter can change this until it is decided." %}{% endif %}
   </div>
   <a href="{{ change_request.get_absolute_url }}" class="btn btn-sm btn-warning text-nowrap">
-    View request
+    {% trans "View request" %}
   </a>
 </div>

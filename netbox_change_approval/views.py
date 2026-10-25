@@ -629,10 +629,10 @@ class ChangeRequestScheduleView(ConditionalLoginRequiredMixin, View):
             elif applied is None:
                 messages.info(request, _('Already decided or unscheduled meanwhile.'))
             else:
-                messages.error(request, _('Could not be applied; the schedule was cancelled. See the request.'))
+                messages.error(request, _('Could not be applied; the schedule was canceled. See the request.'))
         else:
             scheduling.cancel(change_request)
-            messages.info(request, _('Schedule cancelled. The request waits for a decision again.'))
+            messages.info(request, _('Schedule canceled. The request waits for a decision again.'))
         return redirect(change_request.get_absolute_url())
 
 

@@ -3,7 +3,7 @@
 {# Approval Inbox button at the top of the sidebar, between the NetBox logo and the first menu. NetBox has no plugin hook there, so it's rendered in <head> and moved into place once the page loads. #}
 <style>
   /* Active change set: a soft glow. The icon fades brighter and dimmer and a
-     faint halo in NetBox's main colour breathes around the button, about every 2 seconds. */
+     faint halo in NetBox's main color breathes around the button, about every 2 seconds. */
   @keyframes nbca-cs-icon { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
   @keyframes nbca-cs-halo {
     0%, 100% { box-shadow: 0 0 0 0 rgba(var(--tblr-primary-rgb, 32, 107, 196), .0); }
@@ -14,7 +14,7 @@
   .nbca-inbox-count { justify-content: center; flex: 0 0 auto; }
   /* Approvals waiting: outline, faint fill, bold number and a glow inside
      the box that breathes like the active change set button, all in NetBox's
-     main colour so it follows the theme. Inside, so it never spills into the
+     main color so it follows the theme. Inside, so it never spills into the
      gaps between the buttons. */
   @keyframes nbca-count-halo {
     0%, 100% { box-shadow: inset 0 0 0 0 rgba(var(--tblr-primary-rgb, 32, 107, 196), 0); }
@@ -26,8 +26,8 @@
     animation: nbca-count-halo 2s ease-in-out infinite;
   }
   /* Background refresh (see the script below): a count that changed pops
-     once; widget rows fade in from NetBox's main colour when new, flash its
-     secondary (alt) colour when changed and
+     once; widget rows fade in from NetBox's main color when new, flash its
+     secondary (alt) color when changed and
      slide out when gone; switching between rows and the idle drawing fades in. */
   @keyframes nbca-count-pop { 0%, 100% { transform: scale(1); } 40% { transform: scale(1.3); } }
   @keyframes nbca-row-in {

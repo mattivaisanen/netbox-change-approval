@@ -5,7 +5,7 @@
 {% endcomment %}
 {% load i18n %}
 <div class="card-header px-2 py-1">
-  <h3 class="card-title flex-fill">Notifications</h3>
+  <h3 class="card-title flex-fill">{% trans "Notifications" %}</h3>
   {% if notifications %}
     <a href="#" hx-get="{% url 'extras:notification_dismiss_all' %}" hx-target="closest .notifications"
        hx-confirm="{% blocktrans trimmed count count=unread_count %}Dismiss {{ count }} unread notification?{% plural %}Dismiss {{ count }} unread notifications?{% endblocktrans %}"

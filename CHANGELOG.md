@@ -1,5 +1,24 @@
 # Changelog
 
+## Unreleased
+
+### Improvements
+- The menu tab is now called "Change Approval", the same as the plugin's
+  name in NetBox's plugin list (it was "Change Approvals").
+- The waiting-for-approval banners, the menu and the notifications panel
+  can now be translated, like the rest of the plugin.
+- Pending colors on NetBox pages come straight from NetBox's theme, with no
+  built-in fallback colors. The rack elevation drawing, which can't see the
+  page's theme, defines its own named colors.
+- Shorter README with a feature overview. The full guide moved to
+  [docs/usage.md](docs/usage.md), and installing, upgrading and
+  uninstalling to [docs/installation.md](docs/installation.md).
+- Package metadata: correct project links, an SPDX license entry, and the
+  same description as in NetBox's plugin list.
+- American spelling throughout ("color", "canceled").
+- Automated tests run on pull requests and on demand, no longer on every
+  push.
+
 ## 0.4.0 (2026-10-25)
 
 Upgrade: run `manage.py migrate`. It adds new fields (reason, schedule,
@@ -75,17 +94,17 @@ approver group and expiry settings, and adds a database index.
 
 ### Improvements
 - Animations follow the theme: the widget's idle drawings are drawn in the
-  theme's text colour (black or white), with their highlights (blinking
+  theme's text color (black or white), with their highlights (blinking
   lights, check marks, sun, moon, beak, bobber) in NetBox's main and
-  secondary colours. Live-refresh highlights use the same pair: new rows
-  fade in from the main colour, changed rows flash the secondary colour.
-- Colours follow NetBox and its theme: request and change set status badges
-  now use NetBox's own status colour handling, so a theme plugin that
-  recolours statuses (for example "Pending" or "Applied") recolours them in
+  secondary colors. Live-refresh highlights use the same pair: new rows
+  fade in from the main color, changed rows flash the secondary color.
+- Colors follow NetBox and its theme: request and change set status badges
+  now use NetBox's own status color handling, so a theme plugin that
+  recolors statuses (for example "Pending" or "Applied") recolors them in
   the widget, inbox, lists and request pages too. Informational badges
   ("batch", "auto-approved", "active", change set links) use NetBox's main
-  colour instead of a fixed blue, and rule outcome and "scheduled" badges
-  use NetBox's success/warning colours instead of fixed green/yellow.
+  color instead of a fixed blue, and rule outcome and "scheduled" badges
+  use NetBox's success/warning colors instead of fixed green/yellow.
 - Pending Approvals widget: a bulk edit, import or change set is now one
   row for approvers and in your sent-back list too, as in the Approval
   Inbox, instead of one row per object. The row reads like "Edit 3
@@ -93,11 +112,11 @@ approver group and expiry settings, and adds a database index.
   whole batch, and the arrow lists every object with its changes (with a
   Revise button for each one in a sent-back batch). Rejected batches use
   the same title.
-- Colour themes: the plugin's buttons and badges stay readable under any
-  NetBox colour theme, light or dark. When a theme makes an icon or label
-  too close to its button's colour (say, a white button with a white
-  icon), it switches to the theme's text or background colour, whichever
-  stands out more. When a button is nearly the same colour as what is
+- Color themes: the plugin's buttons and badges stay readable under any
+  NetBox color theme, light or dark. When a theme makes an icon or label
+  too close to its button's color (say, a white button with a white
+  icon), it switches to the theme's text or background color, whichever
+  stands out more. When a button is nearly the same color as what is
   behind it, it gets a thin outline; otherwise buttons look exactly as the
   theme draws them. Follows light/dark switches and live updates.
 - Confirmation dialogs (approve, reject, send back, retract, discard and the
@@ -123,7 +142,7 @@ approver group and expiry settings, and adds a database index.
 - Sidebar: the change set button now sits left of the Approval Inbox, and
   the count has its own box on the right, the same size as the change set
   button, in the same outlined style. When approvals need you it has an
-  outline, a faint fill and a slow glow inside it, in NetBox's main colour;
+  outline, a faint fill and a slow glow inside it, in NetBox's main color;
   with field work only it is gray. No box shows when nothing is waiting.
 - Saving an approval rule checks its constraint: a misspelled field
   (`{"stauts": "planned"}`) or a wrong kind of value (`{"site": "lab"}`) is
@@ -160,7 +179,7 @@ approver group and expiry settings, and adds a database index.
   rejected, if that happened while the background job was applying it, and
   clicking "Apply now" while the job ran could apply it twice. It is now
   checked again right before applying.
-- A notification about a cancelled or failed schedule now says who
+- A notification about a canceled or failed schedule now says who
   scheduled it on its "By" line.
 - `migrate netbox_change_approval zero` no longer brings back the old
   "Pending Approval" tag on objects with a pending create.
@@ -310,7 +329,7 @@ moved to Approval Rules in 0.2.0).
   a pending device, the compact inbox and widget, the change request page
   and the Settings page.
 - Changes to the interfaces, cables and other parts of a new device that is
-  still waiting for approval are labelled in the change log ("Part of
+  still waiting for approval are labeled in the change log ("Part of
   change request #N, waiting for approval"), and no longer add a
   "Resubmitted for approval" row each time.
 - Approval Inbox and dashboard widget are more compact: one line per
@@ -324,7 +343,7 @@ moved to Approval Rules in 0.2.0).
   no longer lags.
 - The small change tables (batch pages, Approval Inbox quick view,
   dashboard widget) line up: same column widths in every table, every
-  empty value shown as the same grey dash, and new objects show just their
+  empty value shown as the same gray dash, and new objects show just their
   values without an empty Old column.
 - The change request page is easier to decide from: one "Changes"
   table (now → requested, with "(empty)" instead of a blank), a line with
@@ -394,6 +413,6 @@ Fixed:
 - No database queries while NetBox starts.
 - Requires NetBox 4.7 (it never worked on 4.2 as claimed).
 
-## 0.1.0
+## 0.1.0 (2026-10-21)
 
 First version.

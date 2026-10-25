@@ -16,7 +16,7 @@ Each notification names the request, the object and who did what ("#12
 Update device sw1 · rejected by bob: wrong rack"). Each also fires a NetBox
 event of the same type on the change request, with everything a message
 needs in its data (see event_data()), including who should receive it, so
-an Event Rule with a webhook can e-mail or post it. See README "Getting
+an Event Rule with a webhook can e-mail or post it. See docs/usage.md "Getting
 notified".
 
 When a request stops being pending, approvers' unread "needs approval"

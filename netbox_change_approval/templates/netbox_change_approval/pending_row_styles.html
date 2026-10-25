@@ -31,9 +31,9 @@
     box-shadow: none;
     border-radius: 0;
   }
-  tr.nbca-pending-create > td:first-child { box-shadow: inset 4px 0 0 0 var(--tblr-green, #2fb344); }
-  tr.nbca-pending-update > td:first-child { box-shadow: inset 4px 0 0 0 var(--tblr-blue, #206bc4); }
-  tr.nbca-pending-delete > td:first-child { box-shadow: inset 4px 0 0 0 var(--tblr-red, #d63939); }
+  tr.nbca-pending-create > td:first-child { box-shadow: inset 4px 0 0 0 var(--tblr-green); }
+  tr.nbca-pending-update > td:first-child { box-shadow: inset 4px 0 0 0 var(--tblr-blue); }
+  tr.nbca-pending-delete > td:first-child { box-shadow: inset 4px 0 0 0 var(--tblr-red); }
   tr.nbca-pending-delete > td:not(:first-child):not(.noprint) {
     text-decoration: line-through;
     opacity: .6;
@@ -49,12 +49,12 @@
     vertical-align: -.05em;
   }
   .nbca-chip:hover { opacity: .75; }
-  .nbca-chip-create { color: var(--tblr-green, #2fb344) !important; }
-  .nbca-chip-update { color: var(--tblr-blue, #206bc4) !important; }
-  .nbca-chip-delete { color: var(--tblr-red, #d63939) !important; }
+  .nbca-chip-create { color: var(--tblr-green) !important; }
+  .nbca-chip-update { color: var(--tblr-blue) !important; }
+  .nbca-chip-delete { color: var(--tblr-red) !important; }
   tr.nbca-pending-delete .nbca-chip { opacity: 1; }
   .nbca-old { text-decoration: line-through; opacity: .6; margin-right: .25rem; }
-  .nbca-new { color: var(--tblr-blue, #206bc4); font-weight: 600; }
+  .nbca-new { color: var(--tblr-blue); font-weight: 600; }
   .nbca-new::before { content: "\2192\00a0"; font-weight: normal; opacity: .7; }
 </style>
 <script>

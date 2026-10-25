@@ -1,5 +1,5 @@
 """
-The settings page (Change Approvals → Settings), superusers only. See
+The settings page (Change Approval → Settings), superusers only. See
 plugin_settings.py for how saved values and configuration.py fit together.
 """
 from django import forms

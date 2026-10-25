@@ -6,7 +6,7 @@ stand-in can decide requests routed to the away approver's groups, as if they
 were a member: they appear in the stand-in's Approvals list, inbox and
 dashboard widget, and the stand-in gets the "needs approval" notifications
 instead of the away approver. Nobody can decide their own request, stand-in
-or not. Set on the "Away" page (Change Approvals menu).
+or not. Set on the "Away" page (Change Approval menu).
 """
 from django.contrib.auth import get_user_model
 from django.db.models import Q

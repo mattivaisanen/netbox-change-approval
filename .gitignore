@@ -7,3 +7,7 @@ dist/
 venv/
 .pytest_cache/
 .coverage
+.ruff_cache/
+# Local assistant notes, not part of the project
+CLAUDE.md
+.claude/

@@ -15,7 +15,7 @@ back to a best-effort in-memory evaluator that walks attribute/relation chains o
 the instance itself. It supports the common comparison lookups but not arbitrary
 queryset semantics (e.g. it cannot evaluate a constraint against a related object
 that hasn't been assigned on the in-memory instance yet). This is a documented
-limitation — see README.md "Auto-approval and routing rules on new objects".
+limitation — see docs/usage.md "Limitations".
 """
 import json
 

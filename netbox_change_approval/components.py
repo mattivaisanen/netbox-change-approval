@@ -192,7 +192,7 @@ def _note_change(parent_request, request):
         return
     bumped.add(parent_request.pk)
     # No change log entry of its own for each bump ("Resubmitted for
-    # approval" every save was noise); the component's entries are labelled
+    # approval" every save was noise); the component's entries are labeled
     # with this request instead (ChangeLogLabelMiddleware).
     parent_request._nbca_log_quietly = True
     parent_request.revision += 1

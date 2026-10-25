@@ -1,5 +1,5 @@
 """
-Plugin settings superusers can change in NetBox (Change Approvals → Settings).
+Plugin settings superusers can change in NetBox (Change Approval → Settings).
 
 configuration.py (PLUGINS_CONFIG['netbox_change_approval']) gives every
 setting its value, as before. A value saved on the settings page overrides it
