@@ -64,6 +64,8 @@ Upgrade: run `manage.py migrate` (adds one database index).
   requests still pending. See "Uninstalling" in the README.
 
 ### Improvements
+- Times in the Pending Approvals widget and the Approval Inbox read "4 hours
+  ago" instead of a bare "4 hours". The full date and time shows on hover.
 - Approval Inbox and Pending Approvals widget: row buttons and text no
   longer sit flush against the card edge; they line up with the card header.
 - Pending Approvals widget: when nothing waits on you, it shows one of ten
