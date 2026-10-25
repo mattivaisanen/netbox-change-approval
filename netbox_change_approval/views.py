@@ -801,7 +801,9 @@ class ChangeRequestDiscardView(_SentBackView):
         if not _close_all(request, targets, 'retract'):
             return redirect(self.change_request.get_absolute_url())
         messages.success(request, _('Discarded %(count)d change(s).') % {'count': len(targets)})
-        return redirect(reverse('plugins:netbox_change_approval:changerequest_inbox'))
+        return redirect(_safe_return_url(
+            form.cleaned_data.get('return_url'), reverse('plugins:netbox_change_approval:changerequest_inbox'),
+        ))
 
 
 @register_model_view(ChangeRequest, 'mark_read', path='mark-read')

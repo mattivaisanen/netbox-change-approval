@@ -133,6 +133,9 @@ Upgrade: run `manage.py migrate` (adds one database index).
   page, whose header already has the same buttons.
 
 ### Bug fixes
+- Approving, sending back, rejecting or discarding a request from the
+  Pending Approvals widget now brings you back to the dashboard instead of
+  the Change Requests list.
 - A scheduled change could still be applied after it was retracted or
   rejected, if that happened while the background job was applying it, and
   clicking "Apply now" while the job ran could apply it twice. It is now
