@@ -13,8 +13,10 @@ owner gets the default dashboard and an error message instead.
 
 So this deletes those rows, takes the plugin's object types off custom
 fields, custom links, export templates, saved filters, tags, event rules and
-permissions (deleting the ones that were only about this plugin), and
-removes the widget from dashboards.
+permissions (deleting the ones that were only about this plugin), deletes
+custom fields whose values are this plugin's objects, takes the plugin's
+events off event rules, removes the widget from dashboards and cancels the
+plugin's queued background jobs.
 
 Change requests, rules and the plugin's own tables are left alone.
 """
@@ -71,6 +73,44 @@ def _object_type_users():
     return found
 
 
+def _object_fields():
+    """Custom fields of type object/multiple objects that point at this
+    plugin's objects: their values can't be shown once it is gone, and they
+    keep NetBox from removing the plugin's object types."""
+    from extras.models import CustomField
+
+    return list(CustomField.objects.filter(related_object_type__app_label=APP_LABEL))
+
+
+def _event_rules_with_our_events():
+    """Event rules that fire on this plugin's own events ("Change request
+    approved", ...). Those event types are gone with the plugin."""
+    from extras.models import EventRule
+
+    return [rule for rule in EventRule.objects.all() if any(_is_ours(name) for name in rule.event_types)]
+
+
+def _is_ours(event_type):
+    return str(event_type).startswith(f'{APP_LABEL}.')
+
+
+def _queued_jobs():
+    """This plugin's background jobs still waiting to run (expiry, scheduled
+    apply). Left queued, the worker would try to run code that is gone."""
+    from core.choices import JobStatusChoices
+    from core.models import Job
+    from netbox.registry import registry
+
+    names = {
+        getattr(job_class, 'name', None) for job_class in registry.get('system_jobs', {})
+        if job_class.__module__.startswith(f'{APP_LABEL}.')
+    } - {None}
+    return list(Job.objects.filter(
+        Q(object_type__app_label=APP_LABEL) | Q(name__in=names),
+        status__in=JobStatusChoices.ENQUEUED_STATE_CHOICES,
+    ))
+
+
 def _only_ours(obj):
     return not obj.object_types.exclude(app_label=APP_LABEL).exists()
 
@@ -108,6 +148,20 @@ class Command(BaseCommand):
                 self.stdout.write(f'{label} to take change approval object types off: {", ".join(kept)}')
             if deleted:
                 self.stdout.write(f'{label} only for change approval objects, to delete: {", ".join(deleted)}')
+        object_fields = _object_fields()
+        if object_fields:
+            self.stdout.write(
+                f'custom fields pointing at change approval objects, to delete: '
+                f'{", ".join(str(f) for f in object_fields)}'
+            )
+        event_rules = _event_rules_with_our_events()
+        if event_rules:
+            self.stdout.write(
+                f'event rules to take change approval events off: {", ".join(str(r) for r in event_rules)}'
+            )
+        jobs = _queued_jobs()
+        if jobs:
+            self.stdout.write(f'{len(jobs)} queued change approval background jobs')
         self.stdout.write(f'{len(dashboards)} dashboards with the Pending Approvals widget')
         if pending:
             self.stdout.write(self.style.WARNING(
@@ -131,10 +185,23 @@ class Command(BaseCommand):
                         obj.delete()
                     else:
                         obj.object_types.remove(*obj.object_types.filter(app_label=APP_LABEL))
+            for field in object_fields:
+                field.delete()
+            for rule in event_rules:
+                rule = type(rule).objects.filter(pk=rule.pk).first()  # may be deleted above
+                if rule is None:
+                    continue
+                rule.event_types = [name for name in rule.event_types if not _is_ours(name)]
+                if rule.event_types:
+                    rule.save()
+                else:
+                    rule.delete()
             for dashboard in dashboards:
                 for widget_id in _plugin_widget_ids(dashboard):
                     dashboard.delete_widget(widget_id)
                 dashboard.save()
+        for job in jobs:
+            job.delete()  # also takes it off the worker's queue; not undone by a rollback, so last
         self.stdout.write(self.style.SUCCESS(
             'Done. You can now take netbox_change_approval out of PLUGINS and restart NetBox.'
         ))

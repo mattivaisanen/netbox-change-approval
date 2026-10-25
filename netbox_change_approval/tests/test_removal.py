@@ -20,7 +20,7 @@ from django.core.management import call_command
 from django.shortcuts import render as django_render
 from django.test import TestCase, override_settings
 
-from core.models import ObjectChange, ObjectType
+from core.models import Job, ObjectChange, ObjectType
 from dcim.models import Site
 from extras.models import (
     Bookmark, CustomField, CustomLink, Dashboard, EventRule, ExportTemplate, JournalEntry, Notification, SavedFilter,
@@ -157,6 +157,20 @@ class RemovalLeftoversTest(TestCase):
             action='update', user=cls.user, user_name='alice', request_id=uuid.uuid4(),
             postchange_data={'name': 'Removal S1'},
         )
+        # An object custom field on sites whose value is a change request.
+        cls.object_field = CustomField.objects.create(
+            name='removal_request', type='object', related_object_type=request_ot,
+        )
+        cls.object_field.object_types.set([site_ot])
+        Site.objects.filter(pk=cls.site.pk).update(custom_field_data={'removal_request': pk})
+        cls.event_rule = EventRule.objects.create(
+            name='Removal events', event_types=['object_created', 'netbox_change_approval.approved'],
+            action_type='webhook', action_object_type=ContentType.objects.get_for_model(Webhook),
+            action_object_id=webhook.pk,
+        )
+        cls.event_rule.object_types.set([site_ot])
+        from netbox_change_approval.scheduling import ApplyScheduledChangesJob
+        cls.job = Job.objects.create(name=ApplyScheduledChangesJob.name, status='scheduled', job_id=uuid.uuid4())
         cls.user.config.set('tables.NotificationTable.columns', ['object', 'by', 'created'], commit=True)
         WorkTask.objects.create(change_request=cls.request, site=cls.site, text='Removal task')
 
@@ -167,6 +181,8 @@ class RemovalLeftoversTest(TestCase):
             f'/extras/tags/{self.tag.pk}/',
             f'/extras/custom-fields/{self.mixed_field.pk}/',
             f'/users/permissions/{self.mixed_permission.pk}/',
+            f'/dcim/sites/{self.site.pk}/',
+            f'/api/dcim/sites/{self.site.pk}/',
         ]
         broken = []
         with plugin_gone():
@@ -209,3 +225,7 @@ class RemovalLeftoversTest(TestCase):
         self.assertFalse(ObjectChange.objects.filter(pk=self.change.pk).exists())
         self.assertTrue(ObjectChange.objects.filter(pk=self.site_change.pk).exists())
         self.assertTrue(ChangeRequest.objects.filter(pk=self.request.pk).exists())
+        self.assertFalse(CustomField.objects.filter(pk=self.object_field.pk).exists())
+        self.event_rule.refresh_from_db()
+        self.assertEqual(self.event_rule.event_types, ['object_created'])
+        self.assertFalse(Job.objects.filter(pk=self.job.pk).exists())
