@@ -73,6 +73,13 @@ Upgrade: run `manage.py migrate` (adds one database index).
   requests still pending. See "Uninstalling" in the README.
 
 ### Improvements
+- Pending Approvals widget: a bulk edit, import or change set is now one
+  row for approvers and in your sent-back list too, as in the Approval
+  Inbox, instead of one row per object. The row reads like "Edit 3
+  objects" with a batch badge; Approve, Send back and Reject decide the
+  whole batch, and the arrow lists every object with its changes (with a
+  Revise button for each one in a sent-back batch). Rejected batches use
+  the same title.
 - Colour themes: the plugin's buttons and badges stay readable under any
   NetBox colour theme, light or dark. When a theme makes an icon or label
   too close to its button's colour (say, a white button with a white
