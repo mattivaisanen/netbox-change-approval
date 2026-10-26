@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased
+## 0.4.1 (2026-10-26)
+
+Upgrade: run `manage.py migrate`. It keeps the names of deleted users and
+approver groups on change requests, fills in names for existing requests,
+and lets NetBox delete users, groups and other objects the plugin refers to.
 
 ### New features
 - Deleted users still show by name on change requests: who submitted,
