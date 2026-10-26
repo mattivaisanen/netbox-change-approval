@@ -90,7 +90,7 @@ object types off custom fields, custom links, export templates, saved
 filters, tags, event rules and permissions (deleting the ones only about
 change approval), deletes custom fields whose values are change requests or
 rules, takes the plugin's events off event rules, removes the widget and
-cancels the plugin's queued background jobs. Clear them first, while the
+the plugin's search and job entries, and cancels its queued background jobs. Clear them first, while the
 plugin is still installed:
 
 ```bash
@@ -101,7 +101,9 @@ It shows what it will remove and asks before doing it (`--dry-run` only
 shows). It also warns about change requests that are still pending: decide
 them first, because once the plugin is gone pending edits and deletes are
 lost and pending new objects stay as normal objects. Change requests and
-rules are kept. Then take `netbox_change_approval` out of `PLUGINS` and
+rules are kept. They don't hold on to anything in NetBox: users, groups,
+sites and racks they mention can still be deleted after the plugin is gone,
+and installing it again later tidies up those links. Then take `netbox_change_approval` out of `PLUGINS` and
 `PLUGINS_CONFIG`, restart NetBox and its worker, and uninstall the package.
 
 To also delete all request history and rules, run

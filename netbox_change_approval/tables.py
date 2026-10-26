@@ -96,7 +96,7 @@ class ChangeRequestTable(NetBoxTable):
     status = columns.ChoiceFieldColumn()
     auto_approved = columns.BooleanColumn()
     submitted_by = tables.Column(linkify=True)
-    approver_group = tables.Column(linkify=True)
+    approver_group = tables.Column(linkify=True, empty_values=())
     decided_by = tables.Column(linkify=True, empty_values=())
     batch_id = tables.Column(verbose_name=_('Batch'))
 
@@ -111,6 +111,12 @@ class ChangeRequestTable(NetBoxTable):
             'id', 'content_type', 'object_repr', 'action', 'status', 'submitted_by',
             'submitted_at', 'approver_group',
         )
+
+    def render_approver_group(self, value, record):
+        # A deleted group still shows by name.
+        if value is None:
+            return record.approver_group_name or '—'
+        return format_html('<a href="{}">{}</a>', value.get_absolute_url(), value)
 
     def render_decided_by(self, value, record):
         # Auto-approved: the rule is the approver.

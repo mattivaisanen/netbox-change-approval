@@ -75,7 +75,7 @@ class ChangeRequestSerializer(serializers.ModelSerializer):
         return {'id': obj.auto_approved_by_rule_id, 'name': obj.approving_rule}
 
     def get_approver_group(self, obj):
-        return obj.approver_group.name if obj.approver_group_id else None
+        return obj.approver_group_label or None
 
 
 class ApprovalRuleSerializer(serializers.ModelSerializer):

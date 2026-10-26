@@ -236,7 +236,7 @@
         <tr>
           <th scope="row">{% trans "Approvers" %}</th>
           <td>
-            {{ object.approver_group|linkify|placeholder }}
+            {% if object.approver_group %}{{ object.approver_group|linkify }}{% elif object.approver_group_name %}{{ object.approver_group_name }}{% else %}{{ ''|placeholder }}{% endif %}
             {% if object.status == 'pending' and object.approver_usernames %}<div class="text-muted small">{{ object.approver_usernames|join:", " }}</div>{% endif %}
           </td>
         </tr>

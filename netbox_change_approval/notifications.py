@@ -152,7 +152,6 @@ def event_data(change_request, event_type, recipients, detail='', actor=None, co
         ]
     except Exception:
         changes = []
-    group = change_request.approver_group
     return {
         'id': change_request.pk,
         'display': _label(change_request),
@@ -169,7 +168,7 @@ def event_data(change_request, event_type, recipients, detail='', actor=None, co
         'changes': changes,
         'submitted_by': _person(change_request.submitted_by),
         'submitted_at': change_request.submitted_at.isoformat() if change_request.submitted_at else None,
-        'approver_group': group.name if group is not None else None,
+        'approver_group': change_request.approver_group_label or None,
         'approvers': [_person(u) for u in _approvers(change_request)],
         'approvals_needed': change_request.required_approvals,
         'by': _person(actor),

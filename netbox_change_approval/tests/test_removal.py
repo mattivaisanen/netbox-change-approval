@@ -171,6 +171,10 @@ class RemovalLeftoversTest(TestCase):
         cls.event_rule.object_types.set([site_ot])
         from netbox_change_approval.scheduling import ApplyScheduledChangesJob
         cls.job = Job.objects.create(name=ApplyScheduledChangesJob.name, status='scheduled', job_id=uuid.uuid4())
+        cls.finished_job = Job.objects.create(
+            name='Removal finished job', status='completed', job_id=uuid.uuid4(), object_type=request_ot,
+            object_id=pk,
+        )
         cls.user.config.set('tables.NotificationTable.columns', ['object', 'by', 'created'], commit=True)
         WorkTask.objects.create(change_request=cls.request, site=cls.site, text='Removal task')
 
@@ -229,3 +233,31 @@ class RemovalLeftoversTest(TestCase):
         self.event_rule.refresh_from_db()
         self.assertEqual(self.event_rule.event_types, ['object_created'])
         self.assertFalse(Job.objects.filter(pk=self.job.pk).exists())
+        self.assertFalse(Job.objects.filter(pk=self.finished_job.pk).exists())
+
+    def test_netbox_can_delete_rows_the_kept_tables_point_at(self):
+        """Removed with its tables kept, the plugin's rows must not stop NetBox
+        from deleting a user, group, site or rack: the database itself has no
+        constraint on those links (Django's on_delete is gone with the plugin)."""
+        from django.db import connection
+        from dcim.models import Rack
+        from users.models import Group
+
+        group = Group.objects.create(name='Removal approvers')
+        rack = Rack.objects.create(name='Removal R1', site=self.site)
+        ChangeRequest.objects.filter(pk=self.request.pk).update(approver_group=group, decided_by=self.user)
+        WorkTask.objects.filter(change_request=self.request).update(rack=rack)
+        with connection.cursor() as cursor:
+            cursor.execute('SET CONSTRAINTS ALL IMMEDIATE')
+            for model, pk in ((Group, group.pk), (Rack, rack.pk)):
+                cursor.execute(f'DELETE FROM {model._meta.db_table} WHERE id = %s', [pk])
+            cursor.execute('SET CONSTRAINTS ALL DEFERRED')
+            # Users, object types and the rest: no constraint from a plugin
+            # table to any other app's table.
+            cursor.execute(
+                """SELECT conrelid::regclass::text, confrelid::regclass::text FROM pg_constraint
+                WHERE contype = 'f' AND conrelid::regclass::text LIKE %s AND confrelid::regclass::text NOT LIKE %s""",
+                [f'{APP_LABEL}%', f'{APP_LABEL}%'],
+            )
+            self.assertEqual(cursor.fetchall(), [])
+

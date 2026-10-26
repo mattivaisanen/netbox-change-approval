@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+### Bug fixes
+- Approver groups can be deleted again once no rule uses them and no open
+  request waits on them. Before, every old request a group had ever handled
+  kept it from being deleted for good. Old requests keep showing the
+  deleted group's name.
+- After the plugin is removed with its history kept, NetBox can still delete
+  users, groups, sites, racks and object types that old requests or rules
+  mention. Before, the database refused those deletes. Installing the plugin
+  again tidies up links to anything deleted in the meantime.
+- `prepare_uninstall` also removes the plugin's finished background job
+  records and search entries, so nothing in NetBox points at the removed
+  plugin.
+
 ### Improvements
 - Create / Update / Delete badges on change requests use the same color map
   as NetBox's changelog, so a theme (such as netbox-theme) that recolors the

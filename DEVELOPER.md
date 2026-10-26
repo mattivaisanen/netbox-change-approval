@@ -453,17 +453,23 @@ sent-back requests and applied ones with open field work. A plain ORM
 delete is enough: NetBoxModel's generic relations take the request's
 notifications, bookmarks, subscriptions, journal entries and tags with it.
 
-**Approver groups become permanently undeletable.** `approver_group` is
-`on_delete=models.PROTECT` in *two* places — `ApprovalRule` and
-`ChangeRequest` itself. Deleting the rule that used a group isn't
-enough to free it up: every historical `ChangeRequest` ever routed through or
-decided by that group *also* blocks deletion, forever. Confirmed firsthand
-this session — trying to delete a test "Hardware Approvers" group failed with
-a real `ProtectedError` naming old, already-applied `ChangeRequest` rows as
-the blocker. There's no workaround short of deleting or reassigning that
-history first; this is a deliberate trade-off (audit-trail integrity over
-group-list tidiness), not a bug, but it means an org that renames/consolidates
-approver groups over the years will accumulate groups it can never clean up.
+**Approver groups.** `ApprovalRule.approver_group` is `PROTECT`: a group a
+rule routes to can't be deleted until the rule moves to another group.
+`ChangeRequest.approver_group` is `SET_NULL` and the request keeps the
+group's name in `approver_group_name` (`approver_group_label` shows it), so
+old requests never pin a group. Requests still waiting on a group (pending or
+sent back) do: `signals.protect_open_requests_group` raises `ProtectedError`,
+which NetBox's delete views and API show like any other protected delete.
+
+**Links to NetBox's own tables have no database constraint.** Every FK from
+this plugin to another app (users, groups, object types, sites, racks) is
+`db_constraint=False` (migration 0020). Django still applies `on_delete` while
+the plugin is installed. Once it is removed with its tables kept, nothing in
+the database stops NetBox from deleting a user, group, site, rack or object
+type the old rows point at. If the plugin is installed again, `repair.py`
+(run after every `migrate`) clears those dangling links, or deletes the row
+for a `CASCADE` link. New FKs to other apps need `db_constraint=False` too;
+`test_removal` checks the database for any constraint that slipped through.
 
 **If a gated model itself goes away** (the plugin or app that defined it gets
 uninstalled, or a future NetBox version drops it) and someone runs Django's
@@ -501,16 +507,18 @@ that stay either way:
 - The plugin's DB tables (`ChangeRequest`, `ApprovalRule` and the approval
   and comment tables) are **not** dropped automatically. Without running
   `python manage.py migrate netbox_change_approval zero` first, they're left
-  behind as orphaned-but-harmless dead weight (Postgres doesn't enforce any
-  "owning app" relationship, so nothing breaks — they just sit there). Running
+  behind as dead weight. Nothing breaks: they have no database constraint
+  on NetBox's tables (see above), so NetBox can still delete anything they
+  point at. Running
   that reverse migration *does* cleanly drop them — but with no built-in
   export step first, that's permanent deletion of however many years of
   approval history existed. Export anything worth keeping before reverse-
   migrating, not after.
-- The auto-managed `is_approver_sync` `ObjectPermission` row, plus any
-  `bypass_approval` grants an admin made by hand, aren't tied to
-  this plugin's migrations either — they're ordinary NetBox permission rows
-  and stay in **Admin → Permissions** until someone deletes them manually.
+- `prepare_uninstall` deletes permissions that only cover this plugin's
+  object types (the auto-managed `is_approver_sync` one included) and takes
+  its types off mixed ones. A `bypass_approval` action an admin added to a
+  permission for other object types stays: it does nothing once the plugin
+  is gone.
 
 None of this is unique to bad design so much as an inherent consequence of
 "every change, forever, for audit purposes" — the fix for the parts that are

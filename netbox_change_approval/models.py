@@ -15,6 +15,12 @@ from utilities.choices import ChoiceSet
 
 from .matching import rule_matches
 
+# Links to NetBox's own tables (users, groups, object types, sites, racks) use
+# db_constraint=False. Django still applies on_delete while the plugin is
+# installed, but once it is removed with its tables kept, the database must not
+# stop NetBox from deleting those rows. repair.py clears links left dangling
+# that way if the plugin is installed again.
+
 __all__ = (
     'ActionChoices',
     'AutoApprovalActionChoices',
@@ -102,7 +108,7 @@ class BaseMatchRule(NetBoxModel):
         help_text=_('Rules are evaluated in ascending order; the first match wins.'),
     )
     content_type = models.ForeignKey(
-        to='core.ObjectType',
+        to='core.ObjectType', db_constraint=False,
         on_delete=models.CASCADE,
         null=True,
         blank=True,
@@ -169,7 +175,7 @@ class ApprovalRule(BaseMatchRule):
         default=RuleOutcomeChoices.REQUIRE,
     )
     approver_group = models.ForeignKey(
-        to='users.Group',
+        to='users.Group', db_constraint=False,
         on_delete=models.PROTECT,
         related_name='+',
         null=True,
@@ -303,7 +309,7 @@ class ChangeRequest(NetBoxModel):
     # (contenttypes.E004) requires it, since target_object below is a real GFK. NetBox
     # core does the same thing for its own GFKs (e.g. extras.ImageAttachment).
     content_type = models.ForeignKey(
-        to='contenttypes.ContentType',
+        to='contenttypes.ContentType', db_constraint=False,
         on_delete=models.CASCADE,
         related_name='+',
     )
@@ -343,22 +349,26 @@ class ChangeRequest(NetBoxModel):
     batch_id = models.UUIDField(null=True, blank=True, db_index=True)
 
     submitted_by = models.ForeignKey(
-        to=settings.AUTH_USER_MODEL,
+        to=settings.AUTH_USER_MODEL, db_constraint=False,
         on_delete=models.SET_NULL,
         null=True,
         related_name='+',
     )
     submitted_at = models.DateTimeField(auto_now_add=True)
+    # Requests that are decided don't hold on to their group: it can be
+    # deleted, and approver_group_name keeps showing who it was. Open requests
+    # do (signals.protect_open_requests_group).
     approver_group = models.ForeignKey(
-        to='users.Group',
-        on_delete=models.PROTECT,
+        to='users.Group', db_constraint=False,
+        on_delete=models.SET_NULL,
         null=True,
         related_name='+',
         help_text=_('Resolved at submission time from ApprovalRoutingRule / the default approver group.'),
     )
+    approver_group_name = models.CharField(max_length=150, blank=True, editable=False)
 
     decided_by = models.ForeignKey(
-        to=settings.AUTH_USER_MODEL,
+        to=settings.AUTH_USER_MODEL, db_constraint=False,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
@@ -374,7 +384,7 @@ class ChangeRequest(NetBoxModel):
         help_text=_('Goes up by one each time the submitter resubmits after a send-back.'),
     )
     sent_back_by = models.ForeignKey(
-        to=settings.AUTH_USER_MODEL,
+        to=settings.AUTH_USER_MODEL, db_constraint=False,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
@@ -402,7 +412,7 @@ class ChangeRequest(NetBoxModel):
         help_text=_('Fully approved; applied automatically at this time.'),
     )
     scheduled_by = models.ForeignKey(
-        to=settings.AUTH_USER_MODEL,
+        to=settings.AUTH_USER_MODEL, db_constraint=False,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
@@ -479,7 +489,16 @@ class ChangeRequest(NetBoxModel):
         if self._state.adding and self.status == StatusChoices.PENDING and not self.auto_approved:
             from .revision import adopt_sent_back
             adopt_sent_back(self)
+        if self.approver_group_id and self.approver_group.name != self.approver_group_name:
+            self.approver_group_name = self.approver_group.name
         super().save(*args, **kwargs)
+
+    @property
+    def approver_group_label(self):
+        """The approver group's name, also once the group has been deleted."""
+        if self.approver_group_id:
+            return self.approver_group.name
+        return self.approver_group_name
 
     # ---- Activity (core changelog) ------------------------------------------
     #
@@ -813,7 +832,7 @@ class ChangeRequestApproval(models.Model):
         related_name='approvals',
     )
     user = models.ForeignKey(
-        to=settings.AUTH_USER_MODEL,
+        to=settings.AUTH_USER_MODEL, db_constraint=False,
         on_delete=models.SET_NULL,
         null=True,
         related_name='+',
@@ -845,7 +864,7 @@ class ChangeRequestComment(models.Model):
         related_name='comments',
     )
     author = models.ForeignKey(
-        to=settings.AUTH_USER_MODEL,
+        to=settings.AUTH_USER_MODEL, db_constraint=False,
         on_delete=models.SET_NULL,
         null=True,
         related_name='+',
@@ -870,12 +889,12 @@ class ApproverAbsence(models.Model):
     instead of them. See absence.py.
     """
     user = models.OneToOneField(
-        to=settings.AUTH_USER_MODEL,
+        to=settings.AUTH_USER_MODEL, db_constraint=False,
         on_delete=models.CASCADE,
         related_name='+',
     )
     stand_in = models.ForeignKey(
-        to=settings.AUTH_USER_MODEL,
+        to=settings.AUTH_USER_MODEL, db_constraint=False,
         on_delete=models.CASCADE,
         related_name='+',
         verbose_name=_('stand-in'),
@@ -907,15 +926,15 @@ class WorkTask(models.Model):
         on_delete=models.CASCADE,
         related_name='work_tasks',
     )
-    site = models.ForeignKey(to='dcim.Site', on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
-    rack = models.ForeignKey(to='dcim.Rack', on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    site = models.ForeignKey(to='dcim.Site', db_constraint=False, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    rack = models.ForeignKey(to='dcim.Rack', db_constraint=False, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
     text = models.CharField(max_length=300)
     links = models.JSONField(
         default=list, blank=True,
         help_text=_('Names in the text to link, as [text, url] pairs in order.'),
     )
     done_by = models.ForeignKey(
-        to=settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='+',
+        to=settings.AUTH_USER_MODEL, db_constraint=False, on_delete=models.SET_NULL, null=True, blank=True, related_name='+',
     )
     done_at = models.DateTimeField(null=True, blank=True)
 
@@ -941,7 +960,7 @@ class ChangeSet(models.Model):
     name = models.CharField(max_length=100)
     ticket = models.CharField(max_length=100, blank=True)
     created_by = models.ForeignKey(
-        to=settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='+',
+        to=settings.AUTH_USER_MODEL, db_constraint=False, on_delete=models.SET_NULL, null=True, related_name='+',
     )
     created = models.DateTimeField(auto_now_add=True)
     status = models.CharField(
@@ -975,7 +994,7 @@ class PluginSetting(models.Model):
     value = models.JSONField(null=True, blank=True)
     updated = models.DateTimeField(auto_now=True)
     updated_by = models.ForeignKey(
-        to=settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='+',
+        to=settings.AUTH_USER_MODEL, db_constraint=False, on_delete=models.SET_NULL, null=True, blank=True, related_name='+',
     )
 
     class Meta:

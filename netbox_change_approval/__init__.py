@@ -107,8 +107,19 @@ class NetBoxChangeApprovalConfig(PluginConfig):
         )
 
 
-def _sync_after_migrate(**kwargs):
+def _sync_after_migrate(using='default', **kwargs):
+    from django.db import connections
+
+    from .models import ApprovalRule, ChangeRequest
     from .permissions import sync_is_approver_permission
+    from .repair import repair_dangling_links
+
+    # `migrate netbox_change_approval zero` (removing the plugin with its
+    # data) leaves no tables to work on.
+    tables = connections[using].introspection.table_names()
+    if ChangeRequest._meta.db_table not in tables or ApprovalRule._meta.db_table not in tables:
+        return
+    repair_dangling_links()
     sync_is_approver_permission()
 
 

@@ -447,7 +447,9 @@ that fixed group rather than to each request's own people.
   that many days ago, with their approvals, comments and field work.
   Pending and sent-back requests, and applied ones with field work still
   open, are kept; the changes themselves stay in NetBox's changelog.
-  `--dry-run` only counts. Approver groups can't be deleted while a rule or
-  request refers to them. See [DEVELOPER.md](../DEVELOPER.md) "Long-term data lifecycle, and
+  `--dry-run` only counts.
+- **Deleting an approver group.** A group can be deleted once no rule uses it
+  and no pending or sent-back request waits on it. Older requests keep showing
+  the group's name. See [DEVELOPER.md](../DEVELOPER.md) "Long-term data lifecycle, and
   what happens if you uninstall this".
 

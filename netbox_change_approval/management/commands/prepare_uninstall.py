@@ -15,8 +15,8 @@ So this deletes those rows, takes the plugin's object types off custom
 fields, custom links, export templates, saved filters, tags, event rules and
 permissions (deleting the ones that were only about this plugin), deletes
 custom fields whose values are this plugin's objects, takes the plugin's
-events off event rules, removes the widget from dashboards and cancels the
-plugin's queued background jobs.
+events off event rules, removes the widget from dashboards, deletes the
+plugin's search and job entries and cancels its queued background jobs.
 
 Change requests, rules and the plugin's own tables are left alone.
 """
@@ -36,9 +36,10 @@ def _plugin_widget_ids(dashboard):
 
 def _rows():
     """Rows in NetBox's own tables that point at this plugin's objects."""
-    from core.models import ObjectChange
-    from extras.models import Bookmark, ImageAttachment, JournalEntry, Notification, Subscription, TableConfig, \
-        TaggedItem
+    from core.choices import JobStatusChoices
+    from core.models import Job, ObjectChange
+    from extras.models import Bookmark, CachedValue, ImageAttachment, JournalEntry, Notification, Subscription, \
+        TableConfig, TaggedItem
 
     ours = {'object_type__app_label': APP_LABEL}
     return {
@@ -52,6 +53,11 @@ def _rows():
         'tag assignments': TaggedItem.objects.filter(content_type__app_label=APP_LABEL),
         'image attachments': ImageAttachment.objects.filter(**ours),
         'saved table configs': TableConfig.objects.filter(**ours),
+        'search index entries': CachedValue.objects.filter(**ours),
+        # Queued ones are cancelled separately (_queued_jobs).
+        'finished background jobs': Job.objects.filter(**ours).exclude(
+            status__in=JobStatusChoices.ENQUEUED_STATE_CHOICES,
+        ),
     }
 
 

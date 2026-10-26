@@ -164,6 +164,21 @@ def _resync_on_group_change(sender, instance, raw=False, **kwargs):
         permissions.sync_is_approver_permission()
 
 
+def protect_open_requests_group(sender, instance, **kwargs):
+    """A group can't be deleted while requests still wait on it: they would
+    lose their approvers. Decided requests keep only its name."""
+    from .models import ChangeRequest
+
+    waiting = list(ChangeRequest.objects.filter(
+        approver_group=instance, status__in=(StatusChoices.PENDING, StatusChoices.RETURNED),
+    )[:50])
+    if waiting:
+        raise models.ProtectedError(
+            _('Group {group} approves open change requests. Decide them first.').format(group=instance),
+            waiting,
+        )
+
+
 def connect():
     for model in iter_gated_models():
         dispatch_uid = f'netbox_change_approval:{model._meta.label}'
@@ -194,6 +209,10 @@ def connect():
     post_save.connect(
         _resync_on_group_change, sender=Group,
         dispatch_uid='netbox_change_approval:resync_approver_permission:group_save',
+    )
+    pre_delete.connect(
+        protect_open_requests_group, sender=Group,
+        dispatch_uid='netbox_change_approval:protect_open_requests_group',
     )
     post_delete.connect(
         _resync_on_group_change, sender=Group,
