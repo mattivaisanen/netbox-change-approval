@@ -3,6 +3,9 @@
 ## Unreleased
 
 ### Improvements
+- Create / Update / Delete badges on change requests use the same color map
+  as NetBox's changelog, so a theme (such as netbox-theme) that recolors the
+  changelog recolors them too. Without a theme they stay green, blue and red.
 - The menu tab is now called "Change Approval", the same as the plugin's
   name in NetBox's plugin list (it was "Change Approvals").
 - The waiting-for-approval banners, the menu and the notifications panel

@@ -9,6 +9,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
+from core.choices import ObjectChangeActionChoices
 from netbox.models import NetBoxModel
 from utilities.choices import ChoiceSet
 
@@ -454,14 +455,10 @@ class ChangeRequest(NetBoxModel):
         return self.auto_approved_by_rule_name or (str(self.auto_approved_by_rule) if self.auto_approved_by_rule_id else '')
 
     def get_action_color(self):
-        # Literal Tabler color names (green/blue/red), not Bootstrap semantic
-        # ones (success/warning/danger) — matching NetBox's own
-        # ObjectChangeActionChoices exactly, per "to match netbox regular style".
-        return {
-            ActionChoices.CREATE: 'green',
-            ActionChoices.UPDATE: 'blue',
-            ActionChoices.DELETE: 'red',
-        }.get(self.action, 'secondary')
+        # The changelog's own colors (green/blue/red), read from NetBox's
+        # ObjectChangeActionChoices (same create/update/delete values) so a
+        # theme that recolors the changelog recolors change requests too.
+        return ObjectChangeActionChoices.colors.get(self.action, 'secondary')
 
     def get_status_color(self):
         # Used by NetBox's ChoiceFieldColumn in lists, the detail page badge
