@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+### Improvements
+- The README now has a short "Uninstalling" section with the steps in
+  order: decide pending requests, run `prepare_uninstall` (try
+  `--dry-run` first), optionally drop the history, then remove the plugin.
+- The README asks readers to read it in full before installing.
+
 ## 0.4.1 (2026-10-26)
 
 Upgrade: run `manage.py migrate`. It keeps the names of deleted users and

@@ -48,6 +48,10 @@ models, in the web UI, the REST API, background jobs and custom scripts.
 
 ## Installation
 
+Please read this whole README before installing. The plugin changes how
+every edit in NetBox is saved, and removing it later takes a few steps
+(see [Uninstalling](#uninstalling)).
+
 Install into NetBox's Python environment:
 
 ```bash
@@ -74,8 +78,7 @@ cd /opt/netbox/netbox && python manage.py migrate netbox_change_approval
 ```
 
 Then create the approver group under **Admin > Groups** and add your
-approvers to it. Uninstalling is covered in
-[docs/installation.md](docs/installation.md#uninstalling).
+approvers to it.
 
 ## Upgrading
 
@@ -86,6 +89,33 @@ cd /opt/netbox/netbox && python manage.py migrate
 
 Then restart NetBox and its worker. The [changelog](CHANGELOG.md) lists what
 each version needs.
+
+## Uninstalling
+
+Uninstall in this order. Skipping the cleanup leaves rows behind that make
+some NetBox pages (Notifications, Bookmarks, Subscriptions, Changelog,
+Journal Entries) fail with a server error.
+
+1. Decide all pending change requests. Once the plugin is gone, pending
+   edits and deletes are lost, and pending new objects stay as normal
+   objects.
+2. While the plugin is still installed, see what the cleanup will remove,
+   then run it:
+
+   ```bash
+   cd /opt/netbox/netbox
+   python manage.py prepare_uninstall --dry-run
+   python manage.py prepare_uninstall
+   ```
+
+3. Optional: to delete all request history and approval rules, run
+   `python manage.py migrate netbox_change_approval zero`. Without this,
+   the history stays in the database and is used again if you reinstall.
+4. Remove `netbox_change_approval` from `PLUGINS` and `PLUGINS_CONFIG`,
+   restart NetBox and its worker, then `pip uninstall netbox-change-approval`.
+
+Changes that were already approved stay in NetBox. The full details are in
+[docs/installation.md](docs/installation.md#uninstalling).
 
 ## Documentation
 
