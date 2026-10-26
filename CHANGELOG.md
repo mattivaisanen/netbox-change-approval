@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### New features
+- Deleted users still show by name on change requests: who submitted,
+  decided, sent back, scheduled, approved or commented, who did field work,
+  who made a change set and who last saved a setting. Pages show them as
+  "alice (deleted)", so a new account with the same name isn't mistaken for
+  them; the REST API and webhooks give the username with an empty id. A
+  deleted approver group shows the same way. Upgrading fills in the names on existing requests
+  for users who still exist. Names of users deleted before the upgrade are
+  already gone.
+
 ### Bug fixes
 - Approver groups can be deleted again once no rule uses them and no open
   request waits on them. Before, every old request a group had ever handled

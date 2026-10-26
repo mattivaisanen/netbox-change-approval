@@ -5,7 +5,7 @@
     <strong>{% trans "Waiting for approval" %}</strong>
     &mdash;
     {% trans "unknown user" as unknown_user %}
-    {% with user=change_request.submitted_by|default:unknown_user since=change_request.submitted_at|timesince %}
+    {% with user=change_request.submitted_by_label|default:unknown_user since=change_request.submitted_at|timesince %}
     {% if change_request.action == "create" %}{% blocktrans %}Creation requested by {{ user }}, {{ since }} ago.{% endblocktrans %}{% elif change_request.action == "delete" %}{% blocktrans %}Deletion requested by {{ user }}, {{ since }} ago.{% endblocktrans %}{% else %}{% blocktrans %}Change requested by {{ user }}, {{ since }} ago.{% endblocktrans %}{% endif %}
     {% endwith %}
     {% if change_request.approver_group %}{% blocktrans with group=change_request.approver_group.name %}Approvers: {{ group }}.{% endblocktrans %}{% endif %}

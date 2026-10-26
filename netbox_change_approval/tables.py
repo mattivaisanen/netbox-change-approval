@@ -95,7 +95,7 @@ class ChangeRequestTable(NetBoxTable):
     action = columns.ChoiceFieldColumn()
     status = columns.ChoiceFieldColumn()
     auto_approved = columns.BooleanColumn()
-    submitted_by = tables.Column(linkify=True)
+    submitted_by = tables.Column(linkify=True, empty_values=())
     approver_group = tables.Column(linkify=True, empty_values=())
     decided_by = tables.Column(linkify=True, empty_values=())
     batch_id = tables.Column(verbose_name=_('Batch'))
@@ -112,10 +112,18 @@ class ChangeRequestTable(NetBoxTable):
             'submitted_at', 'approver_group',
         )
 
+    def render_submitted_by(self, value, record):
+        # A deleted user still shows by name.
+        if value is None:
+            return str(record.submitted_by_label or '—')
+        return format_html('<a href="{}">{}</a>', value.get_absolute_url(), value)
+
     def render_approver_group(self, value, record):
         # A deleted group still shows by name.
         if value is None:
-            return record.approver_group_name or '—'
+            if record.approver_group_name:
+                return _('{name} (deleted)').format(name=record.approver_group_name)
+            return '—'
         return format_html('<a href="{}">{}</a>', value.get_absolute_url(), value)
 
     def render_decided_by(self, value, record):
@@ -127,5 +135,5 @@ class ChangeRequestTable(NetBoxTable):
                 return format_html('<a href="{}">{}</a>', url, record.approving_rule)
             return record.approving_rule
         if value is None:
-            return '—'
+            return str(record.decided_by_label or '—')
         return format_html('<a href="{}">{}</a>', value.get_absolute_url(), value) if hasattr(value, 'get_absolute_url') else str(value)

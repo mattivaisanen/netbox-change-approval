@@ -5,7 +5,7 @@
     <tr>
       <td>
         <a href="{{ cr.get_absolute_url }}">#{{ cr.pk }} {{ cr.get_action_display }} {{ cr.object_repr }}</a>
-        <span class="text-muted small">&middot; {{ cr.content_type.name|capfirst }} &middot; {{ cr.submitted_by|default:_("unknown user") }}</span>
+        <span class="text-muted small">&middot; {{ cr.content_type.name|capfirst }} &middot; {{ cr.submitted_by_label|default:_("unknown user") }}</span>
         {% if cr.batch_id %}<span class="badge text-bg-secondary ms-1">{% trans "with its batch" %}</span>{% endif %}
       </td>
     </tr>

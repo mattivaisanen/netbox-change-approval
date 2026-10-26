@@ -68,8 +68,10 @@ def adopt_sent_back(change_request):
     change_request.batch_id = previous.batch_id
     change_request.revision = previous.revision + 1
     change_request.sent_back_by_id = previous.decided_by_id
+    change_request.sent_back_by_name = previous.decided_by_name
     change_request.sent_back_comment = previous.decision_comment
     change_request.decided_by = None
+    change_request.decided_by_name = ''
     change_request.decided_at = None
     change_request.decision_comment = ''
 

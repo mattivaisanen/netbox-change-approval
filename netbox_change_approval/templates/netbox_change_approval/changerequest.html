@@ -12,7 +12,7 @@
     {% badge object.get_status_display bg_color=object.get_status_color %}
     {% if object.auto_approved %}<span class="badge text-bg-primary">{% trans "auto-approved" %}</span>{% endif %}
     <span>
-      {% blocktrans with who=object.submitted_by|default:_("unknown user") when=object.submitted_at|timesince %}by {{ who }}, {{ when }} ago{% endblocktrans %}
+      {% blocktrans with who=object.submitted_by_label|default:_("unknown user") when=object.submitted_at|timesince %}by {{ who }}, {{ when }} ago{% endblocktrans %}
       {% if object.revision > 1 %}&middot; {% blocktrans with n=object.revision %}revision {{ n }}{% endblocktrans %}{% endif %}
     </span>
     {% if change_set %}<a href="{{ change_set.get_absolute_url }}" class="badge text-bg-primary text-decoration-none"><i class="mdi mdi-package-variant-closed"></i> {{ change_set.name }}{% if change_set.status == 'draft' %} ({% trans "draft" %}){% endif %}</a>{% endif %}
@@ -63,7 +63,7 @@
   {% if object.decided_by_id and object.decided_by_id == object.submitted_by_id %}
     {% trans "Retracted by its submitter to edit. Not resubmitted yet." %}
   {% else %}
-    {% blocktrans with who=object.decided_by|default:_("An approver") %}{{ who }} sent this back for revision:{% endblocktrans %}
+    {% blocktrans with who=object.decided_by_label|default:_("An approver") %}{{ who }} sent this back for revision:{% endblocktrans %}
     <strong>{{ object.decision_comment }}</strong>
   {% endif %}
   {% if can_revise %}
@@ -81,7 +81,7 @@
 <div class="alert alert-info d-flex flex-wrap align-items-center justify-content-between gap-2" role="alert">
   <div>
     <i class="mdi mdi-calendar-clock"></i>
-    {% blocktrans with when=object.scheduled_for who=object.scheduled_by|default:_("an approver") %}Approved. Will be applied at <strong>{{ when }}</strong> (scheduled by {{ who }}).{% endblocktrans %}
+    {% blocktrans with when=object.scheduled_for who=object.scheduled_by_label|default:_("an approver") %}Approved. Will be applied at <strong>{{ when }}</strong> (scheduled by {{ who }}).{% endblocktrans %}
   </div>
   {% if can_decide or object.scheduled_by_id == request.user.pk %}
   <form method="post" action="{% url 'plugins:netbox_change_approval:changerequest_schedule' pk=object.pk %}" class="d-flex gap-2 m-0">
@@ -236,7 +236,7 @@
         <tr>
           <th scope="row">{% trans "Approvers" %}</th>
           <td>
-            {% if object.approver_group %}{{ object.approver_group|linkify }}{% elif object.approver_group_name %}{{ object.approver_group_name }}{% else %}{{ ''|placeholder }}{% endif %}
+            {% if object.approver_group %}{{ object.approver_group|linkify }}{% elif object.approver_group_name %}{% blocktrans with name=object.approver_group_name %}{{ name }} (deleted){% endblocktrans %}{% else %}{{ ''|placeholder }}{% endif %}
             {% if object.status == 'pending' and object.approver_usernames %}<div class="text-muted small">{{ object.approver_usernames|join:", " }}</div>{% endif %}
           </td>
         </tr>
@@ -252,7 +252,7 @@
         {% endif %}
         <tr>
           <th scope="row">{% trans "Submitted" %}</th>
-          <td>{{ object.submitted_by|linkify|placeholder }}<div class="text-muted small">{{ object.submitted_at }}</div></td>
+          <td>{{ object.submitted_by_label|linkify|placeholder }}<div class="text-muted small">{{ object.submitted_at }}</div></td>
         </tr>
         {% if object.status == 'pending' and object.expires_at %}
         <tr>
@@ -267,7 +267,7 @@
             {{ object.revision }}
             {% if object.sent_back_comment %}
               <div class="text-muted small">
-                {% blocktrans with who=object.sent_back_by|default:_("An approver") %}Last sent back by {{ who }}:{% endblocktrans %}
+                {% blocktrans with who=object.sent_back_by_label|default:_("An approver") %}Last sent back by {{ who }}:{% endblocktrans %}
                 &ldquo;{{ object.sent_back_comment }}&rdquo;
               </div>
             {% endif %}
@@ -278,7 +278,7 @@
         <tr>
           <th scope="row">{% trans "Decided" %}</th>
           <td>
-            {{ object.decided_by|linkify|default:_("automatically") }}
+            {{ object.decided_by_label|linkify|default:_("automatically") }}
             <div class="text-muted small">{{ object.decided_at }}</div>
             {% if object.decision_comment %}<div>&ldquo;{{ object.decision_comment }}&rdquo;</div>{% endif %}
           </td>
@@ -299,7 +299,7 @@
         {% for comment in comments %}
         <li class="list-group-item">
           <div class="small text-muted mb-1">
-            <strong class="text-body">{{ comment.author|default:_("deleted user") }}</strong>
+            <strong class="text-body">{{ comment.author_label|default:_("deleted user") }}</strong>
             {% if comment.author_id == object.submitted_by_id %}<span class="badge text-bg-secondary">{% trans "submitter" %}</span>{% endif %}
             &middot; <span title="{{ comment.created }}">{{ comment.created|timesince }} {% trans "ago" %}</span>
           </div>

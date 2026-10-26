@@ -38,7 +38,7 @@ class GroupDeletionTest(TestCase):
         self.assertIsNone(request.approver_group)
         self.assertEqual(request.approver_group_label, 'Old approvers')
         self.assertEqual(ChangeRequestSerializer().get_approver_group(request), 'Old approvers')
-        self.assertEqual(ChangeRequestTable([]).render_approver_group(None, request), 'Old approvers')
+        self.assertEqual(ChangeRequestTable([]).render_approver_group(None, request), 'Old approvers (deleted)')
 
     def test_group_of_open_requests_cannot_be_deleted(self):
         for status in ('pending', 'returned'):

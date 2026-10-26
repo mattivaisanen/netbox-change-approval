@@ -486,8 +486,11 @@ support a real DB-level FK constraint across arbitrary target tables), so a
 later DELETE of that object doesn't touch old `ChangeRequest` rows at all.
 `target_object` just resolves to `None` from then on, and the UI already
 accounts for that (`changerequest.html`: falls back to `object_repr`, the
-string snapshot captured at submission time). `submitted_by`/`decided_by` are
-`SET_NULL`, so a deleted user account degrades the same gracefully-blank way.
+string snapshot captured at submission time). User links are `SET_NULL`, and
+each one has a `<field>_name` copy of the username (`models.KeepsUserNames`,
+filled on save, and by `signals.keep_names_of_deleted_user` for rows saved
+with `update()`). Show `<field>_label`: the user, or their kept name once
+they are deleted.
 
 **Uninstalling the plugin entirely** — removing it from `PLUGINS`, uninstalling
 the package — stops all gating immediately, but doesn't touch the database by

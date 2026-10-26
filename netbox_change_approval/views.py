@@ -1174,7 +1174,7 @@ class WorkSheetView(ConditionalLoginRequiredMixin, View):
         task = WorkTask.objects.filter(pk=request.POST.get('task') or 0, change_request__in=visible).first()
         if task is not None:
             if request.POST.get('undo'):
-                task.done_by, task.done_at = None, None
+                task.done_by, task.done_at, task.done_by_name = None, None, ''
             else:
                 task.done_by, task.done_at = request.user, timezone.now()
             task.save(update_fields=['done_by', 'done_at'])

@@ -5,7 +5,7 @@
     <strong>{% trans "Part of a new object waiting for approval" %}</strong>
     &mdash;
     {% trans "unknown user" as unknown_user %}
-    {% with parent=change_request.target_object|linkify|default:change_request.object_repr user=change_request.submitted_by|default:unknown_user %}
+    {% with parent=change_request.target_object|linkify|default:change_request.object_repr user=change_request.submitted_by_label|default:unknown_user %}
     {% blocktrans %}{{ parent }} was requested by {{ user }}.{% endblocktrans %}
     {% endwith %}
     {% if is_submitter %}{% trans "You can change this; it goes into that request." %}{% else %}{% trans "Only the submitter can change this until it is decided." %}{% endif %}

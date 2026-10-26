@@ -13,6 +13,8 @@ from ..models import ApprovalRule, ChangeRequest
 def _user(user):
     if user is None:
         return None
+    if not hasattr(user, 'pk'):  # DeletedUser: only the kept name
+        return {'id': None, 'username': user.get_username(), 'email': ''}
     return {'id': user.pk, 'username': user.username, 'email': user.email or ''}
 
 
@@ -64,10 +66,10 @@ class ChangeRequestSerializer(serializers.ModelSerializer):
         return f'{obj.content_type.app_label}.{obj.content_type.model}' if obj.content_type_id else None
 
     def get_submitted_by(self, obj):
-        return _user(obj.submitted_by)
+        return _user(obj.submitted_by_label)
 
     def get_decided_by(self, obj):
-        return _user(obj.decided_by)
+        return _user(obj.decided_by_label)
 
     def get_auto_approved_by_rule(self, obj):
         if not obj.approving_rule:

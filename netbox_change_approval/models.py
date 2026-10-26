@@ -37,6 +37,78 @@ __all__ = (
 )
 
 
+class DeletedUser:
+    """A deleted user, known only by the username kept on the row. Shows as
+    "alice (deleted)" so it isn't mistaken for a new account with that name."""
+
+    def __init__(self, username):
+        self.username = username
+
+    def get_username(self):
+        return self.username
+
+    def __str__(self):
+        return str(_('{name} (deleted)')).format(name=self.username)
+
+    def __eq__(self, other):
+        return isinstance(other, DeletedUser) and other.username == self.username
+
+    def __hash__(self):
+        return hash(self.username)
+
+
+class UserLabel:
+    """`<field>_label`: the linked user, or once that user is deleted a
+    DeletedUser with the username kept in `<field>_name`."""
+
+    def __set_name__(self, owner, name):
+        self.field = name.removesuffix('_label')
+
+    def __get__(self, instance, owner=None):
+        if instance is None:
+            return self
+        user = getattr(instance, self.field)
+        if user is not None:
+            return user
+        name = getattr(instance, f'{self.field}_name')
+        return DeletedUser(name) if name else None
+
+
+class KeepsUserNames:
+    """Copies the username of each field in `user_fields` into `<field>_name`
+    on save, so a request still says who submitted, decided or commented after
+    that user is deleted (signals.keep_names_of_deleted_user covers rows saved
+    without it, e.g. by queryset.update())."""
+    user_fields = ()
+
+    def copy_user_names(self):
+        for name in self.user_fields:
+            field = self._meta.get_field(name)
+            if field.is_cached(self):
+                user = getattr(self, name)
+                if user is not None:
+                    setattr(self, f'{name}_name', user.get_username())
+            elif getattr(self, field.attname) and not getattr(self, f'{name}_name'):
+                username = field.related_model._base_manager.filter(
+                    pk=getattr(self, field.attname),
+                ).values_list('username', flat=True).first()
+                setattr(self, f'{name}_name', username or '')
+
+    def save(self, *args, **kwargs):
+        self.copy_user_names()
+        update_fields = kwargs.get('update_fields')
+        if update_fields is not None:
+            kwargs['update_fields'] = set(update_fields) | {
+                f'{name}_name' for name in self.user_fields
+                if name in update_fields or f'{name}_id' in update_fields
+            }
+        super().save(*args, **kwargs)
+
+
+def _username_field():
+    return models.CharField(max_length=150, blank=True, editable=False)
+
+
 class ActionChoices(models.TextChoices):
     # Present tense: a change request asks for something to be done
     # ("Create rack R1"), it isn't a record of what already happened.
@@ -296,7 +368,7 @@ def combine_activity_message(existing, ours):
     return combined if len(combined) <= 200 else combined[:199] + '\u2026'
 
 
-class ChangeRequest(NetBoxModel):
+class ChangeRequest(KeepsUserNames, NetBoxModel):
     """
     A single pending, applied, or rejected change to one object. Bulk actions create
     one ChangeRequest per affected object, all sharing the same `batch_id`, so a
@@ -304,6 +376,8 @@ class ChangeRequest(NetBoxModel):
     per-object locking rule (at most one pending ChangeRequest per object) still
     makes sense unmodified.
     """
+    user_fields = ('submitted_by', 'decided_by', 'sent_back_by', 'scheduled_by')
+
     # Must be a FK to contenttypes.ContentType specifically (not the core.ObjectType
     # proxy used elsewhere in this plugin) — Django's GenericForeignKey system check
     # (contenttypes.E004) requires it, since target_object below is a real GFK. NetBox
@@ -354,6 +428,8 @@ class ChangeRequest(NetBoxModel):
         null=True,
         related_name='+',
     )
+    submitted_by_name = _username_field()
+    submitted_by_label = UserLabel()
     submitted_at = models.DateTimeField(auto_now_add=True)
     # Requests that are decided don't hold on to their group: it can be
     # deleted, and approver_group_name keeps showing who it was. Open requests
@@ -374,6 +450,8 @@ class ChangeRequest(NetBoxModel):
         blank=True,
         related_name='+',
     )
+    decided_by_name = _username_field()
+    decided_by_label = UserLabel()
     decided_at = models.DateTimeField(null=True, blank=True)
     decision_comment = models.TextField(blank=True)
     applied_at = models.DateTimeField(null=True, blank=True)
@@ -390,6 +468,8 @@ class ChangeRequest(NetBoxModel):
         blank=True,
         related_name='+',
     )
+    sent_back_by_name = _username_field()
+    sent_back_by_label = UserLabel()
     sent_back_comment = models.TextField(
         blank=True,
         help_text=_('What the approver asked to change the last time this was sent back.'),
@@ -418,6 +498,8 @@ class ChangeRequest(NetBoxModel):
         blank=True,
         related_name='+',
     )
+    scheduled_by_name = _username_field()
+    scheduled_by_label = UserLabel()
 
     # Copied from the matching rule at submission (and again on resubmission),
     # so editing a rule later doesn't change requests already waiting.
@@ -815,6 +897,7 @@ class ChangeRequest(NetBoxModel):
 
             self.status = StatusChoices.EXPIRED
             self.decided_by = None
+            self.decided_by_name = ''
             self.decided_at = timezone.now()
             self.decision_comment = str(_('Expired: not decided in time.'))
             self.seen_by_submitter = False
@@ -822,10 +905,12 @@ class ChangeRequest(NetBoxModel):
             self._discard_held_uploads()
 
 
-class ChangeRequestApproval(models.Model):
+class ChangeRequestApproval(KeepsUserNames, models.Model):
     """One person's approval of one revision of a request, for rules that need
     more than one approver. The request is applied when the last one needed
     comes in (see approvals.approve)."""
+    user_fields = ('user',)
+
     change_request = models.ForeignKey(
         to=ChangeRequest,
         on_delete=models.CASCADE,
@@ -837,6 +922,8 @@ class ChangeRequestApproval(models.Model):
         null=True,
         related_name='+',
     )
+    user_name = _username_field()
+    user_label = UserLabel()
     revision = models.PositiveSmallIntegerField(default=1)
     created = models.DateTimeField(auto_now_add=True)
 
@@ -855,9 +942,11 @@ class ChangeRequestApproval(models.Model):
         return f'{self.user} approved #{self.change_request_id} (revision {self.revision})'
 
 
-class ChangeRequestComment(models.Model):
+class ChangeRequestComment(KeepsUserNames, models.Model):
     """A note on a request: a question or an answer that doesn't decide
     anything. See views.ChangeRequestCommentView."""
+    user_fields = ('author',)
+
     change_request = models.ForeignKey(
         to=ChangeRequest,
         on_delete=models.CASCADE,
@@ -869,6 +958,8 @@ class ChangeRequestComment(models.Model):
         null=True,
         related_name='+',
     )
+    author_name = _username_field()
+    author_label = UserLabel()
     created = models.DateTimeField(auto_now_add=True)
     text = models.TextField(max_length=2000)
 
@@ -878,7 +969,7 @@ class ChangeRequestComment(models.Model):
         verbose_name_plural = _('comments')
 
     def __str__(self):
-        return f'{self.author}: {self.text[:50]}'
+        return f'{self.author_label}: {self.text[:50]}'
 
 
 class ApproverAbsence(models.Model):
@@ -915,12 +1006,14 @@ class ApproverAbsence(models.Model):
         return self.starts <= today and (self.ends is None or today <= self.ends)
 
 
-class WorkTask(models.Model):
+class WorkTask(KeepsUserNames, models.Model):
     """
     One physical job on the field work sheet ("Mount sw1 in A3 U20-21"),
     written for a request while it waits and shown once the request is
     applied. See worksheet.py.
     """
+    user_fields = ('done_by',)
+
     change_request = models.ForeignKey(
         to=ChangeRequest,
         on_delete=models.CASCADE,
@@ -936,6 +1029,8 @@ class WorkTask(models.Model):
     done_by = models.ForeignKey(
         to=settings.AUTH_USER_MODEL, db_constraint=False, on_delete=models.SET_NULL, null=True, blank=True, related_name='+',
     )
+    done_by_name = _username_field()
+    done_by_label = UserLabel()
     done_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
@@ -947,7 +1042,7 @@ class WorkTask(models.Model):
         return self.text
 
 
-class ChangeSet(models.Model):
+class ChangeSet(KeepsUserNames, models.Model):
     """
     A named bundle of changes ("Install sw1 in rack A3") its author collects
     while working, then submits to be decided as one. Its requests share its
@@ -957,11 +1052,15 @@ class ChangeSet(models.Model):
     DRAFT = 'draft'
     SUBMITTED = 'submitted'
 
+    user_fields = ('created_by',)
+
     name = models.CharField(max_length=100)
     ticket = models.CharField(max_length=100, blank=True)
     created_by = models.ForeignKey(
         to=settings.AUTH_USER_MODEL, db_constraint=False, on_delete=models.SET_NULL, null=True, related_name='+',
     )
+    created_by_name = _username_field()
+    created_by_label = UserLabel()
     created = models.DateTimeField(auto_now_add=True)
     status = models.CharField(
         max_length=10, default=DRAFT, choices=((DRAFT, _('Draft')), (SUBMITTED, _('Submitted'))),
@@ -987,15 +1086,19 @@ class ChangeSet(models.Model):
         return ChangeRequest.objects.filter(batch_id=self.batch_id)
 
 
-class PluginSetting(models.Model):
+class PluginSetting(KeepsUserNames, models.Model):
     """A plugin setting saved on the settings page, overriding configuration.py
     until reset. See plugin_settings.py."""
+    user_fields = ('updated_by',)
+
     key = models.CharField(max_length=100, unique=True)
     value = models.JSONField(null=True, blank=True)
     updated = models.DateTimeField(auto_now=True)
     updated_by = models.ForeignKey(
         to=settings.AUTH_USER_MODEL, db_constraint=False, on_delete=models.SET_NULL, null=True, blank=True, related_name='+',
     )
+    updated_by_name = _username_field()
+    updated_by_label = UserLabel()
 
     class Meta:
         ordering = ['key']

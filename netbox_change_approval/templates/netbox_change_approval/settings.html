@@ -23,7 +23,7 @@
               {% if row.source == 'saved' %}
                 <span class="badge text-bg-primary">{% trans "Saved here" %}</span>
                 {% if row.saved %}
-                  {% if row.saved.updated_by %}{% blocktrans with who=row.saved.updated_by when=row.saved.updated|date:"SHORT_DATETIME_FORMAT" %}by {{ who }}, {{ when }}{% endblocktrans %}{% else %}{{ row.saved.updated|date:"SHORT_DATETIME_FORMAT" }}{% endif %}.
+                  {% if row.saved.updated_by_label %}{% blocktrans with who=row.saved.updated_by_label when=row.saved.updated|date:"SHORT_DATETIME_FORMAT" %}by {{ who }}, {{ when }}{% endblocktrans %}{% else %}{{ row.saved.updated|date:"SHORT_DATETIME_FORMAT" }}{% endif %}.
                 {% endif %}
                 {% blocktrans with value=row.config_display %}configuration.py says: {{ value }}.{% endblocktrans %}
                 <button type="submit" name="reset" value="{{ row.field.name }}" formnovalidate class="btn btn-sm btn-outline-secondary">

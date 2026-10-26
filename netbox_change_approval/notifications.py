@@ -89,6 +89,8 @@ def _label(change_request):
 def _person(user):
     if user is None:
         return None
+    if not hasattr(user, 'pk'):  # DeletedUser: only the kept name
+        return {'id': None, 'username': user.get_username(), 'name': user.get_username(), 'email': ''}
     return {
         'id': user.pk,
         'username': user.username,
@@ -166,7 +168,7 @@ def event_data(change_request, event_type, recipients, detail='', actor=None, co
         'object_id': change_request.object_id,
         'object': change_request.object_repr,
         'changes': changes,
-        'submitted_by': _person(change_request.submitted_by),
+        'submitted_by': _person(change_request.submitted_by_label),
         'submitted_at': change_request.submitted_at.isoformat() if change_request.submitted_at else None,
         'approver_group': change_request.approver_group_label or None,
         'approvers': [_person(u) for u in _approvers(change_request)],

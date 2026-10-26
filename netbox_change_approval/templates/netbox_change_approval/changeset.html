@@ -8,7 +8,7 @@
   <div class="text-secondary d-flex flex-wrap align-items-center gap-2 mb-2">
     <span class="badge text-bg-{{ object.get_status_color }}">{{ object.get_status_display }}</span>
     {% if is_active %}<span class="badge text-bg-primary">{% trans "active" %}</span>{% endif %}
-    <span>{{ object.created_by|default:"" }} &middot; {{ object.created|timesince }} {% trans "ago" %}{% if object.ticket %} &middot; {% trans "ticket" %} {{ object.ticket }}{% endif %}</span>
+    <span>{{ object.created_by_label|default:"" }} &middot; {{ object.created|timesince }} {% trans "ago" %}{% if object.ticket %} &middot; {% trans "ticket" %} {{ object.ticket }}{% endif %}</span>
   </div>
 {% endblock %}
 

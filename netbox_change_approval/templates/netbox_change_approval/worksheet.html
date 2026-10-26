@@ -74,7 +74,7 @@
     {% for task in done %}
     <tr>
       <td class="text-decoration-line-through">{{ task|task_text }}</td>
-      <td class="text-muted small text-nowrap">{{ task.done_by|default:"" }} &middot; {{ task.done_at|timesince }} {% trans "ago" %}</td>
+      <td class="text-muted small text-nowrap">{{ task.done_by_label|default:"" }} &middot; {{ task.done_at|timesince }} {% trans "ago" %}</td>
       <td class="w-1">
         <form method="post" class="m-0">
           {% csrf_token %}

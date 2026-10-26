@@ -31,7 +31,9 @@ OUR_TEMPLATE = 'netbox_change_approval/inc/notifications.html'
 
 
 def _username(user):
-    return user.username if user is not None else None
+    if user is None:
+        return None
+    return user.get_username() if hasattr(user, 'pk') else str(user)  # DeletedUser: "alice (deleted)"
 
 
 def _from_change_request(notification, change_request):
@@ -39,19 +41,19 @@ def _from_change_request(notification, change_request):
 
     event = notification.event_type
     if event == n.NEEDS_APPROVAL:
-        return _username(change_request.submitted_by)
+        return _username(change_request.submitted_by_label)
     if event in (n.APPROVED, n.REJECTED, n.SENT_BACK):
-        return _username(change_request.decided_by)
+        return _username(change_request.decided_by_label)
     if event == n.COMMENTED:
         comment = change_request.comments.filter(created__lte=notification.created).select_related(
             'author').order_by('-created', '-pk').first()
-        return _username(comment.author) if comment is not None else None
+        return _username(comment.author_label) if comment is not None else None
     if event == n.PARTLY_APPROVED:
         approval = change_request.approvals.filter(created__lte=notification.created).select_related(
             'user').order_by('-created', '-pk').first()
-        return _username(approval.user) if approval is not None else None
+        return _username(approval.user_label) if approval is not None else None
     if event in (n.SCHEDULED, n.SCHEDULE_FAILED):
-        return _username(change_request.scheduled_by)
+        return _username(change_request.scheduled_by_label)
     if event == n.EXPIRED:
         return None
     return False  # not ours: look in the changelog
@@ -83,7 +85,7 @@ def by_name(notification):
                     return name
                 # A NetBox event on the request itself ("Object created"):
                 # the changelog, else whoever submitted it.
-                return _from_changelog(notification) or _username(change_request.submitted_by)
+                return _from_changelog(notification) or _username(change_request.submitted_by_label)
         return _from_changelog(notification)
     except Exception:
         logger.exception('Could not tell who caused notification #%s', notification.pk)

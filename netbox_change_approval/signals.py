@@ -179,6 +179,21 @@ def protect_open_requests_group(sender, instance, **kwargs):
         )
 
 
+def keep_names_of_deleted_user(sender, instance, **kwargs):
+    """Before a user goes, make sure every row linking to them has their name
+    (rows saved by queryset.update() skipped KeepsUserNames.save)."""
+    from django.apps import apps
+
+    from .models import KeepsUserNames
+
+    for model in apps.get_app_config('netbox_change_approval').get_models():
+        if issubclass(model, KeepsUserNames):
+            for name in model.user_fields:
+                model._base_manager.filter(**{name: instance, f'{name}_name': ''}).update(
+                    **{f'{name}_name': instance.get_username()},
+                )
+
+
 def connect():
     for model in iter_gated_models():
         dispatch_uid = f'netbox_change_approval:{model._meta.label}'
@@ -205,7 +220,11 @@ def connect():
     # The default approver group is named in the config, so it can be
     # created (or renamed to that name) after NetBox has started. Resync on
     # group changes too, or its members only see "Approvals" after a restart.
-    from users.models import Group
+    from users.models import Group, User
+    pre_delete.connect(
+        keep_names_of_deleted_user, sender=User,
+        dispatch_uid='netbox_change_approval:keep_names_of_deleted_user',
+    )
     post_save.connect(
         _resync_on_group_change, sender=Group,
         dispatch_uid='netbox_change_approval:resync_approver_permission:group_save',

@@ -51,12 +51,12 @@ def reviews(change_request):
     items = []
     for approval in change_request.approvals.select_related('user').order_by('created'):
         items.append({
-            'user': approval.user, 'status': _('Approved'), 'color': 'green', 'time': approval.created,
+            'user': approval.user_label, 'status': _('Approved'), 'color': 'green', 'time': approval.created,
             'comment': '', 'old_revision': approval.revision < change_request.revision,
         })
-    if change_request.revision > 1 and change_request.sent_back_by_id and change_request.sent_back_comment:
+    if change_request.revision > 1 and change_request.sent_back_by_label and change_request.sent_back_comment:
         items.append({
-            'user': change_request.sent_back_by, 'status': _('Changes requested'), 'color': 'orange',
+            'user': change_request.sent_back_by_label, 'status': _('Changes requested'), 'color': 'orange',
             'time': None, 'comment': change_request.sent_back_comment, 'old_revision': True,
         })
     decided = {
@@ -67,7 +67,7 @@ def reviews(change_request):
     if decided and not (change_request.status == StatusChoices.RETURNED
                         and change_request.decided_by_id == change_request.submitted_by_id):
         items.append({
-            'user': change_request.decided_by, 'status': decided[0], 'color': decided[1],
+            'user': change_request.decided_by_label, 'status': decided[0], 'color': decided[1],
             'time': change_request.decided_at, 'comment': change_request.decision_comment, 'old_revision': False,
         })
     if change_request.auto_approved:

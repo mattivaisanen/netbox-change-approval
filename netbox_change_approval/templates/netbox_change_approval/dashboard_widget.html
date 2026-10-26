@@ -27,7 +27,7 @@
         <span class="badge text-bg-{{ cr.get_status_color }} ms-1">{% trans "Sent back" %}</span>
       </td>
       <td class="small text-muted nbca-who" title="{{ cr.decision_comment }}">
-        {% if cr.decided_by_id == cr.submitted_by_id %}{% trans "You retracted this to edit it" %}{% else %}{{ cr.decided_by|default:_("An approver") }}{% if cr.decision_comment %}: &ldquo;{{ cr.decision_comment|truncatechars:80 }}&rdquo;{% endif %}{% endif %}
+        {% if cr.decided_by_id == cr.submitted_by_id %}{% trans "You retracted this to edit it" %}{% else %}{{ cr.decided_by_label|default:_("An approver") }}{% if cr.decision_comment %}: &ldquo;{{ cr.decision_comment|truncatechars:80 }}&rdquo;{% endif %}{% endif %}
       </td>
       <td class="small text-muted text-nowrap" title="{{ cr.decided_at }}">{{ cr.decided_at|short_age }}</td>
       <td class="text-end text-nowrap">
@@ -51,7 +51,7 @@
         <span class="badge text-bg-{{ cr.get_status_color }} ms-1">{{ cr.get_status_display }}</span>
       </td>
       <td class="small text-muted nbca-who" title="{{ cr.decision_comment }}">
-        {% if cr.status == 'expired' %}{% trans "Not decided in time" %}{% else %}{{ cr.decided_by|default:_("An approver") }}{% if cr.decision_comment %}: &ldquo;{{ cr.decision_comment|truncatechars:80 }}&rdquo;{% endif %}{% endif %}
+        {% if cr.status == 'expired' %}{% trans "Not decided in time" %}{% else %}{{ cr.decided_by_label|default:_("An approver") }}{% if cr.decision_comment %}: &ldquo;{{ cr.decision_comment|truncatechars:80 }}&rdquo;{% endif %}{% endif %}
       </td>
       <td class="small text-muted text-nowrap" title="{{ cr.decided_at }}">{{ cr.decided_at|short_age }}</td>
       <td class="text-end text-nowrap">
@@ -72,7 +72,7 @@
     {% for item, can_decide in change_requests %}{% with cr=item.lead %}
     <tr>
       <td>{% include 'netbox_change_approval/inc/widget_item_title.html' %}</td>
-      <td class="small text-muted nbca-who">{% if cr.submitted_by %}{{ cr.submitted_by }}{% else %}{% trans "unknown user" %}{% endif %}</td>
+      <td class="small text-muted nbca-who">{% if cr.submitted_by_label %}{{ cr.submitted_by_label }}{% else %}{% trans "unknown user" %}{% endif %}</td>
       <td class="small text-muted text-nowrap" title="{{ cr.submitted_at }}">{{ cr.submitted_at|short_age }}</td>
       <td class="text-end text-nowrap">
         <button type="button" class="btn btn-sm btn-ghost-secondary nbca-toggle" data-bs-toggle="collapse"

@@ -92,17 +92,17 @@
           </td>
           <td class="d-none d-md-table-cell small nbca-who">
             {% if section.key == 'decide' %}
-              {{ cr.submitted_by|default:_("unknown user") }}
+              {{ cr.submitted_by_label|default:_("unknown user") }}
             {% elif section.key == 'waiting' %}
               {{ cr.approver_group|default:_("the default approver group") }}
             {% elif section.key == 'approved' %}
-              {% if cr.decided_by %}{{ cr.decided_by }}{% elif cr.approving_rule %}<span title="{% trans 'Auto-approved by this rule' %}"><i class="mdi mdi-robot-outline"></i> {{ cr.approving_rule }}</span>{% else %}&mdash;{% endif %}
+              {% if cr.decided_by_label %}{{ cr.decided_by_label }}{% elif cr.approving_rule %}<span title="{% trans 'Auto-approved by this rule' %}"><i class="mdi mdi-robot-outline"></i> {{ cr.approving_rule }}</span>{% else %}&mdash;{% endif %}
             {% elif cr.status == 'expired' %}
               <span class="text-muted">{% trans "Expired: nobody decided it in time" %}</span>
             {% elif cr.decided_by_id and cr.decided_by_id == cr.submitted_by_id %}
               <span class="text-muted">{% trans "You retracted this to edit it" %}</span>
             {% else %}
-              <span title="{{ cr.decision_comment }}">{{ cr.decided_by|default:_("An approver") }}{% if cr.decision_comment %}: &ldquo;{{ cr.decision_comment|truncatechars:80 }}&rdquo;{% endif %}</span>
+              <span title="{{ cr.decision_comment }}">{{ cr.decided_by_label|default:_("An approver") }}{% if cr.decision_comment %}: &ldquo;{{ cr.decision_comment|truncatechars:80 }}&rdquo;{% endif %}</span>
             {% endif %}
           </td>
           <td class="text-muted small text-nowrap">
