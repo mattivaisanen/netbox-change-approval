@@ -31,8 +31,8 @@ and lets NetBox delete users, groups and other objects the plugin refers to.
 
 ### Improvements
 - Create / Update / Delete badges on change requests use the same color map
-  as NetBox's changelog, so a theme (such as netbox-theme) that recolors the
-  changelog recolors them too. Without a theme they stay green, blue and red.
+  as NetBox's changelog, so a theme plugin that recolors the changelog
+  recolors them too. Without a theme they stay green, blue and red.
 - The menu tab is now called "Change Approval", the same as the plugin's
   name in NetBox's plugin list (it was "Change Approvals").
 - The waiting-for-approval banners, the menu and the notifications panel
@@ -44,14 +44,10 @@ and lets NetBox delete users, groups and other objects the plugin refers to.
 - Shorter README with a feature overview. The full guide moved to
   [docs/usage.md](docs/usage.md), and installing, upgrading and
   uninstalling to [docs/installation.md](docs/installation.md).
-- README has its own short Upgrading section and names both tested NetBox
-  versions (4.7.0 and 4.7.3). The configuration reference is now titled
-  "Configuration", like the other plugins' docs.
+- README has a short Upgrading section and lists the tested NetBox
+  versions (4.7.0 and 4.7.3).
 - Package metadata: correct project links, an SPDX license entry, and the
   same description as in NetBox's plugin list.
-- American spelling throughout ("color", "canceled").
-- Automated tests run on pull requests and on demand, no longer on every
-  push.
 
 ## 0.4.0 (2026-10-25)
 
@@ -396,18 +392,18 @@ moved to Approval Rules in 0.2.0).
   explains that instead of showing "not found".
 - The configuration reference lists every setting; README covers inbox
   pages and file uploads in held edits.
-- Tests run on NetBox 4.7.0 as well as 4.7.3.
+- Tested on NetBox 4.7.0 as well as 4.7.3.
 
 ## 0.2.2 (2026-10-22)
 
-Fixed:
+### Bug fixes
 - Opening the Approval Inbox (and other request pages) failed with
   "from_db() got an unexpected keyword argument 'fetch_mode'" on newer
   Django releases.
 
 ## 0.2.1 (2026-10-22)
 
-Fixed:
+### Bug fixes
 - NetBox failed to start when the netbox-branching package was installed
   but not enabled as a plugin.
 
@@ -416,7 +412,7 @@ Fixed:
 Upgrade: see README "Upgrading". Run `manage.py migrate`: this release adds
 database changes.
 
-New:
+### New features
 - Rules can require more than one approver, and pending requests can expire
   (per rule, or the `expire_pending_after_days` setting).
 - Comments on change requests, and NetBox notifications for new, decided,
@@ -428,7 +424,7 @@ New:
   pending) instead of redirects; see README.
 - Works alongside netbox-branching (approval covers main only).
 
-Fixed:
+### Bug fixes
 - Nobody can approve, reject or send back their own request.
 - Only superusers can change approval rules.
 - Deleting an object queues that object, not one of its dependents.
