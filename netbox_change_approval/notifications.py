@@ -266,16 +266,16 @@ def message_text(change_request, title, actor, changes=None, comment='', since_p
     lines += ['', f'{title}:', f'{change_request.get_action_display()} {change_request.object_repr}']
     for change in changes or []:
         if change['old'] is None and change_request.action == 'create':
-            lines.append(f"{capfirst(change['field'])}: {change['new'] if change['new'] is not None else empty}")
+            lines.append(f"{capfirst(change['field'])}: {change['new'] if change['new'] not in (None, '') else empty}")
         else:
-            old = change['old'] if change['old'] is not None else empty
-            new = change['new'] if change['new'] is not None else empty
+            old = change['old'] if change['old'] not in (None, '') else empty
+            new = change['new'] if change['new'] not in (None, '') else empty
             lines.append(f"{capfirst(change['field'])}: {old} -> {new}")
     if since_previous:
         lines += ['', str(_('Changes since revision {n}:')).format(n=change_request.revision - 1)]
         for change in since_previous:
-            old = change['old'] if change['old'] is not None else empty
-            new = change['new'] if change['new'] is not None else empty
+            old = change['old'] if change['old'] not in (None, '') else empty
+            new = change['new'] if change['new'] not in (None, '') else empty
             lines.append(f"{capfirst(change['field'])}: {old} -> {new}")
     if comment:
         lines.append(str(_('Comment: {text}')).format(text=comment))
