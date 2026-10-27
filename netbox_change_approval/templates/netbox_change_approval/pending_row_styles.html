@@ -109,4 +109,37 @@
     if (document.readyState !== 'loading') mark();
   })();
 </script>
+<script>
+  /* Rack elevations are separate SVG documents (rack_styling.py) with their
+     own --nbca-create/update/delete colors. When a theme sets the page's
+     --nbt-action-* colors, copy them into each same-origin elevation so its
+     pending markers match the rest of the page. Without a theme the SVG
+     keeps NetBox's stock colors. */
+  (function () {
+    var ACTIONS = ['create', 'update', 'delete'];
+    function sync(obj) {
+      var doc;
+      try { doc = obj.contentDocument; } catch (e) { return; }
+      if (!doc || !doc.documentElement || doc.documentElement.namespaceURI !== 'http://www.w3.org/2000/svg') return;
+      var page = getComputedStyle(document.documentElement);
+      ACTIONS.forEach(function (action) {
+        var color = page.getPropertyValue('--nbt-action-' + action).trim();
+        if (color) doc.documentElement.style.setProperty('--nbca-' + action, color);
+        else doc.documentElement.style.removeProperty('--nbca-' + action);
+      });
+    }
+    function syncAll() {
+      document.querySelectorAll('object[data*="elevation"]').forEach(sync);
+    }
+    // load doesn't bubble; a capturing listener also catches elevations
+    // added or reloaded later.
+    document.addEventListener('load', function (e) {
+      if (e.target && e.target.tagName === 'OBJECT') sync(e.target);
+    }, true);
+    document.addEventListener('DOMContentLoaded', syncAll);
+    // Light/dark switch: a theme may use other colors per mode.
+    new MutationObserver(syncAll).observe(document.documentElement, {attributes: true, attributeFilter: ['data-bs-theme']});
+    if (document.readyState !== 'loading') syncAll();
+  })();
+</script>
 {% include 'netbox_change_approval/inc/contrast.html' %}

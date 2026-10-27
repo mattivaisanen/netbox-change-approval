@@ -58,8 +58,9 @@ request is kept).
   order: decide pending requests, run `prepare_uninstall` (try
   `--dry-run` first), optionally drop the history, then remove the plugin.
 - The README asks readers to read it in full before installing.
-- Pending change markers (row edge, action icon, banner edge) follow the
-  theme's change action colors when a theme sets them.
+- Pending change markers (row edge, action icon, banner edge, and device
+  outlines in rack elevations) follow the theme's change action colors
+  when a theme sets them.
 
 ## 0.4.1 (2026-10-26)
 

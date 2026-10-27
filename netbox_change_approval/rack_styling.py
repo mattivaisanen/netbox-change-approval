@@ -19,7 +19,9 @@ from .models import ActionChoices, ChangeRequest, StatusChoices
 #: The elevation is a separate SVG document (see module docstring): NetBox's
 #: page variables such as --tblr-warning don't reach it. So the SVG gets its
 #: own color variables, set to Tabler's default warning/green/blue/red, and
-#: every rule below uses them. Alpha tints use color-mix().
+#: every rule below uses them. Alpha tints use color-mix(). When a theme sets
+#: --nbt-action-* on the page, pending_row_styles.html copies those colors
+#: into each elevation from the browser.
 SVG_COLOR_VARIABLES = (
     ':root { --nbca-pending: #f59f00; --nbca-create: #2fb344; '
     '--nbca-update: #206bc4; --nbca-delete: #d63939; }'
