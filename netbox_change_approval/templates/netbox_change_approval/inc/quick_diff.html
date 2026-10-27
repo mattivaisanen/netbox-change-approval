@@ -16,7 +16,7 @@
       {% if show_old %}
       <td class="text-break">{% if row.old|is_blank %}<span class="text-muted">&mdash;</span>{% else %}<span class="text-danger">{{ row.old }}</span>{% endif %}</td>
       {% endif %}
-      <td class="text-break">{% include 'netbox_change_approval/inc/was.html' %}{% if row.new|is_blank %}<span class="text-muted">{% if row.revised %}{% trans "(empty)" %}{% else %}&mdash;{% endif %}</span>{% else %}<span class="text-success">{{ row.new }}</span>{% endif %}</td>
+      <td class="text-break">{% include 'netbox_change_approval/inc/was.html' %}{% if row.new|is_blank %}{% if not row.revised %}<span class="text-muted">&mdash;</span>{% endif %}{% else %}<span class="{% if row.revised and row.was|is_blank %}text-warning{% else %}text-success{% endif %}">{{ row.new }}</span>{% endif %}</td>
     </tr>
   {% endfor %}
   </tbody>

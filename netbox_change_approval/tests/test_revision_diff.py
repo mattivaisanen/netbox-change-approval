@@ -101,3 +101,17 @@ class RevisedRequestDiffTests(TestCase):
             rows(ActionChoices.UPDATE, {'position': {'old': 22, 'new': 24}}, {'name': {'old': 'sw1', 'new': 'sw9'}}),
             {'position': (24, 22), 'name': ('sw1', 'sw9')},
         )
+
+    def test_new_field_in_accent_color_dropped_field_struck(self):
+        from django.template.loader import render_to_string
+
+        rows = [
+            {'field': 'rack_id', 'label': 'rack', 'old': None, 'new': 'R1', 'revised': True, 'was': None},
+            {'field': 'serial', 'label': 'serial', 'old': None, 'new': None, 'revised': True, 'was': 'X1'},
+        ]
+        html = render_to_string('netbox_change_approval/inc/quick_diff.html', {'rows': rows, 'revision': 2})
+        self.assertIn('<span class="text-warning">R1</span>', html)
+        self.assertIn('<del class="nbca-was text-warning">X1</del>', html)
+        self.assertNotIn('(empty)', html)
+        self.assertNotIn('mdi-arrow-right', html)
+        self.assertIn('Edited in revision 2', html)

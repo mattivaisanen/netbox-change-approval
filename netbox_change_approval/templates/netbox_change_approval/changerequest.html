@@ -1,7 +1,7 @@
 {% extends 'generic/object.html' %}
 {% load helpers %}
 {% load plugins %}
-{% load i18n %}
+{% load i18n nbca_diff %}
 
 {% block object_identifier %}{% endblock %}
 
@@ -134,9 +134,9 @@
           {% if object.action == 'update' %}
             <td class="text-danger">{% if row.old is not None and row.old != '' %}{{ row.old }}{% else %}<span class="text-muted">{% trans "(empty)" %}</span>{% endif %}</td>
             <td class="text-muted px-0"><i class="mdi mdi-arrow-right"></i></td>
-            <td>{% include 'netbox_change_approval/inc/was.html' %}<span class="text-success">{% if row.new is not None and row.new != '' %}{{ row.new }}{% else %}<span class="text-muted">{% trans "(empty)" %}</span>{% endif %}</span></td>
+            <td>{% include 'netbox_change_approval/inc/was.html' %}{% if row.new is not None and row.new != '' %}<span class="{% if row.revised and row.was|is_blank %}text-warning{% else %}text-success{% endif %}">{{ row.new }}</span>{% elif not row.revised %}<span class="text-muted">{% trans "(empty)" %}</span>{% endif %}</td>
           {% elif object.action == 'create' %}
-            <td>{% include 'netbox_change_approval/inc/was.html' %}{% if row.new is not None and row.new != '' %}{{ row.new }}{% elif row.revised %}<span class="text-muted">{% trans "(empty)" %}</span>{% else %}&mdash;{% endif %}</td>
+            <td>{% include 'netbox_change_approval/inc/was.html' %}{% if row.new is not None and row.new != '' %}<span{% if row.revised and row.was|is_blank %} class="text-warning"{% endif %}>{{ row.new }}</span>{% elif not row.revised %}&mdash;{% endif %}</td>
           {% else %}
             <td class="text-danger">{% include 'netbox_change_approval/inc/was.html' %}{% if row.old is not None and row.old != '' %}{{ row.old }}{% else %}&mdash;{% endif %}</td>
           {% endif %}

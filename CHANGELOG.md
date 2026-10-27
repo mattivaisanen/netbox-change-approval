@@ -9,10 +9,11 @@ its changelog entries).
 - A request resubmitted after being sent back, or updated by its submitter
   while it waits, now shows what changed since the previous revision right
   in its table of changes: the earlier value struck through, followed by
-  the new one (e.g. Rack: ~~(empty)~~ → R1), with "Edited in revision N"
-  below the table. Fields added or dropped in the new revision are marked
-  too. Shown on the request page and in the quick view of the dashboard
-  widget and the Approval Inbox.
+  the new one (e.g. Position (U): ~~22~~ → 24), with "Edited in revision N"
+  below the table. A field new in this revision shows its value in the
+  accent color; a field dropped shows its earlier value struck through.
+  Shown on the request page and in the quick view of the dashboard widget
+  and the Approval Inbox.
 
 ### Bug fixes
 - A change request's Changelog tab was nearly always empty, because the
