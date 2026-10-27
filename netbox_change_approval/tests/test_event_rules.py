@@ -243,14 +243,11 @@ class WebhookMessageTests(TestCase):
         change_request = ChangeRequest.objects.get(pk=change_request.pk)
         text = notifications.event_data(change_request, notifications.REJECTED, [self.submitter],
                                         actor=self.approver, comment='not now')['message']
-        lines = text.split('\n')
-        self.assertEqual(lines[0], 'You have a notification in NetBox:')
-        self.assertEqual(lines[1], 'From: Ann Approver')
-        self.assertEqual(lines[3], 'Change request rejected:')
-        self.assertEqual(lines[4], 'Update manufacturer m1')
-        self.assertEqual(lines[5], 'Comment: not now')
-        self.assertNotIn('->', text)
-        self.assertEqual(lines[-1], f'<p><a href="{change_request.get_absolute_url()}">Open in NetBox</a></p>')
+        self.assertEqual(text, (
+            'You have a notification in NetBox:\n\nFrom: Ann Approver\n\nChange request rejected:\n\n'
+            'Update manufacturer m1\n\nComment: not now\n\n'
+            f'<p><a href="{change_request.get_absolute_url()}">Open in NetBox</a></p>'
+        ))
         generic = serialize_for_event(change_request)['message']
         self.assertIn('Change request rejected:', generic)
         self.assertIn('From: Ann Approver', generic)
@@ -281,3 +278,56 @@ class WebhookMessageTests(TestCase):
             self.assertIn('From: Ann Approver', text)
             self.assertIn('Comment: why?', text)
             self.assertNotIn('->', text)
+
+
+class WebhookMessageTemplateTests(TestCase):
+    """Superusers set the message text on the Settings page."""
+
+    @classmethod
+    def setUpTestData(cls):
+        Group.objects.get_or_create(name='Change Approvers')
+        cls.submitter = User.objects.create(username='sub', email='sub@example.com')
+        cls.admin = User.objects.create(username='admin', is_superuser=True)
+
+    def _request(self):
+        obj = Manufacturer.objects.create(name='t1', slug='t1')
+        obj = Manufacturer.objects.get(pk=obj.pk)
+        obj.description = 'changed'
+        return gating.gate(obj, ActionChoices.UPDATE, fake_request(self.submitter))
+
+    def test_saved_template_is_used(self):
+        from django.urls import reverse
+
+        from .. import notifications, plugin_settings
+
+        change_request = self._request()
+        self.client.force_login(self.admin)
+        page = self.client.get(reverse('plugins:netbox_change_approval:settings'))
+        self.assertContains(page, 'name="webhook_message"')
+        data = {s.key: '' for s in plugin_settings.SETTINGS if s.kind not in ('bool',)}
+        data.update({'pending_row_style': 'by_action', 'group_components_with_parent': 'on',
+                     'work_sheets': 'on', 'change_sets': 'on',
+                     'webhook_message': '{{ title }} #{{ id }} by {{ by }} <{{ by_email }}>\r\n{{ link }}'})
+        self.client.post(reverse('plugins:netbox_change_approval:settings'), data)
+        text = notifications.event_data(change_request, notifications.NEEDS_APPROVAL, [], actor=self.submitter)['message']
+        self.assertEqual(text, f'Change request needs your approval #{change_request.pk} by sub <sub@example.com>\n'
+                               f'{change_request.get_absolute_url()}')
+
+    def test_broken_template_refused(self):
+        from django.urls import reverse
+
+        from .. import plugin_settings
+
+        self.client.force_login(self.admin)
+        response = self.client.post(reverse('plugins:netbox_change_approval:settings'), {
+            'pending_row_style': 'by_action', 'webhook_message': '{% if by %}never closed',
+        })
+        self.assertContains(response, 'This template has an error')
+        self.assertNotIn('webhook_message', plugin_settings.saved_values())
+
+    def test_empty_means_default(self):
+        from .. import message_template, plugin_settings
+
+        setting = plugin_settings.BY_KEY['webhook_message']
+        self.assertEqual(setting.normalize(''), message_template.DEFAULT)
+        self.assertEqual(setting.normalize(None), message_template.DEFAULT)

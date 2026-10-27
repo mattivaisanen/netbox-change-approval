@@ -4,6 +4,8 @@ objects before they take effect. See README.md and docs/.
 """
 from netbox.plugins import PluginConfig
 
+from . import message_template
+
 
 class NetBoxChangeApprovalConfig(PluginConfig):
     name = 'netbox_change_approval'
@@ -46,6 +48,9 @@ class NetBoxChangeApprovalConfig(PluginConfig):
         # NetBox's address as users reach it (e.g. 'https://netbox.example.com'),
         # for full links in webhook data. Empty: links are paths only.
         'netbox_url': '',
+        # Template (Jinja2) of the webhook `message` text; see
+        # message_template.py for the variables. Also on the Settings page.
+        'webhook_message': message_template.DEFAULT,
     }
 
     middleware = [

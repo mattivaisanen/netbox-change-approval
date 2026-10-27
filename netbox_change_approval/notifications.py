@@ -248,32 +248,31 @@ def _object_type_name(change_request):
 def message_text(change_request, title, actor, comment=''):
     """
     A short ready-to-send notice for webhooks ({{ data.message }}), so people
-    know to look in NetBox. The changes themselves are in `changes`.
-
-        You have a notification in NetBox:
-        From: Bob Smith
-
-        Change request rejected:
-        Update device sw1
-        Comment: wrong rack
-
-        <p><a href="https://netbox.example.com/plugins/change-approval/change-requests/12/">Open in NetBox</a></p>
+    know to look in NetBox, from the "Webhook message" setting (see
+    message_template.py). The changes themselves are in `changes`.
     """
-    lines = [str(_('You have a notification in NetBox:'))]
-    if actor is not None:
-        lines.append(str(_('From: {who}')).format(who=_person(actor)['name']))
-    lines += [
-        '', f'{title}:',
-        f'{change_request.get_action_display()} {_object_type_name(change_request)} {change_request.object_repr}',
-    ]
-    if comment:
-        lines.append(str(_('Comment: {text}')).format(text=comment))
-    from django.utils.html import format_html
+    from . import message_template
+    from .plugin_settings import get_setting
 
-    lines += ['', str(format_html(
-        '<p><a href="{}">{}</a></p>', absolute_url(change_request.get_absolute_url()), _('Open in NetBox'),
-    ))]
-    return '\n'.join(lines)
+    by = _person(actor) if actor is not None else None
+    submitter = _person(change_request.submitted_by_label)
+    context = {
+        'by': by['name'] if by else '',
+        'by_email': by['email'] if by else '',
+        'title': str(title),
+        'action': str(change_request.get_action_display()),
+        'object_type': _object_type_name(change_request),
+        'object': change_request.object_repr,
+        'comment': comment or '',
+        'link': absolute_url(change_request.get_absolute_url()),
+        'id': change_request.pk,
+        'status': change_request.status,
+        'reason': change_request.reason or '',
+        'submitted_by': submitter['name'] if submitter else '',
+        'submitted_by_email': submitter['email'] if submitter else '',
+        'approver_group': change_request.approver_group_label or '',
+    }
+    return message_template.render(get_setting('webhook_message'), context)
 
 
 def fire_event(change_request, event_type, recipients, detail='', actor=None, comment=''):

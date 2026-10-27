@@ -34,6 +34,7 @@ KIND_GROUP = 'group'
 KIND_DAYS = 'days'
 KIND_CHOICE = 'choice'
 KIND_BOOL = 'bool'
+KIND_TEMPLATE = 'template'
 
 
 @dataclass(frozen=True)
@@ -57,6 +58,9 @@ class Setting:
         if self.kind == KIND_CHOICE:
             keys = [key for key, _label in self.choices]
             return value if value in keys else keys[0]
+        if self.kind == KIND_TEMPLATE:
+            from .message_template import DEFAULT, clean
+            return clean(value).strip() or DEFAULT
         return value or None
 
 
@@ -85,6 +89,13 @@ SETTINGS = (
         'change_sets', _('Change sets'),
         _('Let people collect several changes in a change set and submit them for approval as one.'),
         KIND_BOOL,
+    ),
+    Setting(
+        'webhook_message', _('Webhook message'),
+        _('The text webhooks get as {{ data.message }}, in Jinja2. Variables: by, by_email, title, action, '
+          'object_type, object, comment, link, id, status, reason, submitted_by, submitted_by_email, '
+          'approver_group. Teams needs a blank line between lines. Empty: the default text.'),
+        KIND_TEMPLATE,
     ),
 )
 

@@ -13,7 +13,7 @@ from django.views.generic import View
 from utilities.views import ConditionalLoginRequiredMixin
 
 from . import plugin_settings
-from .plugin_settings import KIND_BOOL, KIND_CHOICE, KIND_DAYS, KIND_GROUP
+from .plugin_settings import KIND_BOOL, KIND_CHOICE, KIND_DAYS, KIND_GROUP, KIND_TEMPLATE
 
 
 def _field(setting):
@@ -32,7 +32,22 @@ def _field(setting):
         return forms.ChoiceField(choices=setting.choices, label=setting.label, help_text=setting.help_text)
     if setting.kind == KIND_BOOL:
         return forms.BooleanField(required=False, label=setting.label, help_text=setting.help_text)
+    if setting.kind == KIND_TEMPLATE:
+        return forms.CharField(
+            required=False, strip=False, label=setting.label, help_text=setting.help_text,
+            widget=forms.Textarea(attrs={'rows': 10, 'class': 'font-monospace'}),
+            validators=[_valid_template],
+        )
     raise ValueError(setting.kind)
+
+
+def _valid_template(value):
+    from .message_template import check
+
+    try:
+        check(value)
+    except ValueError as e:
+        raise forms.ValidationError(_('This template has an error: %(error)s') % {'error': e})
 
 
 def _stored(setting, cleaned):
@@ -41,6 +56,8 @@ def _stored(setting, cleaned):
         return cleaned.name if cleaned is not None else None
     if setting.kind == KIND_DAYS:
         return cleaned or None
+    if setting.kind == KIND_TEMPLATE:
+        return setting.normalize(cleaned)
     return cleaned
 
 
@@ -67,6 +84,9 @@ def _display(setting, value):
         return str(value) if value else _('Never')
     if setting.kind == KIND_CHOICE:
         return str(dict(setting.choices).get(value, value))
+    if setting.kind == KIND_TEMPLATE:
+        from .message_template import DEFAULT
+        return _('the default text') if value == DEFAULT else _('its own text')
     return value or _('None')
 
 

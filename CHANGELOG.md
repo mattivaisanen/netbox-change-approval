@@ -17,7 +17,9 @@ request is kept).
 - Webhook data has a new `message` field: a short ready-to-send notice
   saying who did what, which request (e.g. "Update device sw1"), the
   comment if any and an "Open in NetBox" link (as HTML). Works with the plugin's event types and with
-  "Object updated".
+  "Object updated". Superusers can change its text on the Settings page
+  ("Webhook message", a Jinja2 template). By default lines are separated
+  by a blank line, as Teams needs.
 - A request resubmitted after being sent back, or edited by its submitter
   while it waits, now lists what changed since the previous revision in a
   new `revision_changes` webhook field.

@@ -90,14 +90,20 @@ one. It leaves out the changes; those are in `changes` and
 
 ```text
 You have a notification in NetBox:
+
 From: Bob Smith
 
 Change request rejected:
+
 Update device sw1
+
 Comment: wrong rack
 
 <p><a href="https://netbox.example.com/plugins/change-approval/change-requests/12/">Open in NetBox</a></p>
 ```
+
+Lines are separated by a blank line (`\n\n`), because Teams shows a single
+line break as a space.
 
 The last line is an HTML link, so it shows as "Open in NetBox" in an HTML
 e-mail or Teams message. The plain address is in `link`.
@@ -105,6 +111,40 @@ e-mail or Teams message. The plain address is in `link`.
 On "Object updated" the title follows the status ("New change request",
 "Change request updated", "Change request sent back", ...). An expired
 request has no "From" line.
+
+### Changing the message
+
+Superusers change the text on **Change Approval → Settings → Webhook
+message** (or `webhook_message` in `configuration.py`). It is a Jinja2
+template, like NetBox's webhook body templates. Leave it empty for the
+default:
+
+```jinja
+You have a notification in NetBox:
+
+{% if by %}From: {{ by }}
+
+{% endif %}{{ title }}:
+
+{{ action }} {{ object_type }} {{ object }}
+
+{% if comment %}Comment: {{ comment }}
+
+{% endif %}<p><a href="{{ link }}">Open in NetBox</a></p>
+```
+
+| Variable | Example |
+|---|---|
+| `by`, `by_email` | `Bob Smith`, `bob@example.com` (empty when nobody acted) |
+| `title` | `Change request rejected` |
+| `action`, `object_type`, `object` | `Update`, `device`, `sw1` |
+| `comment` | `wrong rack` |
+| `link` | `https://netbox.example.com/plugins/change-approval/change-requests/12/` |
+| `id`, `status`, `reason` | `12`, `rejected`, `Move to rack R2` |
+| `submitted_by`, `submitted_by_email` | `Alice Admin`, `alice@example.com` |
+| `approver_group` | `Change Approvers` |
+
+A template with an error can't be saved; the page says what is wrong.
 
 ## 4. The webhook
 
