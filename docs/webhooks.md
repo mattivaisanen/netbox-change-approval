@@ -82,8 +82,11 @@ out of `recipient_emails`. Set e-mail addresses under **Admin → Users**.
 the message is *for*. `by`, `submitted_by` and `decided_by` (each with an
 `email`) are who did something; use them for a "From" or "Reply to".
 
-`message` is plain text you can send as is (line breaks as `\n`). For a
-decision:
+`message` is a short plain-text notice you can send as is (line breaks as
+`\n`), so people know to look in NetBox. It names who did it, what
+happened, the request with its object type, and the comment if there is
+one. It leaves out the changes; those are in `changes` and
+`revision_changes`. For a decision:
 
 ```text
 You have a notification in NetBox:
@@ -91,18 +94,14 @@ From: Bob Smith
 
 Change request rejected:
 Update device sw1
-Rack: R1 -> R2
 Comment: wrong rack
 
 https://netbox.example.com/plugins/change-approval/change-requests/12/
 ```
 
-For a comment, the changes are left out and the comment follows "From". A
-request resubmitted after a send-back, or edited by its submitter while it
-waits, adds "Changes since revision 1:" with each field the
-submitter changed, as the previous revision had it -> as it is now. On
-"Object updated" the title follows the status ("New change request",
-"Change request updated", "Change request sent back", ...).
+On "Object updated" the title follows the status ("New change request",
+"Change request updated", "Change request sent back", ...). An expired
+request has no "From" line.
 
 ## 4. The webhook
 

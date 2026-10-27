@@ -14,13 +14,13 @@ request is kept).
 - New event type "Change request retracted": tells the approver group's
   webhooks when the submitter takes back a request that was waiting for
   them, including "retract and edit".
-
-- Webhook data has a new `message` field: ready-to-send text saying who did
-  what, the request, its changes (field: old -> new), the comment and a
-  link. Works with the plugin's event types and with "Object updated".
+- Webhook data has a new `message` field: a short ready-to-send notice
+  saying who did what, which request (e.g. "Update device sw1"), the
+  comment if any and a link. Works with the plugin's event types and with
+  "Object updated".
 - A request resubmitted after being sent back, or edited by its submitter
-  while it waits, now shows what changed since the previous revision: "Changes since revision N" in the webhook message
-  and a new `revision_changes` field.
+  while it waits, now lists what changed since the previous revision in a
+  new `revision_changes` webhook field.
 
 ### Bug fixes
 - Webhooks for retracted requests, and for requests the submitter took

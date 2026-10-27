@@ -38,7 +38,6 @@ Sent after the database transaction commits, so a change that is rolled back
 """
 from django.db import transaction
 from django.db.models.signals import post_save
-from django.utils.text import capfirst
 from django.utils.translation import gettext_lazy as _
 
 from .models import ChangeRequest, StatusChoices
@@ -157,14 +156,10 @@ def event_data(change_request, event_type, recipients, detail='', actor=None, co
 
     event = registry['event_types'].get(event_type)
     changes = changes_of(change_request)
-    since_previous = revision_changes(change_request)
     title = str(event) if event else event_type
     return {
-        'message': message_text(
-            change_request, title, actor, changes=None if event_type == COMMENTED else changes, comment=comment,
-            since_previous=since_previous if event_type == NEEDS_APPROVAL else None,
-        ),
-        'revision_changes': since_previous,
+        'message': message_text(change_request, title, actor, comment=comment),
+        'revision_changes': revision_changes(change_request),
         'id': change_request.pk,
         'display': _label(change_request),
         'url': change_request.get_absolute_url(),
@@ -245,38 +240,32 @@ def revision_changes(change_request):
     return result
 
 
-def message_text(change_request, title, actor, changes=None, comment='', since_previous=None):
+def _object_type_name(change_request):
+    model = change_request.content_type.model_class() if change_request.content_type_id else None
+    return str(model._meta.verbose_name) if model is not None else change_request.content_type.model
+
+
+def message_text(change_request, title, actor, comment=''):
     """
-    A ready-to-send plain-text message for webhooks ({{ data.message }}):
+    A short ready-to-send notice for webhooks ({{ data.message }}), so people
+    know to look in NetBox. The changes themselves are in `changes`.
 
         You have a notification in NetBox:
-        From: alice
+        From: Bob Smith
 
         Change request rejected:
         Update device sw1
-        Rack: R1 -> R2
         Comment: wrong rack
 
         https://netbox.example.com/plugins/change-approval/change-requests/12/
     """
-    empty = str(_('(empty)'))
     lines = [str(_('You have a notification in NetBox:'))]
     if actor is not None:
         lines.append(str(_('From: {who}')).format(who=_person(actor)['name']))
-    lines += ['', f'{title}:', f'{change_request.get_action_display()} {change_request.object_repr}']
-    for change in changes or []:
-        if change['old'] is None and change_request.action == 'create':
-            lines.append(f"{capfirst(change['field'])}: {change['new'] if change['new'] not in (None, '') else empty}")
-        else:
-            old = change['old'] if change['old'] not in (None, '') else empty
-            new = change['new'] if change['new'] not in (None, '') else empty
-            lines.append(f"{capfirst(change['field'])}: {old} -> {new}")
-    if since_previous:
-        lines += ['', str(_('Changes since revision {n}:')).format(n=change_request.revision - 1)]
-        for change in since_previous:
-            old = change['old'] if change['old'] not in (None, '') else empty
-            new = change['new'] if change['new'] not in (None, '') else empty
-            lines.append(f"{capfirst(change['field'])}: {old} -> {new}")
+    lines += [
+        '', f'{title}:',
+        f'{change_request.get_action_display()} {_object_type_name(change_request)} {change_request.object_repr}',
+    ]
     if comment:
         lines.append(str(_('Comment: {text}')).format(text=comment))
     lines += ['', absolute_url(change_request.get_absolute_url())]

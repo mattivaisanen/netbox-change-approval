@@ -74,20 +74,17 @@ class ChangeRequestSerializer(serializers.ModelSerializer):
         from django.utils.translation import gettext as _
 
         from ..models import StatusChoices
-        from ..notifications import changes_of, message_text, revision_changes
+        from ..notifications import message_text
 
-        since_previous = None
         if obj.status == StatusChoices.PENDING:
             actor = obj.submitted_by_label
             title = _('Change request updated') if obj.revision > 1 else _('New change request')
             comment = ''
-            since_previous = revision_changes(obj)
         else:
             actor = obj.decided_by_label
             title = _('Change request {status}').format(status=obj.get_status_display().lower())
             comment = obj.decision_comment
-        return message_text(obj, str(title), actor, changes=changes_of(obj), comment=comment,
-                            since_previous=since_previous)
+        return message_text(obj, str(title), actor, comment=comment)
 
     def get_revision_changes(self, obj):
         from ..notifications import revision_changes

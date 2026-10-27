@@ -219,8 +219,8 @@ class WebhookEmailsAndCommentsTests(TestCase):
 
 
 class WebhookMessageTests(TestCase):
-    """Webhook data has a ready-to-send `message`: who, what happened, the
-    request, its changes and any comment."""
+    """Webhook data has a short ready-to-send `message`: who, what happened,
+    the request (with its object type) and any comment, but not the changes."""
 
     @classmethod
     def setUpTestData(cls):
@@ -247,14 +247,15 @@ class WebhookMessageTests(TestCase):
         self.assertEqual(lines[0], 'You have a notification in NetBox:')
         self.assertEqual(lines[1], 'From: Ann Approver')
         self.assertEqual(lines[3], 'Change request rejected:')
-        self.assertEqual(lines[4], 'Update m1')
-        self.assertIn('Description: old text -> new text', lines)
-        self.assertIn('Comment: not now', lines)
+        self.assertEqual(lines[4], 'Update manufacturer m1')
+        self.assertEqual(lines[5], 'Comment: not now')
+        self.assertNotIn('->', text)
         self.assertEqual(lines[-1], change_request.get_absolute_url())
         generic = serialize_for_event(change_request)['message']
         self.assertIn('Change request rejected:', generic)
         self.assertIn('From: Ann Approver', generic)
-        self.assertIn('Description: old text -> new text', generic)
+        self.assertIn('Update manufacturer m1', generic)
+        self.assertNotIn('->', generic)
 
     def test_pending_message_from_submitter(self):
         text = serialize_for_event(self._request('m2'))['message']

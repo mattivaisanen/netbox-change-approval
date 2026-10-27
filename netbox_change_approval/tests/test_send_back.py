@@ -266,11 +266,10 @@ class RevisionChangesTests(TestCase):
         self.assertEqual(second.previous_diff['description']['new'], 'first try')
         self.assertEqual(notifications.revision_changes(second),
                          [{'field': 'description', 'old': 'first try', 'new': 'second try'}])
-        message = notifications.event_data(second, notifications.NEEDS_APPROVAL, [self.approver],
-                                           actor=self.alice)['message']
-        self.assertIn('Changes since revision 1:\nDescription: first try -> second try', message)
+        plugin_data = notifications.event_data(second, notifications.NEEDS_APPROVAL, [self.approver], actor=self.alice)
+        self.assertEqual(plugin_data['revision_changes'][0]['old'], 'first try')
         data = serialize_for_event(second)
-        self.assertIn('Changes since revision 1:', data['message'])
+        self.assertIn('Change request updated:', data['message'])
         self.assertEqual(data['revision_changes'][0]['new'], 'second try')
 
     def test_unchanged_resubmit_lists_nothing(self):
