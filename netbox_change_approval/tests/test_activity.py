@@ -116,3 +116,45 @@ class ActivityTests(TestCase):
 
         entry = self._entries(request).get()
         self.assertEqual(entry.message, f'ticket 42 | Waiting for approval (change request #{cr.pk})')
+
+
+
+class ChangelogTabTests(TestCase):
+    """A request's Changelog tab lists the object's entries the request
+    labelled, with its own, newest first; nothing else of the object."""
+    setUpTestData = classmethod(ActivityTests.setUpTestData.__func__)
+    _as = ActivityTests._as
+
+    def _entry(self, obj, message):
+        import uuid
+        return ObjectChange.objects.create(
+            changed_object_type=self.mfr_type, changed_object_id=obj.pk, object_repr=str(obj),
+            action='update', request_id=uuid.uuid4(), user_name='alice', message=message,
+        )
+
+    def test_changelog_tab_lists_the_requests_history(self):
+        from django.urls import reverse
+
+        obj = Manufacturer.objects.create(name='Acme', slug='acme')
+        self._as(self.alice)
+        obj.description = 'new'
+        cr = gating.gate(obj, ActionChoices.UPDATE, current_request.get())  # logs the request itself
+        approved = self._as(self.approver)
+        cr.apply(self.approver)  # labels the object's own entry instead
+        object_entry = ObjectChange.objects.get(request_id=approved.id)
+        self.assertEqual(list(cr.log_entries.values_list('object_change_id', flat=True)), [object_entry.pk])
+
+        # Older requests kept no links: their label in the message still finds them.
+        older = self._entry(obj, f'ticket 7 | Sent back for revision by approver (change request #{cr.pk})')
+        self._entry(obj, 'unrelated edit')
+        self._entry(obj, f'Approved (change request #{cr.pk + 1})')
+
+        admin = User.objects.create(username='admin', is_superuser=True)
+        self.client.force_login(admin)
+        response = self.client.get(
+            reverse('plugins:netbox_change_approval:changerequest_changelog', kwargs={'pk': cr.pk}),
+        )
+        self.assertEqual(response.status_code, 200)
+        shown = [row.record for row in response.context['table'].rows]
+        own = ObjectChange.objects.get(changed_object_type=self.cr_type, changed_object_id=cr.pk)
+        self.assertEqual(shown, [older, object_entry, own])

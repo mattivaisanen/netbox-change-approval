@@ -200,11 +200,11 @@ def changes_of(change_request):
         return []
 
 
-def revision_changes(change_request):
+def revision_changes(change_request, names=None):
     """What a resubmitted request changes compared to the revision before
     it was sent back, as [{field, old, new}]: `old` is what the previous
     revision proposed, `new` what this one proposes. [] for a first
-    revision."""
+    revision. `names`: see views.prefetch_display_names."""
     import copy
 
     from .models import ActionChoices
@@ -215,8 +215,8 @@ def revision_changes(change_request):
     previous = copy.copy(change_request)
     previous.diff = change_request.previous_diff
     try:
-        before = {row['field']: row for row in _diff_rows(previous)}
-        now = {row['field']: row for row in _diff_rows(change_request)}
+        before = {row['field']: row for row in _diff_rows(previous, names=names)}
+        now = {row['field']: row for row in _diff_rows(change_request, names=names)}
     except Exception:
         return []
     side = 'old' if change_request.action == ActionChoices.DELETE else 'new'

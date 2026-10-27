@@ -647,10 +647,41 @@ class ChangeRequest(KeepsUserNames, NetBoxModel):
         if entries is None:
             entries = self._target_object_changes(current_request.get())
         message = self.activity_message()
+        labelled = []
         for entry in entries:
             entry.message = combine_activity_message(entry.message, message)
             fields = ['message'] + self._attribute_to_submitter(entry)
             entry.save(update_fields=fields)
+            labelled.append(entry.pk)
+        if labelled and self.pk:
+            # So the request's own Changelog tab can list these entries.
+            ChangeRequestLogEntry.objects.bulk_create(
+                [ChangeRequestLogEntry(change_request_id=self.pk, object_change_id=pk) for pk in labelled],
+                ignore_conflicts=True,
+            )
+
+    def changelog_entries(self):
+        """
+        NetBox changelog entries that belong to this request, for its
+        Changelog tab: its own entries, and the entries of the object it
+        changes that it labelled instead of writing its own (submitted,
+        resubmitted, approved, ...; see to_objectchange). Requests from before
+        those links were kept are matched by the label in the entry's message.
+        """
+        from django.db.models import Q
+
+        from core.models import ObjectChange, ObjectType
+
+        query = Q(
+            changed_object_type=ObjectType.objects.get_for_model(ChangeRequest), changed_object_id=self.pk,
+        ) | Q(pk__in=self.log_entries.values('object_change_id'))
+        if self.object_id is not None:
+            ref = str(_('change request #{pk}')).format(pk=self.pk)
+            query |= Q(
+                changed_object_type_id=self.content_type_id, changed_object_id=self.object_id,
+                message__contains=f'({ref})',
+            )
+        return ObjectChange.objects.filter(query)
 
     def _attribute_to_submitter(self, entry):
         """
@@ -907,6 +938,30 @@ class ChangeRequest(KeepsUserNames, NetBoxModel):
             self.seen_by_submitter = False
             self.save()
             self._discard_held_uploads()
+
+
+class ChangeRequestLogEntry(models.Model):
+    """A NetBox changelog entry of the changed object that a request labelled
+    with its activity (see ChangeRequest.label_target_activity). Only the
+    entry's id is kept, not a database link to NetBox's table, so NetBox can
+    prune its changelog freely."""
+    change_request = models.ForeignKey(
+        to='ChangeRequest',
+        on_delete=models.CASCADE,
+        related_name='log_entries',
+    )
+    object_change_id = models.BigIntegerField()
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['change_request', 'object_change_id'],
+                name='nbca_one_link_per_changelog_entry',
+            ),
+        ]
+
+    def __str__(self):
+        return f'#{self.change_request_id} -> changelog entry {self.object_change_id}'
 
 
 class ChangeRequestApproval(KeepsUserNames, models.Model):

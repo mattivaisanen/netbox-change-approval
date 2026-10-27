@@ -146,6 +146,7 @@
       {% else %}
       <div class="card-body text-muted">{% trans "No field-level changes recorded." %}</div>
       {% endif %}
+      {% include 'netbox_change_approval/inc/revision_changes.html' with changes=revision_changes revision=object.revision padded=True %}
     </div>
     {% if policy_rules %}
     <div class="card">

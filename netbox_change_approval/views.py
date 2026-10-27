@@ -369,6 +369,7 @@ class ChangeRequestView(_AnyLoggedInUserCanView, generic.ObjectView):
             object_missing = model is not None and not model.objects.filter(pk=instance.object_id).exists()
         return {
             'diff_rows': _diff_rows(instance, conflict_fields),
+            'revision_changes': notifications.revision_changes(instance),
             'conflict_labels': [
                 _field_label(instance.content_type.model_class(), f) for f in conflict_fields
             ],
@@ -897,6 +898,7 @@ class InboxView(ConditionalLoginRequiredMixin, View):
             for member in members:
                 # Shown by the row's quick-view toggle.
                 member.quick_rows = _diff_rows(member, names=names)
+                member.revision_changes = notifications.revision_changes(member, names=names)
             sections.append({
                 'key': key,
                 'title': title,
@@ -1065,8 +1067,28 @@ class _VisibleRequestOnly:
         return super().get(request, model, **kwargs)
 
 
-class ChangeRequestChangeLogView(_VisibleRequestOnly, generic.ObjectChangeLogView):
-    pass
+class ChangeRequestChangeLogView(generic.ObjectChangeLogView):
+    """A request mostly labels its object's changelog entries instead of
+    writing its own (ChangeRequest.to_objectchange), so its tab lists those
+    entries too (ChangeRequest.changelog_entries), newest first."""
+    def get(self, request, model, **kwargs):
+        from core.tables import ObjectChangeTable
+        from utilities.views import get_default_template
+
+        change_request = get_object_or_404(ChangeRequest, **kwargs)
+        if not permissions.can_view_change_request(request.user, change_request):
+            raise Http404
+        entries = change_request.changelog_entries().restrict(request.user, 'view').prefetch_related(
+            'user', 'changed_object_type',
+        ).order_by('-time', '-pk')
+        table = ObjectChangeTable(data=entries, orderable=False)
+        table.configure(request)
+        return render(request, 'extras/object_changelog.html', {
+            'object': change_request,
+            'table': table,
+            'base_template': self.base_template or get_default_template(model),
+            'tab': self.tab,
+        })
 
 
 class ChangeRequestJournalView(_VisibleRequestOnly, generic.ObjectJournalView):

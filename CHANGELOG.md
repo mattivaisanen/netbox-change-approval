@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.5.1 (2026-10-27)
+
+Upgrade: run `manage.py migrate` (adds where a change request remembers
+its changelog entries).
+
+### New features
+- A request resubmitted after being sent back, or updated by its submitter
+  while it waits, now shows what changed since the previous revision: one
+  line per field, the earlier value struck through and followed by the new
+  one (e.g. "Position (U) ~~22~~ → 24"). Shown under the request's changes
+  and in the quick view of the dashboard widget and the Approval Inbox.
+
+### Bug fixes
+- A change request's Changelog tab was nearly always empty, because the
+  request records its activity on the changed object's own changelog
+  entries. The tab now lists those entries (submitted, resubmitted, sent
+  back, approved, rejected, ...) together with the request's own, newest
+  first. For requests from earlier versions, entries whose message names
+  the request are shown.
+
 ## 0.5.0 (2026-10-27)
 
 Upgrade: run `manage.py migrate` (adds where the previous revision of a
