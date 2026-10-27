@@ -1,5 +1,5 @@
 {% load helpers i18n %}
-<div data-nbca-themed class="alert alert-warning d-flex align-items-center justify-content-between" role="alert"{% if by_action %} style="border-left: 4px solid {% if change_request.action == 'create' %}var(--tblr-green){% elif change_request.action == 'delete' %}var(--tblr-red){% else %}var(--tblr-blue){% endif %}"{% endif %}>
+<div data-nbca-themed class="alert alert-warning d-flex align-items-center justify-content-between" role="alert"{% if by_action %} style="border-left: 4px solid {% if change_request.action == 'create' %}var(--nbt-action-create, var(--tblr-green)){% elif change_request.action == 'delete' %}var(--nbt-action-delete, var(--tblr-red)){% else %}var(--nbt-action-update, var(--tblr-blue)){% endif %}"{% endif %}>
   <div>
     <i class="mdi mdi-clock-alert-outline"></i>
     <strong>{% trans "Waiting for approval" %}</strong>

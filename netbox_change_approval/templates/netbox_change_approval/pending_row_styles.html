@@ -25,15 +25,16 @@
 
   /* By action (pending_marks.py): a stripe on the left in the action's color
      instead of the yellow outline. Green = new, blue = edit, red = delete,
-     as in NetBox's own change log. */
+     as in NetBox's own change log, or a theme's colors when it sets
+     --nbt-action-*. */
   tr.nbca-pending-create > td, tr.nbca-pending-update > td, tr.nbca-pending-delete > td,
   tr.nbca-pending-create > td:last-child, tr.nbca-pending-update > td:last-child, tr.nbca-pending-delete > td:last-child {
     box-shadow: none;
     border-radius: 0;
   }
-  tr.nbca-pending-create > td:first-child { box-shadow: inset 4px 0 0 0 var(--tblr-green); }
-  tr.nbca-pending-update > td:first-child { box-shadow: inset 4px 0 0 0 var(--tblr-blue); }
-  tr.nbca-pending-delete > td:first-child { box-shadow: inset 4px 0 0 0 var(--tblr-red); }
+  tr.nbca-pending-create > td:first-child { box-shadow: inset 4px 0 0 0 var(--nbt-action-create, var(--tblr-green)); }
+  tr.nbca-pending-update > td:first-child { box-shadow: inset 4px 0 0 0 var(--nbt-action-update, var(--tblr-blue)); }
+  tr.nbca-pending-delete > td:first-child { box-shadow: inset 4px 0 0 0 var(--nbt-action-delete, var(--tblr-red)); }
   tr.nbca-pending-delete > td:not(:first-child):not(.noprint) {
     text-decoration: line-through;
     opacity: .6;
@@ -49,9 +50,9 @@
     vertical-align: -.05em;
   }
   .nbca-chip:hover { opacity: .75; }
-  .nbca-chip-create { color: var(--tblr-green) !important; }
-  .nbca-chip-update { color: var(--tblr-blue) !important; }
-  .nbca-chip-delete { color: var(--tblr-red) !important; }
+  .nbca-chip-create { color: var(--nbt-action-create, var(--tblr-green)) !important; }
+  .nbca-chip-update { color: var(--nbt-action-update, var(--tblr-blue)) !important; }
+  .nbca-chip-delete { color: var(--nbt-action-delete, var(--tblr-red)) !important; }
   tr.nbca-pending-delete .nbca-chip { opacity: 1; }
   .nbca-old { text-decoration: line-through; opacity: .6; margin-right: .25rem; }
   .nbca-new { color: var(--tblr-blue); font-weight: 600; }
