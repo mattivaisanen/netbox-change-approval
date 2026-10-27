@@ -250,7 +250,7 @@ class WebhookMessageTests(TestCase):
         self.assertEqual(lines[4], 'Update manufacturer m1')
         self.assertEqual(lines[5], 'Comment: not now')
         self.assertNotIn('->', text)
-        self.assertEqual(lines[-1], change_request.get_absolute_url())
+        self.assertEqual(lines[-1], f'<p><a href="{change_request.get_absolute_url()}">Open in NetBox</a></p>')
         generic = serialize_for_event(change_request)['message']
         self.assertIn('Change request rejected:', generic)
         self.assertIn('From: Ann Approver', generic)

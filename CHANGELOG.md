@@ -16,7 +16,7 @@ request is kept).
   them, including "retract and edit".
 - Webhook data has a new `message` field: a short ready-to-send notice
   saying who did what, which request (e.g. "Update device sw1"), the
-  comment if any and a link. Works with the plugin's event types and with
+  comment if any and an "Open in NetBox" link (as HTML). Works with the plugin's event types and with
   "Object updated".
 - A request resubmitted after being sent back, or edited by its submitter
   while it waits, now lists what changed since the previous revision in a

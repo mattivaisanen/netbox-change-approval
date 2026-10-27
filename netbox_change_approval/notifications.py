@@ -257,7 +257,7 @@ def message_text(change_request, title, actor, comment=''):
         Update device sw1
         Comment: wrong rack
 
-        https://netbox.example.com/plugins/change-approval/change-requests/12/
+        <p><a href="https://netbox.example.com/plugins/change-approval/change-requests/12/">Open in NetBox</a></p>
     """
     lines = [str(_('You have a notification in NetBox:'))]
     if actor is not None:
@@ -268,7 +268,11 @@ def message_text(change_request, title, actor, comment=''):
     ]
     if comment:
         lines.append(str(_('Comment: {text}')).format(text=comment))
-    lines += ['', absolute_url(change_request.get_absolute_url())]
+    from django.utils.html import format_html
+
+    lines += ['', str(format_html(
+        '<p><a href="{}">{}</a></p>', absolute_url(change_request.get_absolute_url()), _('Open in NetBox'),
+    ))]
     return '\n'.join(lines)
 
 

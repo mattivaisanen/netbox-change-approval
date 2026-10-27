@@ -96,8 +96,11 @@ Change request rejected:
 Update device sw1
 Comment: wrong rack
 
-https://netbox.example.com/plugins/change-approval/change-requests/12/
+<p><a href="https://netbox.example.com/plugins/change-approval/change-requests/12/">Open in NetBox</a></p>
 ```
+
+The last line is an HTML link, so it shows as "Open in NetBox" in an HTML
+e-mail or Teams message. The plain address is in `link`.
 
 On "Object updated" the title follows the status ("New change request",
 "Change request updated", "Change request sent back", ...). An expired
