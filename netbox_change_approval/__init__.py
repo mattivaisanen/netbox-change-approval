@@ -14,7 +14,7 @@ class NetBoxChangeApprovalConfig(PluginConfig):
         'Require approval-group sign-off on changes to NetBox objects before they take '
         'effect, with auto-approval rules and a bypass permission for trusted users.'
     )
-    version = '0.4.1'
+    version = '0.5.0'
     author = 'Matti'
     base_url = 'change-approval'
     # Only NetBox 4.7 is tested. Older releases lack hooks this plugin uses

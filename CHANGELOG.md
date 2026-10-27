@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.5.0 (2026-10-27)
 
 Upgrade: run `manage.py migrate` (adds where the previous revision of a
 request is kept).
