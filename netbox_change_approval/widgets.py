@@ -133,8 +133,7 @@ class ApprovalsWidget(DashboardWidget):
         )
         idle_line = _(random.choice(IDLE_LINES if is_approver else REQUESTER_IDLE_LINES))
         # Field changes for each row's quick view (the arrow), as in the inbox.
-        from . import notifications
-        from .views import _diff_rows, prefetch_display_names
+        from .views import _diff_rows, mark_revision_changes, prefetch_display_names
 
         # Every member of each batch (its quick view lists them all), and each
         # lead (a separate instance when it heads a batch).
@@ -144,8 +143,7 @@ class ApprovalsWidget(DashboardWidget):
         from .titles import attach_titles
         attach_titles(shown)
         for cr in shown:
-            cr.quick_rows = _diff_rows(cr, names=names)
-            cr.revision_changes = notifications.revision_changes(cr, names=names)
+            cr.quick_rows = mark_revision_changes(cr, _diff_rows(cr, names=names), names)
         return render_to_string(self.template_name, {
             'change_requests': rows, 'sent_back': sent_back, 'closed': closed, 'idle_line': idle_line,
             'live_sig': self.signature(rows, sent_back, closed),

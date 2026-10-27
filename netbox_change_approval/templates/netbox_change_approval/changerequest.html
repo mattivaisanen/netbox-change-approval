@@ -134,11 +134,11 @@
           {% if object.action == 'update' %}
             <td class="text-danger">{% if row.old is not None and row.old != '' %}{{ row.old }}{% else %}<span class="text-muted">{% trans "(empty)" %}</span>{% endif %}</td>
             <td class="text-muted px-0"><i class="mdi mdi-arrow-right"></i></td>
-            <td class="text-success">{% if row.new is not None and row.new != '' %}{{ row.new }}{% else %}<span class="text-muted">{% trans "(empty)" %}</span>{% endif %}</td>
+            <td>{% include 'netbox_change_approval/inc/was.html' %}<span class="text-success">{% if row.new is not None and row.new != '' %}{{ row.new }}{% else %}<span class="text-muted">{% trans "(empty)" %}</span>{% endif %}</span></td>
           {% elif object.action == 'create' %}
-            <td>{% if row.new is not None and row.new != '' %}{{ row.new }}{% else %}&mdash;{% endif %}</td>
+            <td>{% include 'netbox_change_approval/inc/was.html' %}{% if row.new is not None and row.new != '' %}{{ row.new }}{% elif row.revised %}<span class="text-muted">{% trans "(empty)" %}</span>{% else %}&mdash;{% endif %}</td>
           {% else %}
-            <td class="text-danger">{% if row.old is not None and row.old != '' %}{{ row.old }}{% else %}&mdash;{% endif %}</td>
+            <td class="text-danger">{% include 'netbox_change_approval/inc/was.html' %}{% if row.old is not None and row.old != '' %}{{ row.old }}{% else %}&mdash;{% endif %}</td>
           {% endif %}
         </tr>
         {% endfor %}
@@ -146,7 +146,7 @@
       {% else %}
       <div class="card-body text-muted">{% trans "No field-level changes recorded." %}</div>
       {% endif %}
-      {% include 'netbox_change_approval/inc/revision_changes.html' with changes=revision_changes revision=object.revision padded=True %}
+      {% include 'netbox_change_approval/inc/revised_note.html' with rows=diff_rows revision=object.revision class="card-body py-2 border-top" %}
     </div>
     {% if policy_rules %}
     <div class="card">

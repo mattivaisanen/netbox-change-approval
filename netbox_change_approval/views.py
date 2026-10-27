@@ -278,6 +278,46 @@ def _raw_diff_rows(change_request, conflict_fields=(), names=None):
     ]
 
 
+def mark_revision_changes(change_request, rows, names=None):
+    """
+    Mark the rows of a revised request whose value changed since the
+    previous revision: row['revised'] is set and row['was'] holds what the
+    previous revision proposed, shown struck through before the value.
+    A field the previous revision had and this one dropped gets a row too.
+    Returns the rows, sorted by field like _diff_rows().
+    """
+    import copy
+
+    if change_request.revision <= 1 or not isinstance(change_request.previous_diff, dict):
+        return rows
+    previous = copy.copy(change_request)
+    previous.diff = change_request.previous_diff
+    try:
+        before = {row['field']: row for row in _diff_rows(previous, names=names)}
+    except Exception:
+        return rows
+    action = change_request.action
+    side = 'old' if action == ActionChoices.DELETE else 'new'
+    now = {row['field']: row for row in rows}
+    for field, row in before.items():
+        if field in now:
+            continue
+        if action == ActionChoices.UPDATE:
+            # Not in this revision: the field stays as it is now.
+            now[field] = {**row, 'new': row['old'], 'conflict': False}
+        else:
+            now[field] = {**row, 'old': None, 'new': None if action == ActionChoices.CREATE else row['new']}
+    for field, row in now.items():
+        if field in before:
+            was = before[field][side]
+        else:
+            was = row['old'] if action == ActionChoices.UPDATE else None
+        if was != row[side]:
+            row['revised'] = True
+            row['was'] = was
+    return [now[field] for field in sorted(now)]
+
+
 @register_model_view(ChangeRequest, 'list', path='', detail=False)
 class ChangeRequestListView(_AnyLoggedInUserCanView, generic.ObjectListView):
     queryset = ChangeRequest.objects.all()
@@ -368,8 +408,7 @@ class ChangeRequestView(_AnyLoggedInUserCanView, generic.ObjectView):
             model = instance.content_type.model_class()
             object_missing = model is not None and not model.objects.filter(pk=instance.object_id).exists()
         return {
-            'diff_rows': _diff_rows(instance, conflict_fields),
-            'revision_changes': notifications.revision_changes(instance),
+            'diff_rows': mark_revision_changes(instance, _diff_rows(instance, conflict_fields)),
             'conflict_labels': [
                 _field_label(instance.content_type.model_class(), f) for f in conflict_fields
             ],
@@ -897,8 +936,7 @@ class InboxView(ConditionalLoginRequiredMixin, View):
             attach_titles(members)
             for member in members:
                 # Shown by the row's quick-view toggle.
-                member.quick_rows = _diff_rows(member, names=names)
-                member.revision_changes = notifications.revision_changes(member, names=names)
+                member.quick_rows = mark_revision_changes(member, _diff_rows(member, names=names), names)
             sections.append({
                 'key': key,
                 'title': title,

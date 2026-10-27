@@ -26,3 +26,10 @@ def short_age(value):
     if not value:
         return ''
     return gettext('%(time)s ago') % {'time': timesince(value, depth=1)}
+
+
+@register.filter
+def has_revised(rows):
+    """Whether any row changed since the previous revision (see
+    views.mark_revision_changes)."""
+    return any(row.get('revised') for row in rows or ())

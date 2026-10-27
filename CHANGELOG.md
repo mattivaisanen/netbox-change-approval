@@ -7,10 +7,12 @@ its changelog entries).
 
 ### New features
 - A request resubmitted after being sent back, or updated by its submitter
-  while it waits, now shows what changed since the previous revision: one
-  line per field, the earlier value struck through and followed by the new
-  one (e.g. "Position (U) ~~22~~ → 24"). Shown under the request's changes
-  and in the quick view of the dashboard widget and the Approval Inbox.
+  while it waits, now shows what changed since the previous revision right
+  in its table of changes: the earlier value struck through, followed by
+  the new one (e.g. Rack: ~~(empty)~~ → R1), with "Edited in revision N"
+  below the table. Fields added or dropped in the new revision are marked
+  too. Shown on the request page and in the quick view of the dashboard
+  widget and the Approval Inbox.
 
 ### Bug fixes
 - A change request's Changelog tab was nearly always empty, because the

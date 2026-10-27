@@ -1,0 +1,1 @@
+{% load i18n nbca_diff %}{# Below a change table: shown when the table marks changes since the previous revision. #}{% if rows|has_revised %}<div class="text-warning small {{ class }}">{% blocktrans with n=revision %}Edited in revision {{ n }}{% endblocktrans %}</div>{% endif %}

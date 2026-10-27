@@ -14,8 +14,7 @@
             {% endif %}
           </div>
         {% endif %}
-        {% include 'netbox_change_approval/inc/quick_diff.html' with rows=member.quick_rows %}
-        {% include 'netbox_change_approval/inc/revision_changes.html' with changes=member.revision_changes revision=member.revision %}
+        {% include 'netbox_change_approval/inc/quick_diff.html' with rows=member.quick_rows revision=member.revision %}
       </div>
     {% endfor %}
   </td>

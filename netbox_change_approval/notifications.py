@@ -205,39 +205,24 @@ def revision_changes(change_request, names=None):
     it was sent back, as [{field, old, new}]: `old` is what the previous
     revision proposed, `new` what this one proposes. [] for a first
     revision. `names`: see views.prefetch_display_names."""
-    import copy
-
     from .models import ActionChoices
-    from .views import _diff_rows
+    from .views import _diff_rows, mark_revision_changes
 
-    if change_request.revision <= 1 or not isinstance(change_request.previous_diff, dict):
+    if change_request.revision <= 1:
         return []
-    previous = copy.copy(change_request)
-    previous.diff = change_request.previous_diff
     try:
-        before = {row['field']: row for row in _diff_rows(previous, names=names)}
-        now = {row['field']: row for row in _diff_rows(change_request, names=names)}
+        rows = mark_revision_changes(change_request, _diff_rows(change_request, names=names), names)
     except Exception:
         return []
     side = 'old' if change_request.action == ActionChoices.DELETE else 'new'
 
-    def proposed(rows, other, field):
-        if field in rows:
-            return rows[field][side]
-        # Not in this revision: an update leaves the field as it is now.
-        if change_request.action == ActionChoices.UPDATE:
-            return other[field]['old']
-        return None
+    def text(value):
+        return None if value is None else str(value)
 
-    result = []
-    for field in sorted(set(before) | set(now)):
-        old, new = proposed(before, now, field), proposed(now, before, field)
-        if old != new:
-            label = (now.get(field) or before[field])['label']
-            result.append({
-                'field': str(label), 'old': None if old is None else str(old), 'new': None if new is None else str(new),
-            })
-    return result
+    return [
+        {'field': str(row['label']), 'old': text(row['was']), 'new': text(row[side])}
+        for row in rows if row.get('revised')
+    ]
 
 
 def _object_type_name(change_request):

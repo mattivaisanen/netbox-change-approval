@@ -13,9 +13,9 @@ from ..widgets import ApprovalsWidget
 
 class RevisedRequestDiffTests(TestCase):
     """A revised request (resubmitted after Send back, or updated while
-    waiting) shows its changes, plus what changed since the revision before
-    (old value struck through), on the request page and in the dashboard
-    widget's quick view."""
+    waiting) shows its changes; a value changed since the revision before
+    shows the earlier one struck through in front of it, on the request page
+    and in the dashboard widget's quick view."""
 
     @classmethod
     def setUpTestData(cls):
@@ -53,17 +53,17 @@ class RevisedRequestDiffTests(TestCase):
         self.assertEqual(change_request.revision, 2)
         self.assertEqual([(r['field'], str(r['new'])) for r in _diff_rows(change_request)], [('position', '26')])
 
-        # Request page: full changes, plus the old revision's value struck through.
+        # Request page: in the Requested cell, U24 struck through, then 26.
         self.client.force_login(self.admin)
         page = self.client.get(change_request.get_absolute_url()).content.decode()
         self.assertNotIn('No field-level changes recorded', page)
-        self.assertRegex(page, r'(?s)Since revision 1.*<del class="nbca-was[^"]*">24</del>.*26')
+        self.assertRegex(page, r'(?s)<del class="nbca-was[^"]*">24</del>.*?26.*Edited in revision 2')
 
         # Dashboard widget's quick view for the approver: the same line.
         request = RequestFactory().get('/')
         request.user = self.admin
         html = ApprovalsWidget().render(request)
-        self.assertRegex(html, r'(?s)<del class="nbca-was[^"]*">24</del>.*26')
+        self.assertRegex(html, r'(?s)<del class="nbca-was[^"]*">24</del>.*?26.*Edited in revision 2')
 
     def test_resubmit_after_send_back(self):
         first = self._move(24)
@@ -74,3 +74,30 @@ class RevisedRequestDiffTests(TestCase):
     def test_update_while_waiting(self):
         first = self._move(24)
         self._check(self._move(26, amend.AMEND_PARAM, first.pk))
+
+    def test_fields_added_and_dropped_between_revisions(self):
+        from django.contrib.contenttypes.models import ContentType
+
+        from ..models import ActionChoices
+        from ..views import mark_revision_changes
+
+        def rows(action, previous_diff, diff):
+            change_request = ChangeRequest(
+                content_type=ContentType.objects.get_for_model(Device), object_id=self.device.pk,
+                action=action, revision=2, previous_diff=previous_diff, diff=diff,
+            )
+            return {
+                row['field']: (row['was'], row['new'])
+                for row in mark_revision_changes(change_request, _diff_rows(change_request)) if row.get('revised')
+            }
+
+        # New object: rack added in revision 2, serial dropped.
+        self.assertEqual(
+            rows(ActionChoices.CREATE, {'name': 'sw2', 'serial': 'X1'}, {'name': 'sw2', 'rack_id': self.rack.pk}),
+            {'rack_id': (None, 'R1'), 'serial': ('X1', None)},
+        )
+        # Edit: the position change was dropped, so it stays at 22.
+        self.assertEqual(
+            rows(ActionChoices.UPDATE, {'position': {'old': 22, 'new': 24}}, {'name': {'old': 'sw1', 'new': 'sw9'}}),
+            {'position': (24, 22), 'name': ('sw1', 'sw9')},
+        )

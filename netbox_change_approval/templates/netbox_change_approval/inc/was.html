@@ -1,0 +1,1 @@
+{% load i18n nbca_diff %}{# What the previous revision proposed for this field, struck through, before the current value. #}{% if row.revised %}<del class="nbca-was text-warning">{% if row.was|is_blank %}{% trans "(empty)" %}{% else %}{{ row.was }}{% endif %}</del> <i class="mdi mdi-arrow-right text-muted"></i> {% endif %}
