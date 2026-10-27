@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+### New features
+- Adding a comment to a change request now also runs Event Rules on
+  NetBox's "Object updated", so a webhook on that event hears about
+  comments. Its data names the submitter and the approver group (except the
+  comment's author) in `recipients` and `recipient_emails`, and has the
+  comment in the new `last_comment` field (author with e-mail, text, time).
+- New event type "Change request retracted": tells the approver group's
+  webhooks when the submitter takes back a request that was waiting for
+  them, including "retract and edit".
+
+### Bug fixes
+- Webhooks for retracted requests, and for requests the submitter took
+  back to edit (shown as "sent back"), listed nobody in `recipients` and
+  had an empty `recipient_emails`. They now list the approver group with
+  their e-mail addresses.
+
 ### Improvements
 - The README now has a short "Uninstalling" section with the steps in
   order: decide pending requests, run `prepare_uninstall` (try

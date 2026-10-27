@@ -41,12 +41,16 @@ Two ways, both on **Operations → Event Rules → Add**, object type
   | Change request rejected | the submitter |
   | Change request sent back to you | the submitter |
   | Change request expired | the submitter |
+  | Change request retracted | the approver group, when the submitter takes back a waiting request (also "retract and edit") |
 
 - **NetBox's "Object created" / "Object updated":** fire on every change to
   a request. Their data is the change request itself, with `recipients`
   worked out from its status (the approver group while it waits, the
-  submitter once it's decided). Use these if you already have such a rule;
-  they carry no comment events and no ready message text.
+  submitter once it's decided, the approver group again if the submitter
+  retracts it). A new comment fires "Object updated" too, with `recipients`
+  being the submitter and the approver group (except the author) and the
+  comment in `last_comment`. Use these if you already have such a rule; they
+  carry no ready message text.
 
 ## 3. What the data contains
 
@@ -67,6 +71,7 @@ Fields your template can use as `{{ data.<field> }}`:
 | `approver_group`, `approvers` | ✓ | `approver_group` | `Change Approvers` |
 | `recipients` | ✓ | ✓ | `[{"username": "alice", "email": "alice@example.com", ...}]` |
 | `recipient_emails` | ✓ | ✓ | `alice@example.com;bob@example.com` |
+| `last_comment` | `comment` | ✓ | `{"author": {"username": "bob", "email": "bob@example.com", ...}, "text": "why this VLAN?", "created": "..."}` |
 
 People with no e-mail address in NetBox are listed in `recipients` but left
 out of `recipient_emails`. Set e-mail addresses under **Admin → Users**.

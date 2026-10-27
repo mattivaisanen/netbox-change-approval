@@ -124,3 +124,95 @@ class WebhookDataTests(TestCase):
         generic = json.loads(hook.render_body({'event': 'updated', 'data': serialize_for_event(change_request)}))
         self.assertEqual(generic['event'], 'updated')
         self.assertEqual(len(generic['recipients']), 2)
+
+
+class WebhookEmailsAndCommentsTests(TestCase):
+    """Sent-back and retracted requests name who should hear about them, with
+    e-mail addresses, and a new comment runs "Object updated" Event Rules."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.approvers, _ = Group.objects.get_or_create(name='Change Approvers')
+        cls.alice = User.objects.create(username='alice', email='alice@example.com')
+        cls.alice.groups.add(cls.approvers)
+        cls.submitter = User.objects.create(username='sub', email='sub@example.com')
+
+    def _request(self, slug):
+        obj = Manufacturer.objects.create(name=slug, slug=slug)
+        obj = Manufacturer.objects.get(pk=obj.pk)
+        obj.description = 'changed'
+        return gating.gate(obj, ActionChoices.UPDATE, fake_request(self.submitter))
+
+    def _fired(self, fire, event_type):
+        return [c for c in fire.call_args_list if c.args[1] == event_type]
+
+    def test_sent_back_lists_submitter_email(self):
+        from unittest import mock
+
+        from .. import notifications
+
+        change_request = self._request('sb')
+        with mock.patch.object(notifications, 'fire_event') as fire, self.captureOnCommitCallbacks(execute=True):
+            change_request.send_back(self.alice, 'use U20')
+        data = serialize_for_event(ChangeRequest.objects.get(pk=change_request.pk))
+        self.assertEqual(data['recipient_emails'], 'sub@example.com')
+        self.assertEqual(data['decided_by']['email'], 'alice@example.com')
+        (call,) = self._fired(fire, notifications.SENT_BACK)
+        self.assertEqual([u.email for u in call.args[2]], ['sub@example.com'])
+
+    def test_retracted_tells_approvers(self):
+        from unittest import mock
+
+        from .. import notifications
+
+        change_request = self._request('rt')
+        with mock.patch.object(notifications, 'fire_event') as fire, self.captureOnCommitCallbacks(execute=True):
+            change_request.retract(self.submitter)
+        data = serialize_for_event(ChangeRequest.objects.get(pk=change_request.pk))
+        self.assertEqual(data['recipient_emails'], 'alice@example.com')
+        self.assertEqual(data['submitted_by']['email'], 'sub@example.com')
+        (call,) = self._fired(fire, notifications.RETRACTED)
+        self.assertEqual([u.email for u in call.args[2]], ['alice@example.com'])
+        self.assertEqual(call.kwargs['actor'], self.submitter)
+        plugin_data = notifications.event_data(ChangeRequest.objects.get(pk=change_request.pk),
+                                               notifications.RETRACTED, call.args[2], actor=self.submitter)
+        self.assertEqual(plugin_data['recipient_emails'], 'alice@example.com')
+        self.assertEqual(plugin_data['by']['email'], 'sub@example.com')
+
+    def test_comment_runs_object_updated_rules(self):
+        from unittest import mock
+
+        from ..models import ChangeRequestComment
+        from .. import notifications
+
+        change_request = self._request('cm')
+        with mock.patch('extras.events.flush_events') as flush, self.captureOnCommitCallbacks(execute=True):
+            comment = ChangeRequestComment.objects.create(change_request=change_request, author=self.alice,
+                                                          text='why this vendor?')
+            notifications.comment_added(comment)
+        events = [ctx for c in flush.call_args_list for ctx in c.args[0]]
+        updated = [e for e in events if e['event_type'] == 'object_updated']
+        self.assertEqual(len(updated), 1)
+        data = updated[0]['data']
+        self.assertEqual(data['recipient_emails'], 'sub@example.com')
+        self.assertEqual(data['last_comment']['text'], 'why this vendor?')
+        self.assertEqual(data['last_comment']['author']['email'], 'alice@example.com')
+        commented = [e for e in events if e['event_type'] == notifications.COMMENTED]
+        self.assertEqual(commented[0]['data']['recipient_emails'], 'sub@example.com')
+
+    def test_retract_to_edit_tells_approvers(self):
+        """"Retract and edit" sends the request back to its own submitter:
+        its webhooks used to list nobody."""
+        from unittest import mock
+
+        from .. import notifications
+
+        change_request = self._request('re')
+        with mock.patch.object(notifications, 'fire_event') as fire, self.captureOnCommitCallbacks(execute=True):
+            change_request.send_back(self.submitter, '')
+        data = serialize_for_event(ChangeRequest.objects.get(pk=change_request.pk))
+        self.assertEqual(data['status'], 'returned')
+        self.assertEqual(data['recipient_emails'], 'alice@example.com')
+        (call,) = self._fired(fire, notifications.RETRACTED)
+        self.assertEqual([u.email for u in call.args[2]], ['alice@example.com'])
+        self.assertFalse(self._fired(fire, notifications.SENT_BACK))

@@ -393,6 +393,7 @@ notifications (the bell in the top bar) work out of the box:
 | Sent back for revision | submitter | `… · sent back by bob: use U20` |
 | Expired | submitter | `… · nobody decided it in time` |
 | New comment | submitter and approver group, except the author | `… · bob: why this VLAN?` |
+| Retracted (webhooks only, no bell) | approver group | `… · retracted by alice` |
 
 Each notification in the bell also says who did it ("By: bob"), and the
 Notifications page has a "By" column. This covers NetBox's own notifications

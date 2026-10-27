@@ -29,6 +29,7 @@ class ChangeRequestSerializer(serializers.ModelSerializer):
     link = serializers.SerializerMethodField()
     recipients = serializers.SerializerMethodField()
     recipient_emails = serializers.SerializerMethodField()
+    last_comment = serializers.SerializerMethodField()
 
     class Meta:
         model = ChangeRequest
@@ -37,6 +38,7 @@ class ChangeRequestSerializer(serializers.ModelSerializer):
             'auto_approved', 'auto_approved_by_rule', 'diff', 'revision', 'batch_id', 'submitted_by', 'submitted_at', 'approver_group',
             'required_approvals', 'reason', 'decided_by', 'decided_at', 'decision_comment', 'applied_at', 'expires_at',
             'created', 'last_updated', 'link', 'recipients', 'recipient_emails',
+            'last_comment',
         )
         read_only_fields = fields
 
@@ -61,6 +63,12 @@ class ChangeRequestSerializer(serializers.ModelSerializer):
 
     def get_recipient_emails(self, obj):
         return ';'.join(u.email for u in self._recipients(obj) if u.email)
+
+    def get_last_comment(self, obj):
+        comment = obj.comments.order_by('-created', '-pk').first() if obj.pk else None
+        if comment is None:
+            return None
+        return {'author': _user(comment.author_label), 'text': comment.text, 'created': comment.created.isoformat()}
 
     def get_object_type(self, obj):
         return f'{obj.content_type.app_label}.{obj.content_type.model}' if obj.content_type_id else None

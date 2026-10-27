@@ -11,6 +11,13 @@ approver group (stand-ins in place of away members, see absence.py).
 - Approved, rejected, sent back or expired: the submitter (not when they did
   it themselves, e.g. retracting to edit).
 - New comment: the submitter and the approver group, except whoever wrote it.
+- Retracted while waiting (also "retract and edit", which sends the request
+  back to its own submitter): the approver group, except the submitter (a
+  NetBox event only, no bell notification: their "needs approval" one just
+  goes).
+
+Comments also fire NetBox's own "Object updated" event on the request, so an
+Event Rule on "Object updated" hears about them too (with `last_comment`).
 
 Each notification names the request, the object and who did what ("#12
 Update device sw1 · rejected by bob: wrong rack"). Each also fires a NetBox
@@ -44,6 +51,7 @@ COMMENTED = 'netbox_change_approval.commented'
 PARTLY_APPROVED = 'netbox_change_approval.partly_approved'
 SCHEDULED = 'netbox_change_approval.scheduled'
 SCHEDULE_FAILED = 'netbox_change_approval.schedule_failed'
+RETRACTED = 'netbox_change_approval.retracted'
 
 
 def register_event_types():
@@ -70,6 +78,7 @@ def register_event_types():
         (PARTLY_APPROVED, _('Change request approved, needs more approvers'), EVENT_TYPE_KIND_INFO),
         (SCHEDULED, _('Change request approved, scheduled'), EVENT_TYPE_KIND_SUCCESS),
         (SCHEDULE_FAILED, _('Scheduled change could not be applied'), EVENT_TYPE_KIND_DANGER),
+        (RETRACTED, _('Change request retracted'), EVENT_TYPE_KIND_INFO),
     ):
         if name not in registry['event_types']:
             TranslatedEventType(name, text, kind=kind).register()
@@ -112,19 +121,21 @@ def absolute_url(path):
 def who_to_notify(change_request):
     """
     The people a change request concerns right now, for webhooks on NetBox's
-    own "object created/updated" events: its approver group while it waits,
-    its submitter once it is decided. [] when nobody needs to hear (an
-    auto-approved request, a draft change set, a decision the submitter made
-    themselves).
+    own "object created/updated" events: its approver group while it waits
+    or once its submitter withdraws it, its submitter once it is decided. []
+    when nobody needs to hear (an auto-approved request, a draft change set,
+    a decision the submitter made themselves).
     """
     if change_request.auto_approved:
         return []
+    if _withdrawn(change_request):
+        return _approvers_except_submitter(change_request)
     if change_request.status == StatusChoices.PENDING:
         from .changesets import is_draft
 
         if is_draft(change_request):
             return []
-        return [u for u in _approvers(change_request) if u.pk != change_request.submitted_by_id]
+        return _approvers_except_submitter(change_request)
     submitter = change_request.submitted_by
     if submitter is None or change_request.decided_by_id == submitter.pk:
         return []
@@ -240,6 +251,19 @@ def _said(who, text, limit=120):
     return f'{who}: {text}' if text else str(who)
 
 
+def _withdrawn(change_request):
+    """Its submitter took it back: retracted, or retracted to edit (sent
+    back to themselves, see views.ChangeRequestRetractView)."""
+    if change_request.status == StatusChoices.RETRACTED:
+        return True
+    return (change_request.status == StatusChoices.RETURNED and change_request.submitted_by_id is not None
+            and change_request.decided_by_id == change_request.submitted_by_id)
+
+
+def _approvers_except_submitter(change_request):
+    return [u for u in _approvers(change_request) if u.pk != change_request.submitted_by_id]
+
+
 def _approvers(change_request):
     if change_request.approver_group_id is None:
         from .gating import _default_approver_group
@@ -290,6 +314,18 @@ def _after_commit(pk, old_status):
         _clear_approver_notifications(change_request)
 
     if not _is_batch_lead(change_request, status):
+        return
+
+    if _withdrawn(change_request):
+        # Approvers had it waiting: tell their webhooks it is gone. A request
+        # sent back first was no longer waiting on them.
+        from .changesets import is_draft
+        if old_status == StatusChoices.PENDING and not change_request.auto_approved and not is_draft(change_request):
+            recipients = [u for u in _approvers_except_submitter(change_request) if u.is_active]
+            if recipients:
+                who = change_request.decided_by or _('the submitter')
+                fire_event(change_request, RETRACTED, recipients,
+                           detail=str(_('retracted by {who}').format(who=who)), actor=change_request.decided_by)
         return
 
     if status == StatusChoices.PENDING:
@@ -357,7 +393,39 @@ def comment_added(comment):
         from .models import ChangeRequestComment
         if ChangeRequestComment.objects.filter(pk=pk).exists():
             notify(recipients, change_request, COMMENTED, detail=detail, actor=comment.author, comment=comment.text)
+            fire_object_updated(change_request, recipients, actor=comment.author)
     transaction.on_commit(send)
+
+
+def fire_object_updated(change_request, recipients, actor=None):
+    """Run Event Rules on NetBox's own "Object updated" for `change_request`
+    with `recipients` in its data, for a change NetBox doesn't see as an
+    edit of the request itself (a new comment)."""
+    import logging
+
+    try:
+        from core.events import OBJECT_UPDATED
+        from core.models import ObjectType
+        from extras.events import EventContext, flush_events, serialize_for_event
+
+        current = ChangeRequest.objects.select_related('submitted_by', 'decided_by', 'approver_group').get(
+            pk=change_request.pk,
+        )
+        current._nbca_recipients = [u for u in recipients if u is not None and u.is_active]
+        context = EventContext(
+            object_type=ObjectType.objects.get_for_model(ChangeRequest),
+            object_id=current.pk,
+            object=current,
+            event_type=OBJECT_UPDATED,
+            snapshots=None,
+            user=actor or current.submitted_by,
+            data=serialize_for_event(current),
+        )
+        flush_events([context])
+    except Exception:
+        logging.getLogger('netbox_change_approval.notifications').exception(
+            'Event rules for change request #%s failed', change_request.pk,
+        )
 
 
 def scheduled(change_request, user, when):
