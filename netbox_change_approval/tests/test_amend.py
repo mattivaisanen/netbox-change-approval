@@ -55,6 +55,9 @@ class AmendOwnRequestTests(TestCase):
         self.assertEqual(change_request.status, StatusChoices.PENDING)
         self.assertEqual(change_request.revision, 2)
         self.assertEqual(change_request.diff['description'], {'old': 'original', 'new': 'second try'})
+        from .. import notifications
+        self.assertEqual(notifications.revision_changes(change_request),
+                         [{'field': 'description', 'old': 'first try', 'new': 'second try'}])
         self.assertEqual(change_request.current_approvals().count(), 0)
         self.assertEqual(ChangeRequest.objects.filter(object_id=self.vendor.pk).count(), 1)
         self.vendor.refresh_from_db()

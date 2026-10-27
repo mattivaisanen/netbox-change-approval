@@ -18,8 +18,8 @@ request is kept).
 - Webhook data has a new `message` field: ready-to-send text saying who did
   what, the request, its changes (field: old -> new), the comment and a
   link. Works with the plugin's event types and with "Object updated".
-- A request resubmitted after being sent back now shows what changed since
-  the previous revision: "Changes since revision N" in the webhook message
+- A request resubmitted after being sent back, or edited by its submitter
+  while it waits, now shows what changed since the previous revision: "Changes since revision N" in the webhook message
   and a new `revision_changes` field.
 
 ### Bug fixes

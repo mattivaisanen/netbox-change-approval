@@ -98,7 +98,8 @@ https://netbox.example.com/plugins/change-approval/change-requests/12/
 ```
 
 For a comment, the changes are left out and the comment follows "From". A
-resubmitted request adds "Changes since revision 1:" with each field the
+request resubmitted after a send-back, or edited by its submitter while it
+waits, adds "Changes since revision 1:" with each field the
 submitter changed, as the previous revision had it -> as it is now. On
 "Object updated" the title follows the status ("New change request",
 "Change request updated", "Change request sent back", ...).

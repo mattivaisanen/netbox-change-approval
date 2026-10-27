@@ -17,7 +17,7 @@ class Migration(migrations.Migration):
             name='previous_diff',
             field=models.JSONField(
                 blank=True, editable=False, null=True,
-                help_text='The changes as the previous revision proposed them, before it was sent back.',
+                help_text='The changes as the previous revision proposed them.',
             ),
         ),
     ]

@@ -102,6 +102,7 @@ def amend(change_request, instance, request):
 
     previous_diff = change_request.diff
     change_request.diff = diff
+    change_request.previous_diff = previous_diff
     change_request.object_repr = str(instance)[:300]
     change_request.revision += 1
     from . import reasons

@@ -476,7 +476,7 @@ class ChangeRequest(KeepsUserNames, NetBoxModel):
     )
     previous_diff = models.JSONField(
         null=True, blank=True, editable=False,
-        help_text=_('The changes as the previous revision proposed them, before it was sent back.'),
+        help_text=_('The changes as the previous revision proposed them.'),
     )
     # False while a rejection hasn't been opened by its submitter yet; drives
     # the inbox count. True for everything else.
