@@ -216,3 +216,67 @@ class WebhookEmailsAndCommentsTests(TestCase):
         (call,) = self._fired(fire, notifications.RETRACTED)
         self.assertEqual([u.email for u in call.args[2]], ['alice@example.com'])
         self.assertFalse(self._fired(fire, notifications.SENT_BACK))
+
+
+class WebhookMessageTests(TestCase):
+    """Webhook data has a ready-to-send `message`: who, what happened, the
+    request, its changes and any comment."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.approvers, _ = Group.objects.get_or_create(name='Change Approvers')
+        cls.approver = User.objects.create(username='approver1', first_name='Ann', last_name='Approver')
+        cls.approver.groups.add(cls.approvers)
+        cls.submitter = User.objects.create(username='sub')
+
+    def _request(self, slug):
+        obj = Manufacturer.objects.create(name=slug, slug=slug, description='old text')
+        obj = Manufacturer.objects.get(pk=obj.pk)
+        obj.description = 'new text'
+        return gating.gate(obj, ActionChoices.UPDATE, fake_request(self.submitter))
+
+    def test_rejected_message(self):
+        from .. import notifications
+
+        change_request = self._request('m1')
+        change_request.reject(self.approver, 'not now')
+        change_request = ChangeRequest.objects.get(pk=change_request.pk)
+        text = notifications.event_data(change_request, notifications.REJECTED, [self.submitter],
+                                        actor=self.approver, comment='not now')['message']
+        lines = text.split('\n')
+        self.assertEqual(lines[0], 'You have a notification in NetBox:')
+        self.assertEqual(lines[1], 'From: Ann Approver')
+        self.assertEqual(lines[3], 'Change request rejected:')
+        self.assertEqual(lines[4], 'Update m1')
+        self.assertIn('Description: old text -> new text', lines)
+        self.assertIn('Comment: not now', lines)
+        self.assertEqual(lines[-1], change_request.get_absolute_url())
+        generic = serialize_for_event(change_request)['message']
+        self.assertIn('Change request rejected:', generic)
+        self.assertIn('From: Ann Approver', generic)
+        self.assertIn('Description: old text -> new text', generic)
+
+    def test_pending_message_from_submitter(self):
+        text = serialize_for_event(self._request('m2'))['message']
+        self.assertIn('From: sub', text)
+        self.assertIn('New change request:', text)
+
+    def test_comment_message(self):
+        from unittest import mock
+
+        from ..models import ChangeRequestComment
+        from .. import notifications
+
+        change_request = self._request('m3')
+        with mock.patch('extras.events.flush_events') as flush, self.captureOnCommitCallbacks(execute=True):
+            comment = ChangeRequestComment.objects.create(change_request=change_request, author=self.approver,
+                                                          text='why?')
+            notifications.comment_added(comment)
+        events = {ctx['event_type']: ctx for c in flush.call_args_list for ctx in c.args[0]}
+        for event_type, title in (('object_updated', 'New comment on a change request:'),
+                                  (notifications.COMMENTED, 'New comment on change request:')):
+            text = events[event_type]['data']['message']
+            self.assertIn(title, text)
+            self.assertIn('From: Ann Approver', text)
+            self.assertIn('Comment: why?', text)
+            self.assertNotIn('->', text)

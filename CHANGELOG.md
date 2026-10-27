@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+Upgrade: run `manage.py migrate` (adds where the previous revision of a
+request is kept).
+
 ### New features
 - Adding a comment to a change request now also runs Event Rules on
   NetBox's "Object updated", so a webhook on that event hears about
@@ -11,6 +14,13 @@
 - New event type "Change request retracted": tells the approver group's
   webhooks when the submitter takes back a request that was waiting for
   them, including "retract and edit".
+
+- Webhook data has a new `message` field: ready-to-send text saying who did
+  what, the request, its changes (field: old -> new), the comment and a
+  link. Works with the plugin's event types and with "Object updated".
+- A request resubmitted after being sent back now shows what changed since
+  the previous revision: "Changes since revision N" in the webhook message
+  and a new `revision_changes` field.
 
 ### Bug fixes
 - Webhooks for retracted requests, and for requests the submitter took

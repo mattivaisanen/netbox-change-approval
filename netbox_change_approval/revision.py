@@ -70,6 +70,7 @@ def adopt_sent_back(change_request):
     change_request.sent_back_by_id = previous.decided_by_id
     change_request.sent_back_by_name = previous.decided_by_name
     change_request.sent_back_comment = previous.decision_comment
+    change_request.previous_diff = previous.diff
     change_request.decided_by = None
     change_request.decided_by_name = ''
     change_request.decided_at = None

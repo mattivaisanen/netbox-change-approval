@@ -244,3 +244,40 @@ class SendBackViewTests(TestCase):
 
         self.change_request.refresh_from_db()
         self.assertEqual(self.change_request.status, StatusChoices.RETRACTED)
+
+
+class RevisionChangesTests(TestCase):
+    """A resubmitted request shows what changed since the revision that was
+    sent back, in webhook data and the webhook message."""
+    setUpTestData = classmethod(SendBackModelTests.setUpTestData.__func__)
+    _submit_update = SendBackModelTests._submit_update
+
+    def test_resubmit_lists_changes_since_previous_revision(self):
+        from extras.events import serialize_for_event
+
+        from .. import notifications
+
+        obj = Manufacturer.objects.create(name='Acme', slug='acme')
+        first = self._submit_update(obj, self.alice, 'first try')
+        self.assertEqual(notifications.revision_changes(first), [])
+        first.send_back(self.approver, 'Use the full company name')
+        second = ChangeRequest.objects.get(pk=self._submit_update(obj, self.alice, 'second try').pk)
+
+        self.assertEqual(second.previous_diff['description']['new'], 'first try')
+        self.assertEqual(notifications.revision_changes(second),
+                         [{'field': 'description', 'old': 'first try', 'new': 'second try'}])
+        message = notifications.event_data(second, notifications.NEEDS_APPROVAL, [self.approver],
+                                           actor=self.alice)['message']
+        self.assertIn('Changes since revision 1:\nDescription: first try -> second try', message)
+        data = serialize_for_event(second)
+        self.assertIn('Changes since revision 1:', data['message'])
+        self.assertEqual(data['revision_changes'][0]['new'], 'second try')
+
+    def test_unchanged_resubmit_lists_nothing(self):
+        from .. import notifications
+
+        obj = Manufacturer.objects.create(name='Acme', slug='acme')
+        first = self._submit_update(obj, self.alice, 'same')
+        first.send_back(self.approver, 'Think again')
+        second = ChangeRequest.objects.get(pk=self._submit_update(obj, self.alice, 'same').pk)
+        self.assertEqual(notifications.revision_changes(second), [])

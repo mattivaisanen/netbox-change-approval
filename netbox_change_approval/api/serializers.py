@@ -30,6 +30,8 @@ class ChangeRequestSerializer(serializers.ModelSerializer):
     recipients = serializers.SerializerMethodField()
     recipient_emails = serializers.SerializerMethodField()
     last_comment = serializers.SerializerMethodField()
+    message = serializers.SerializerMethodField()
+    revision_changes = serializers.SerializerMethodField()
 
     class Meta:
         model = ChangeRequest
@@ -38,7 +40,7 @@ class ChangeRequestSerializer(serializers.ModelSerializer):
             'auto_approved', 'auto_approved_by_rule', 'diff', 'revision', 'batch_id', 'submitted_by', 'submitted_at', 'approver_group',
             'required_approvals', 'reason', 'decided_by', 'decided_at', 'decision_comment', 'applied_at', 'expires_at',
             'created', 'last_updated', 'link', 'recipients', 'recipient_emails',
-            'last_comment',
+            'last_comment', 'message', 'revision_changes',
         )
         read_only_fields = fields
 
@@ -63,6 +65,33 @@ class ChangeRequestSerializer(serializers.ModelSerializer):
 
     def get_recipient_emails(self, obj):
         return ';'.join(u.email for u in self._recipients(obj) if u.email)
+
+    def get_message(self, obj):
+        """Ready-to-send text, see notifications.message_text(). A new
+        comment sets its own (notifications.fire_object_updated())."""
+        if getattr(obj, '_nbca_message', None):
+            return obj._nbca_message
+        from django.utils.translation import gettext as _
+
+        from ..models import StatusChoices
+        from ..notifications import changes_of, message_text, revision_changes
+
+        since_previous = None
+        if obj.status == StatusChoices.PENDING:
+            actor = obj.submitted_by_label
+            title = _('Change request updated') if obj.revision > 1 else _('New change request')
+            comment = ''
+            since_previous = revision_changes(obj)
+        else:
+            actor = obj.decided_by_label
+            title = _('Change request {status}').format(status=obj.get_status_display().lower())
+            comment = obj.decision_comment
+        return message_text(obj, str(title), actor, changes=changes_of(obj), comment=comment,
+                            since_previous=since_previous)
+
+    def get_revision_changes(self, obj):
+        from ..notifications import revision_changes
+        return revision_changes(obj)
 
     def get_last_comment(self, obj):
         comment = obj.comments.order_by('-created', '-pk').first() if obj.pk else None

@@ -38,6 +38,7 @@ Sent after the database transaction commits, so a change that is rolled back
 """
 from django.db import transaction
 from django.db.models.signals import post_save
+from django.utils.text import capfirst
 from django.utils.translation import gettext_lazy as _
 
 from .models import ChangeRequest, StatusChoices
@@ -154,18 +155,16 @@ def event_data(change_request, event_type, recipients, detail='', actor=None, co
     """
     from netbox.registry import registry
 
-    from .views import _diff_rows
-
     event = registry['event_types'].get(event_type)
-    try:
-        changes = [
-            {'field': str(row['label']), 'old': None if row['old'] is None else str(row['old']),
-             'new': None if row['new'] is None else str(row['new'])}
-            for row in _diff_rows(change_request)
-        ]
-    except Exception:
-        changes = []
+    changes = changes_of(change_request)
+    since_previous = revision_changes(change_request)
+    title = str(event) if event else event_type
     return {
+        'message': message_text(
+            change_request, title, actor, changes=None if event_type == COMMENTED else changes, comment=comment,
+            since_previous=since_previous if event_type == NEEDS_APPROVAL else None,
+        ),
+        'revision_changes': since_previous,
         'id': change_request.pk,
         'display': _label(change_request),
         'url': change_request.get_absolute_url(),
@@ -190,6 +189,98 @@ def event_data(change_request, event_type, recipients, detail='', actor=None, co
         'recipients': [_person(u) for u in recipients],
         'recipient_emails': ';'.join(u.email for u in recipients if u.email),
     }
+
+
+def changes_of(change_request):
+    """The request's changes as [{field, old, new}], all text."""
+    from .views import _diff_rows
+
+    try:
+        return [
+            {'field': str(row['label']), 'old': None if row['old'] is None else str(row['old']),
+             'new': None if row['new'] is None else str(row['new'])}
+            for row in _diff_rows(change_request)
+        ]
+    except Exception:
+        return []
+
+
+def revision_changes(change_request):
+    """What a resubmitted request changes compared to the revision before
+    it was sent back, as [{field, old, new}]: `old` is what the previous
+    revision proposed, `new` what this one proposes. [] for a first
+    revision."""
+    import copy
+
+    from .models import ActionChoices
+    from .views import _diff_rows
+
+    if change_request.revision <= 1 or not isinstance(change_request.previous_diff, dict):
+        return []
+    previous = copy.copy(change_request)
+    previous.diff = change_request.previous_diff
+    try:
+        before = {row['field']: row for row in _diff_rows(previous)}
+        now = {row['field']: row for row in _diff_rows(change_request)}
+    except Exception:
+        return []
+    side = 'old' if change_request.action == ActionChoices.DELETE else 'new'
+
+    def proposed(rows, other, field):
+        if field in rows:
+            return rows[field][side]
+        # Not in this revision: an update leaves the field as it is now.
+        if change_request.action == ActionChoices.UPDATE:
+            return other[field]['old']
+        return None
+
+    result = []
+    for field in sorted(set(before) | set(now)):
+        old, new = proposed(before, now, field), proposed(now, before, field)
+        if old != new:
+            label = (now.get(field) or before[field])['label']
+            result.append({
+                'field': str(label), 'old': None if old is None else str(old), 'new': None if new is None else str(new),
+            })
+    return result
+
+
+def message_text(change_request, title, actor, changes=None, comment='', since_previous=None):
+    """
+    A ready-to-send plain-text message for webhooks ({{ data.message }}):
+
+        You have a notification in NetBox:
+        From: alice
+
+        Change request rejected:
+        Update device sw1
+        Rack: R1 -> R2
+        Comment: wrong rack
+
+        https://netbox.example.com/plugins/change-approval/change-requests/12/
+    """
+    empty = str(_('(empty)'))
+    lines = [str(_('You have a notification in NetBox:'))]
+    if actor is not None:
+        lines.append(str(_('From: {who}')).format(who=_person(actor)['name']))
+    lines += ['', f'{title}:', f'{change_request.get_action_display()} {change_request.object_repr}']
+    for change in changes or []:
+        if change['old'] is None and change_request.action == 'create':
+            lines.append(f"{capfirst(change['field'])}: {change['new'] if change['new'] is not None else empty}")
+        else:
+            old = change['old'] if change['old'] is not None else empty
+            new = change['new'] if change['new'] is not None else empty
+            lines.append(f"{capfirst(change['field'])}: {old} -> {new}")
+    if since_previous:
+        lines += ['', str(_('Changes since revision {n}:')).format(n=change_request.revision - 1)]
+        for change in since_previous:
+            old = change['old'] if change['old'] is not None else empty
+            new = change['new'] if change['new'] is not None else empty
+            lines.append(f"{capfirst(change['field'])}: {old} -> {new}")
+    if comment:
+        lines.append(str(_('Comment: {text}')).format(text=comment))
+    lines += ['', absolute_url(change_request.get_absolute_url())]
+    return '\n'.join(lines)
 
 
 def fire_event(change_request, event_type, recipients, detail='', actor=None, comment=''):
@@ -393,11 +484,11 @@ def comment_added(comment):
         from .models import ChangeRequestComment
         if ChangeRequestComment.objects.filter(pk=pk).exists():
             notify(recipients, change_request, COMMENTED, detail=detail, actor=comment.author, comment=comment.text)
-            fire_object_updated(change_request, recipients, actor=comment.author)
+            fire_object_updated(change_request, recipients, actor=comment.author, comment=comment.text)
     transaction.on_commit(send)
 
 
-def fire_object_updated(change_request, recipients, actor=None):
+def fire_object_updated(change_request, recipients, actor=None, comment=''):
     """Run Event Rules on NetBox's own "Object updated" for `change_request`
     with `recipients` in its data, for a change NetBox doesn't see as an
     edit of the request itself (a new comment)."""
@@ -412,6 +503,9 @@ def fire_object_updated(change_request, recipients, actor=None):
             pk=change_request.pk,
         )
         current._nbca_recipients = [u for u in recipients if u is not None and u.is_active]
+        current._nbca_message = message_text(
+            current, str(_('New comment on a change request')), actor, comment=comment,
+        )
         context = EventContext(
             object_type=ObjectType.objects.get_for_model(ChangeRequest),
             object_id=current.pk,

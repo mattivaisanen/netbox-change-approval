@@ -58,6 +58,7 @@ Fields your template can use as `{{ data.<field> }}`:
 
 | Field | Plugin events | Object created/updated | Example |
 |---|---|---|---|
+| `message` | ✓ | ✓ | ready-to-send text, see below |
 | `id` | ✓ | ✓ | `12` |
 | `display` | ✓ | ✓ | `#12 Update device sw1` |
 | `detail` | ✓ | | `rejected by bob: wrong rack` |
@@ -71,10 +72,36 @@ Fields your template can use as `{{ data.<field> }}`:
 | `approver_group`, `approvers` | ✓ | `approver_group` | `Change Approvers` |
 | `recipients` | ✓ | ✓ | `[{"username": "alice", "email": "alice@example.com", ...}]` |
 | `recipient_emails` | ✓ | ✓ | `alice@example.com;bob@example.com` |
+| `revision_changes` | ✓ | ✓ | after a resubmit: what changed since the revision sent back, `[{"field": "Rack", "old": "R2", "new": "R3"}]` |
 | `last_comment` | `comment` | ✓ | `{"author": {"username": "bob", "email": "bob@example.com", ...}, "text": "why this VLAN?", "created": "..."}` |
 
 People with no e-mail address in NetBox are listed in `recipients` but left
 out of `recipient_emails`. Set e-mail addresses under **Admin → Users**.
+
+**Who is who:** `recipient_emails` (and `recipients`) are always the people
+the message is *for*. `by`, `submitted_by` and `decided_by` (each with an
+`email`) are who did something; use them for a "From" or "Reply to".
+
+`message` is plain text you can send as is (line breaks as `\n`). For a
+decision:
+
+```text
+You have a notification in NetBox:
+From: Bob Smith
+
+Change request rejected:
+Update device sw1
+Rack: R1 -> R2
+Comment: wrong rack
+
+https://netbox.example.com/plugins/change-approval/change-requests/12/
+```
+
+For a comment, the changes are left out and the comment follows "From". A
+resubmitted request adds "Changes since revision 1:" with each field the
+submitter changed, as the previous revision had it -> as it is now. On
+"Object updated" the title follows the status ("New change request",
+"Change request updated", "Change request sent back", ...).
 
 ## 4. The webhook
 
