@@ -69,6 +69,11 @@ def apply_scheduled(change_request):
                 ).order_by('pk'))
                 if len(locked) != len(members):
                     return None
+                # Only what was approved: a request changed after it was
+                # scheduled needs its approvals again.
+                if any(m.current_approvals().count() < m.required_approvals for m in locked):
+                    ChangeRequest.objects.filter(pk__in=[m.pk for m in locked]).update(scheduled_for=None)
+                    return None
                 for member in locked:
                     member.apply(user=user)
         return True

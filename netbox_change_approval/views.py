@@ -589,6 +589,9 @@ class ChangeRequestApproveView(_ChangeRequestDecisionView):
     def check_permission(self, request):
         if (denied := super().check_permission(request)) is not None:
             return denied
+        if self.change_request.scheduled_for is not None:
+            messages.warning(request, _('Already approved and scheduled. Use Apply now or Cancel schedule.'))
+            return redirect(self.change_request.get_absolute_url())
         if self.change_request.has_approved(request.user):
             messages.warning(request, _('You already approved this. It needs another approver.'))
             return redirect(self.change_request.get_absolute_url())

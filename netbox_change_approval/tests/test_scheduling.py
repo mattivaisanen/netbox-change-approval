@@ -87,6 +87,8 @@ class ScheduledApplyTests(TestCase):
         change_request.refresh_from_db()
         self.assertIsNone(change_request.scheduled_for)
         ChangeRequest.objects.filter(pk=change_request.pk).update(scheduled_for=when, scheduled_by=self.approver)
+        from ..models import ChangeRequestApproval
+        ChangeRequestApproval.objects.create(change_request=change_request, user=self.approver, revision=change_request.revision)
         self.client.post(url, {'action': 'apply_now'})
         change_request.refresh_from_db()
         self.assertEqual(change_request.status, StatusChoices.APPLIED)
@@ -98,6 +100,33 @@ class ScheduledApplyTests(TestCase):
             scheduled_by=self.approver,
         )
         self.assertEqual(expiry.expire_overdue(), 0)
+
+    def test_changed_after_scheduling_is_not_applied(self):
+        """A request whose revision has no approvals yet (updated by its
+        submitter after scheduling) is not applied by the schedule."""
+        change_request = self._request()
+        when = timezone.localtime(timezone.now() + timedelta(hours=2)).strftime('%Y-%m-%dT%H:%M')
+        self._approve(change_request, when)
+        ChangeRequest.objects.filter(pk=change_request.pk).update(revision=2)
+        self.assertEqual(scheduling.apply_due(now=timezone.now() + timedelta(hours=3)), 0)
+        change_request.refresh_from_db()
+        self.assertEqual(change_request.status, StatusChoices.PENDING)
+        self.assertIsNone(change_request.scheduled_for)
+
+    def test_second_approver_cannot_skip_schedule(self):
+        change_request = self._request()
+        when = timezone.localtime(timezone.now() + timedelta(hours=2)).strftime('%Y-%m-%dT%H:%M')
+        self._approve(change_request, when)
+        other = User.objects.create(username='approver2')
+        other.groups.add(self.approvers)
+        self.client.force_login(other)
+        self.client.post(
+            reverse('plugins:netbox_change_approval:changerequest_approve', kwargs={'pk': change_request.pk}),
+            {'confirm': True, 'apply_at': ''},
+        )
+        change_request.refresh_from_db()
+        self.assertEqual(change_request.status, StatusChoices.PENDING)
+        self.assertIsNotNone(change_request.scheduled_for)
 
     def test_not_applied_once_decided_meanwhile(self):
         """A request retracted after the job read it is left alone."""

@@ -22,7 +22,7 @@
 {% block control-buttons %}
   {# Only what you can do with this request: no generic Edit/Delete/Bookmark/Subscribe. #}
   {% if can_decide and object.status == 'pending' %}
-    {% if not conflict_labels and not object_missing and not has_approved %}
+    {% if not conflict_labels and not object_missing and not has_approved and not object.scheduled_for %}
     <a data-nbca-modal href="{% url 'plugins:netbox_change_approval:changerequest_approve' pk=object.pk %}" class="btn btn-success">
       <i class="mdi mdi-check"></i> {% trans "Approve" %}
     </a>

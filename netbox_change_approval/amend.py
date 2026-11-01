@@ -105,6 +105,9 @@ def amend(change_request, instance, request):
     change_request.previous_diff = previous_diff
     change_request.object_repr = str(instance)[:300]
     change_request.revision += 1
+    # An approved, scheduled request goes back for review: the schedule was
+    # for the version the approvers saw, not this one.
+    change_request.scheduled_for = None
     from . import reasons
     reason = reasons.from_request(request, instance)
     if reason:
