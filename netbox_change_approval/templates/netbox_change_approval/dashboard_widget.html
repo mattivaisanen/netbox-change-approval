@@ -174,6 +174,96 @@
   .nbca-idle .nbca-pr { transform-origin: 60px 56px; animation: nbca-pr 9s linear infinite; }
   .nbca-idle .nbca-pr-page { transform-origin: 60px 50px; animation: nbca-pr-page 9s ease-in-out infinite; }
   .nbca-idle .nbca-pr-led { animation: nbca-pr-led 9s steps(1, end) infinite; }
+  /* Dragon: sleeps, breathes a puff of fire, and the chest it guards opens to let out a moth. */
+  .nbca-idle .nbca-dr-fire { transform-box: fill-box; transform-origin: 0 50%; transform: scaleX(0); animation: nbca-dr-fire 10s linear infinite; }
+  .nbca-idle .nbca-dr-eye { transform-box: fill-box; transform-origin: center; animation: nbca-blink-eye 3s infinite; }
+  .nbca-idle .nbca-dr-lid { transform-origin: 106px 56px; animation: nbca-dr-lid 10s ease-in-out infinite; }
+  .nbca-idle .nbca-dr-moth { opacity: 0; animation: nbca-dr-moth 10s ease-in-out infinite; }
+  /* Disco: the ball's rays turn, spots slide over the floor, the server dances. */
+  .nbca-idle .nbca-ds-rays { transform-origin: 60px 16px; animation: nbca-spin 4s linear infinite; }
+  .nbca-idle .nbca-ds-spot { animation: nbca-ds-spot 2.5s ease-in-out infinite alternate; }
+  .nbca-idle .nbca-ds-back { animation-name: nbca-ds-spot-back; }
+  .nbca-idle .nbca-ds-dance { transform-origin: 60px 72px; animation: nbca-ds-dance .7s ease-in-out infinite alternate; }
+  /* Octopus: arms wave, one sips coffee, one plugs a cable in and out. */
+  .nbca-idle .nbca-oc-arm { animation: nbca-sway 2s ease-in-out infinite; animation-delay: calc(var(--i) * -.4s); }
+  .nbca-idle .nbca-oc-cup { transform-origin: 38px 52px; animation: nbca-oc-cup 5s ease-in-out infinite; }
+  .nbca-idle .nbca-oc-plug { animation: nbca-oc-plug 3s ease-in-out infinite; }
+  /* Portal: in one side, out the other, bounce. */
+  .nbca-idle .nbca-pt-box { animation: nbca-pt-box 7s infinite; }
+  .nbca-idle .nbca-pt-ring { animation: nbca-dash 1s linear infinite; }
+  /* Carrier pigeon: flies in, drops the letter into the mailbox (flag goes up), flies off. */
+  .nbca-idle .nbca-pg { animation: nbca-pg 8s ease-in-out infinite; }
+  .nbca-idle .nbca-pg-letter { animation: nbca-pg-letter 8s steps(1, end) infinite; }
+  .nbca-idle .nbca-pg-drop { opacity: 0; animation: nbca-pg-drop 8s ease-in infinite; }
+  .nbca-idle .nbca-pg-flag { transform-origin: 98px 52px; animation: nbca-pg-flag 8s ease-out infinite; }
+  /* Meditating server: floats up and down inside a breathing aura. */
+  .nbca-idle .nbca-md { animation: nbca-md 4s ease-in-out infinite alternate; }
+  .nbca-idle .nbca-md-shadow { transform-origin: 60px 71px; animation: nbca-md-shadow 4s ease-in-out infinite alternate; }
+  .nbca-idle .nbca-md-aura { transform-origin: 60px 42px; animation: nbca-md-aura 4s ease-in-out infinite; }
+  /* Cloud: ones and zeros rain down; those over the umbrella stop on it. */
+  .nbca-idle .nbca-bit { font: 600 7px monospace; fill: var(--nbca-alt); stroke: none; animation: nbca-bit 1.8s linear infinite; }
+  .nbca-idle .nbca-cl { animation: nbca-cl 6s ease-in-out infinite alternate; }
+  /* Message in a bottle: drifts ashore, the cork pops, the note comes out. */
+  .nbca-idle .nbca-bt { transform-origin: 77px 62px; animation: nbca-bt 12s ease-in-out infinite; }
+  .nbca-idle .nbca-bt-cork { transform-box: fill-box; transform-origin: center; animation: nbca-bt-cork 12s ease-out infinite; }
+  .nbca-idle .nbca-bt-note { transform-box: fill-box; transform-origin: 50% 100%; animation: nbca-bt-note 12s ease-out infinite; }
+  /* Black hole: tickets spiral in and vanish. */
+  .nbca-idle .nbca-bh-swirl { transform-origin: 60px 40px; animation: nbca-spin 2s linear infinite; }
+  /* Path followers with their own turn: tickets into the black hole, the squirrel on the cable, the ping-pong ball. */
+  .nbca-idle .nbca-bh-doc, .nbca-idle .nbca-sq, .nbca-idle .nbca-pp-ball { offset-anchor: 0 0; transform-origin: 0 0; }
+  .nbca-idle .nbca-bh-doc { offset-path: path('M114 12 C100 60 30 70 24 40 C20 16 72 10 80 36 C84 52 56 56 52 44 C50 38 58 36 60 40');
+                            offset-rotate: auto; animation: nbca-bh 6s linear infinite; }
+  .nbca-idle .nbca-bh-2 { offset-distance: 33%; animation-delay: -2s; }
+  .nbca-idle .nbca-bh-3 { offset-distance: 66%; animation-delay: -4s; }
+  .nbca-idle .nbca-sq { offset-path: path('M10 30 Q60 46 110 30'); offset-rotate: auto; offset-distance: 50%; animation: nbca-sq 8s ease-in-out infinite; }
+  .nbca-idle .nbca-pp-ball { offset-path: path('M22 46 Q46 4 70 57 Q86 36 98 46 Q74 4 50 57 Q34 36 22 46'); offset-rotate: 0deg;
+                             animation: nbca-orbit 2.4s linear infinite; }
+  /* Falling blocks: the piece lands in the gap, the row flashes and clears, the rest drops down. */
+  .nbca-idle .nbca-bl-row { animation: nbca-bl-row 10s linear infinite; }
+  .nbca-idle .nbca-bl-top { animation: nbca-bl-top 10s linear infinite; }
+  .nbca-idle .nbca-bl-p1 { animation: nbca-bl-p1 10s linear infinite; }
+  .nbca-idle .nbca-bl-p2 { animation: nbca-bl-p2 10s linear infinite; }
+  /* Shark: the fin circles, dives, and the cable sparks. */
+  .nbca-idle .nbca-sk-fin { transform-box: fill-box; transform-origin: center; animation: nbca-sk-fin 8s ease-in-out infinite; }
+  .nbca-idle .nbca-sk-spark { opacity: 0; animation: nbca-sk-spark 8s linear infinite; }
+  .nbca-idle .nbca-sk-cable { animation: nbca-sk-cable 8s ease-in-out infinite; }
+  /* Squirrel: runs to the middle, nibbles the cable (spark, tail puffs up), runs on. */
+  .nbca-idle .nbca-sq-head { transform-origin: 4px -6px; animation: nbca-sq-head 8s linear infinite; }
+  .nbca-idle .nbca-sq-tail { transform-origin: -6px -3px; animation: nbca-sq-tail 8s ease-out infinite; }
+  .nbca-idle .nbca-sq-spark { opacity: 0; animation: nbca-sq-spark 8s linear infinite; }
+  /* Skateboard: rolls in, jumps the cone with a board spin, rolls out. */
+  .nbca-idle .nbca-sb-x { animation: nbca-sb-x 6s linear infinite; }
+  .nbca-idle .nbca-sb-y { animation: nbca-sb-y 6s infinite; }
+  .nbca-idle .nbca-sb-board { transform-box: fill-box; transform-origin: center; animation: nbca-sb-board 6s ease-in-out infinite; }
+  /* Hypnosis: the watch swings, its spiral turns, the server's eyes slowly close. */
+  .nbca-idle .nbca-hy { transform-origin: 60px 2px; animation: nbca-hy 2s ease-in-out infinite alternate; }
+  .nbca-idle .nbca-hy-spiral { transform-origin: 60px 30px; animation: nbca-spin 1.5s linear infinite; }
+  .nbca-idle .nbca-hy-eyes { transform-origin: 60px 60px; animation: nbca-hy-eyes 9s ease-in-out infinite; }
+  /* Magician: two taps of the wand, sparkles, a rabbit pops out of the hat. */
+  .nbca-idle .nbca-mg-rabbit { animation: nbca-mg-rabbit 8s infinite; }
+  .nbca-idle .nbca-mg-wand { transform-origin: 96px 30px; animation: nbca-mg-wand 8s ease-in-out infinite; }
+  .nbca-idle .nbca-mg-spark { opacity: 0; animation: nbca-mg-spark 8s ease-out infinite; }
+  /* Rubber stamp: winds up, the paper slides away, the table gets stamped. */
+  .nbca-idle .nbca-st { animation: nbca-st 6s infinite; }
+  .nbca-idle .nbca-st-paper { animation: nbca-st-paper 6s ease-in-out infinite; }
+  .nbca-idle .nbca-st-mark { opacity: 0; animation: nbca-st-mark 6s linear infinite; }
+  /* Drone: flies in, lowers the pizza onto the rack, flies off. */
+  .nbca-idle .nbca-dn { animation: nbca-dn 9s ease-in-out infinite; }
+  .nbca-idle .nbca-dn-string { transform-origin: 60px 18px; animation: nbca-dn-string 9s ease-in-out infinite; }
+  .nbca-idle .nbca-dn-box { animation: nbca-dn-box 9s ease-in-out infinite; }
+  .nbca-idle .nbca-dn-prop { transform-box: fill-box; transform-origin: center; animation: nbca-prop .12s linear infinite alternate; }
+  /* Ping-pong: each router tips as it hits, saying ping or pong. */
+  .nbca-idle .nbca-pp-l { transform-origin: 13px 52px; animation: nbca-pp-l 2.4s ease-out infinite; }
+  .nbca-idle .nbca-pp-r { transform-origin: 107px 52px; animation: nbca-pp-r 2.4s ease-out infinite; }
+  .nbca-idle .nbca-pp-say, .nbca-idle .nbca-bw-pop { font: 600 8px sans-serif; fill: var(--nbca-main); stroke: none; opacity: 0;
+                                                     animation: nbca-say 2.4s ease-out infinite; }
+  .nbca-idle .nbca-pp-pong { fill: var(--nbca-alt); animation-delay: 1.25s; }
+  /* Spinner: spins, slows, slips to the floor, naps, hops back up. */
+  .nbca-idle .nbca-sp-arc { transform-origin: 60px 40px; animation: nbca-sp 8s infinite; }
+  .nbca-idle .nbca-sp-z { font: 600 9px sans-serif; fill: currentColor; stroke: none; opacity: 0; animation: nbca-sp-z 8s linear infinite; }
+  /* Bubble wrap: bubbles pop one at a time, then refill. */
+  .nbca-idle .nbca-bw { transform-box: fill-box; transform-origin: center; animation: nbca-bw 6s infinite; animation-delay: calc(var(--i) * .45s); }
+  .nbca-idle .nbca-bw-pop { fill: var(--nbca-alt); animation-duration: .9s; }
   .nbca-idle .nbca-d1 { animation-delay: 1.1s; }
   .nbca-idle .nbca-d2 { animation-delay: 2.2s; }
   .nbca-idle .nbca-d3 { animation-delay: 3s; }
@@ -376,12 +466,113 @@
   @keyframes nbca-pr-page { 0%, 8% { transform: scaleY(0); opacity: 1; } 28%, 54% { transform: scaleY(.5); } 74%, 90% { transform: scaleY(1); opacity: 1; }
                             96% { transform: scaleY(1); opacity: 0; } 97%, 100% { transform: scaleY(0); opacity: 0; } }
   @keyframes nbca-pr-led { 0% { opacity: .25; } 30%, 38%, 46% { opacity: 1; } 34%, 42%, 50%, 56%, 100% { opacity: .25; } }
+  @keyframes nbca-dash { to { stroke-dashoffset: -14; } }
+  @keyframes nbca-prop { from { transform: scaleX(1); } to { transform: scaleX(.3); } }
+  @keyframes nbca-say { 0% { opacity: 1; transform: translateY(0); } 30%, 100% { opacity: 0; transform: translateY(-4px); } }
+  @keyframes nbca-dr-fire { 0%, 18% { transform: scaleX(0); } 21%, 26% { transform: scaleX(1); } 23% { transform: scaleX(.8); } 30%, 100% { transform: scaleX(0); } }
+  @keyframes nbca-dr-lid { 0%, 48% { transform: rotate(0); } 54%, 78% { transform: rotate(-40deg); } 84%, 100% { transform: rotate(0); } }
+  @keyframes nbca-dr-moth { 0%, 54% { opacity: 0; transform: translate(0, 0); } 58% { opacity: 1; transform: translate(0, -6px); }
+                            64% { transform: translate(-4px, -14px); } 70% { transform: translate(4px, -22px); }
+                            78% { opacity: 1; transform: translate(-2px, -32px); } 84%, 100% { opacity: 0; transform: translate(6px, -42px); } }
+  @keyframes nbca-ds-spot { from { transform: translateX(0); } to { transform: translateX(70px); } }
+  @keyframes nbca-ds-spot-back { from { transform: translateX(0); } to { transform: translateX(-70px); } }
+  @keyframes nbca-ds-dance { from { transform: rotate(-6deg); } to { transform: translateY(-3px) rotate(6deg); } }
+  @keyframes nbca-oc-cup { 0%, 40%, 80%, 100% { transform: rotate(0); } 50%, 68% { transform: rotate(25deg); } }
+  @keyframes nbca-oc-plug { 0%, 30%, 70%, 100% { transform: translateY(0); } 40%, 60% { transform: translateY(-3px); } }
+  @keyframes nbca-pt-box {
+    0% { transform: translate(0, 0); opacity: 0; } 6% { transform: translate(2px, 0); opacity: 1; }
+    30% { transform: translate(18px, 0); opacity: 1; } 33% { transform: translate(22px, 0); opacity: 0; }
+    40% { transform: translate(84px, -46px); opacity: 0; } 42% { transform: translate(84px, -42px); opacity: 1; animation-timing-function: ease-in; }
+    56% { transform: translate(88px, 0); animation-timing-function: ease-out; } 60% { transform: translate(89px, -6px); animation-timing-function: ease-in; }
+    64%, 88% { transform: translate(90px, 0); opacity: 1; } 94%, 100% { transform: translate(90px, 0); opacity: 0; }
+  }
+  @keyframes nbca-pg { 0% { transform: translate(-110px, -10px); } 40%, 58% { transform: translate(0, 0); } 100% { transform: translate(60px, -40px); } }
+  @keyframes nbca-pg-letter { 0% { opacity: 1; } 45%, 100% { opacity: 0; } }
+  @keyframes nbca-pg-drop { 0%, 44.9% { opacity: 0; transform: translate(0, 0); } 45% { opacity: 1; transform: translate(0, 0); }
+                            55% { opacity: 1; transform: translate(1px, 6px); } 58%, 100% { opacity: 0; transform: translate(1px, 8px); } }
+  @keyframes nbca-pg-flag { 0%, 56% { transform: rotate(90deg); } 64%, 92% { transform: rotate(0); } 100% { transform: rotate(90deg); } }
+  @keyframes nbca-md { from { transform: translateY(0); } to { transform: translateY(-6px); } }
+  @keyframes nbca-md-shadow { from { transform: scaleX(1); } to { transform: scaleX(.7); } }
+  @keyframes nbca-md-aura { 0%, 100% { transform: scale(.9); opacity: .3; } 50% { transform: scale(1.05); opacity: 1; } }
+  @keyframes nbca-bit { 0% { transform: translateY(0); opacity: 0; } 15%, 85% { opacity: 1; } 100% { transform: translateY(var(--d)); opacity: 0; } }
+  @keyframes nbca-cl { from { transform: translateX(-3px); } to { transform: translateX(3px); } }
+  @keyframes nbca-bt { 0% { transform: translate(-80px, 2px) rotate(0); opacity: 0; } 4% { opacity: 1; }
+                       15% { transform: translate(-62px, 4px) rotate(6deg); } 30% { transform: translate(-44px, 2px) rotate(-6deg); }
+                       45% { transform: translate(-20px, 3px) rotate(4deg); } 55%, 90% { transform: translate(0, 0) rotate(0); opacity: 1; }
+                       96%, 100% { transform: translate(0, 0) rotate(0); opacity: 0; } }
+  @keyframes nbca-bt-cork { 0%, 56% { transform: none; } 60% { transform: translate(6px, -12px) rotate(90deg); } 66%, 100% { transform: translate(12px, -3px) rotate(180deg); } }
+  @keyframes nbca-bt-note { 0%, 58% { transform: scaleY(0); } 66%, 100% { transform: scaleY(1); } }
+  @keyframes nbca-bh { 0% { offset-distance: 0%; transform: scale(1); opacity: 0; } 10% { opacity: 1; } 85% { transform: scale(.6); opacity: 1; }
+                       100% { offset-distance: 100%; transform: scale(0); opacity: 0; } }
+  @keyframes nbca-sq { 0% { offset-distance: 0%; opacity: 0; } 5% { offset-distance: 3%; opacity: 1; } 30%, 60% { offset-distance: 50%; }
+                       95% { offset-distance: 100%; opacity: 1; } 100% { offset-distance: 100%; opacity: 0; } }
+  @keyframes nbca-bl-row { 0%, 42% { opacity: 1; } 44%, 50% { opacity: .3; } 47%, 53% { opacity: 1; } 56%, 94% { opacity: 0; } 100% { opacity: 1; } }
+  @keyframes nbca-bl-top { 0%, 56% { transform: translateY(0); opacity: 1; } 60%, 86% { transform: translateY(8px); opacity: 1; }
+                           90% { transform: translateY(8px); opacity: 0; } 94% { transform: translateY(0); opacity: 0; } 100% { opacity: 1; } }
+  @keyframes nbca-bl-p1 {
+    0% { transform: translate(0, 0); opacity: 0; } 4% { transform: translate(0, 0); opacity: 1; } 12% { transform: translate(0, 12px); }
+    18% { transform: translate(-8px, 20px); } 26% { transform: translate(-8px, 30px); } 32% { transform: translate(0, 38px); }
+    40%, 56% { transform: translate(0, 52px); } 60%, 86% { transform: translate(0, 60px); opacity: 1; } 90% { transform: translate(0, 60px); opacity: 0; }
+    91%, 100% { transform: translate(0, 0); opacity: 0; }
+  }
+  @keyframes nbca-bl-p2 {
+    0% { transform: translate(0, 0); opacity: 0; } 4% { transform: translate(0, 0); opacity: 1; } 12% { transform: translate(0, 12px); }
+    18% { transform: translate(-8px, 20px); } 26% { transform: translate(-8px, 30px); } 32% { transform: translate(0, 38px); }
+    40%, 42% { transform: translate(0, 52px); opacity: 1; } 44%, 50% { opacity: .3; } 47%, 53% { opacity: 1; }
+    56%, 90% { transform: translate(0, 52px); opacity: 0; } 91%, 100% { transform: translate(0, 0); opacity: 0; }
+  }
+  @keyframes nbca-sk-fin { 0% { transform: translate(-50px, 4px); opacity: 0; } 6% { transform: translate(-40px, 0); opacity: 1; }
+                           40% { transform: translate(40px, 0); } 44% { transform: translate(46px, 0) scaleX(1); } 46% { transform: translate(46px, 0) scaleX(-1); }
+                           64% { transform: translate(20px, 0) scaleX(-1); opacity: 1; } 68%, 100% { transform: translate(18px, 8px) scaleX(-1); opacity: 0; } }
+  @keyframes nbca-sk-spark { 0%, 68% { opacity: 0; } 70%, 74%, 78% { opacity: 1; } 72%, 76% { opacity: .3; } 82%, 100% { opacity: 0; } }
+  @keyframes nbca-sk-cable { 0%, 68%, 80%, 100% { transform: translateY(0); } 70% { transform: translateY(2px); } 72%, 76% { transform: translateY(-1px); } 74% { transform: translateY(1.5px); } }
+  @keyframes nbca-sq-head { 0%, 32%, 36%, 40%, 44%, 100% { transform: rotate(0); } 34%, 38%, 42% { transform: rotate(20deg); } }
+  @keyframes nbca-sq-tail { 0%, 45% { transform: scale(1); } 48%, 58% { transform: scale(1.5); } 64%, 100% { transform: scale(1); } }
+  @keyframes nbca-sq-spark { 0%, 44% { opacity: 0; } 46%, 50% { opacity: 1; } 48% { opacity: .2; } 54%, 100% { opacity: 0; } }
+  @keyframes nbca-sb-x { from { transform: translateX(-40px); } to { transform: translateX(130px); } }
+  @keyframes nbca-sb-y { 0%, 38% { transform: translateY(0); animation-timing-function: ease-out; } 46% { transform: translateY(-18px); animation-timing-function: ease-in; }
+                         54%, 100% { transform: translateY(0); } }
+  @keyframes nbca-sb-board { 0%, 39% { transform: rotate(0); } 52%, 100% { transform: rotate(360deg); } }
+  @keyframes nbca-hy { from { transform: rotate(-18deg); } to { transform: rotate(18deg); } }
+  @keyframes nbca-hy-eyes { 0% { transform: scaleY(1); } 30% { transform: scaleY(.7); } 50% { transform: scaleY(.4); } 70%, 90% { transform: scaleY(.1); }
+                            95%, 100% { transform: scaleY(1); } }
+  @keyframes nbca-mg-rabbit { 0%, 34% { transform: translateY(16px); animation-timing-function: ease-out; } 40% { transform: translateY(-3px); }
+                              44%, 70% { transform: translateY(0); animation-timing-function: ease-in; } 78%, 100% { transform: translateY(16px); } }
+  @keyframes nbca-mg-wand { 0%, 14%, 22%, 30%, 100% { transform: rotate(0); } 18%, 26% { transform: rotate(-10deg); } }
+  @keyframes nbca-mg-spark { 0%, 28% { opacity: 0; } 32%, 40% { opacity: 1; } 48%, 100% { opacity: 0; } }
+  @keyframes nbca-st { 0%, 22% { transform: translateY(0); animation-timing-function: ease-in-out; } 30% { transform: translateY(-4px); animation-timing-function: ease-in; }
+                       38% { transform: translateY(38px); animation-timing-function: ease-out; } 42% { transform: translateY(34px); animation-timing-function: ease-in; }
+                       45% { transform: translateY(38px); animation-timing-function: ease-in-out; } 56%, 100% { transform: translateY(0); } }
+  @keyframes nbca-st-paper { 0%, 31% { transform: translateX(0); } 35%, 82% { transform: translateX(40px); } 92%, 100% { transform: translateX(0); } }
+  @keyframes nbca-st-mark { 0%, 37% { opacity: 0; } 38%, 85% { opacity: 1; } 92%, 100% { opacity: 0; } }
+  @keyframes nbca-dn { 0% { transform: translate(-90px, -6px); } 35%, 60% { transform: translate(0, 0); } 100% { transform: translate(90px, -24px); } }
+  @keyframes nbca-dn-string { 0%, 38% { transform: scaleY(1); } 52%, 58% { transform: scaleY(3.25); } 64%, 100% { transform: scaleY(1); } }
+  @keyframes nbca-dn-box { 0% { transform: translate(-90px, -6px); opacity: 1; } 35%, 38% { transform: translate(0, 0); }
+                           52%, 90% { transform: translate(0, 18px); opacity: 1; } 94% { transform: translate(0, 18px); opacity: 0; }
+                           95%, 100% { transform: translate(-90px, -6px); opacity: 0; } }
+  @keyframes nbca-pp-l { 0% { transform: rotate(-10deg); } 15%, 100% { transform: rotate(0); } }
+  @keyframes nbca-pp-r { 0%, 50% { transform: rotate(0); } 52% { transform: rotate(10deg); } 67%, 100% { transform: rotate(0); } }
+  @keyframes nbca-sp {
+    0% { transform: translate(0, 0) rotate(0deg); animation-timing-function: linear; }
+    30% { transform: translate(0, 0) rotate(1080deg); animation-timing-function: ease-out; }
+    45% { transform: translate(0, 0) rotate(1300deg); animation-timing-function: ease-in; }
+    55% { transform: translate(0, 20px) rotate(1665deg); animation-timing-function: ease-out; }
+    58% { transform: translate(0, 16px) rotate(1660deg); animation-timing-function: ease-in; }
+    61%, 82% { transform: translate(0, 20px) rotate(1665deg); animation-timing-function: ease-out; }
+    88% { transform: translate(0, -6px) rotate(1760deg); animation-timing-function: ease-in; }
+    94%, 100% { transform: translate(0, 0) rotate(1800deg); }
+  }
+  @keyframes nbca-sp-z { 0%, 62% { opacity: 0; transform: translateY(0); } 66% { opacity: .8; transform: translateY(0); }
+                         80% { opacity: .8; transform: translateY(-6px); } 84%, 100% { opacity: 0; transform: translateY(-6px); } }
+  @keyframes nbca-bw { 0% { transform: scale(1); opacity: 1; } 3% { transform: scale(1.25); } 6%, 75% { transform: scale(.5); opacity: .35; }
+                       85%, 100% { transform: scale(1); opacity: 1; } }
   @media (prefers-reduced-motion: reduce) {
     .nbca-idle svg * { animation: none !important; }
     .nbca-idle .nbca-steam, .nbca-idle .nbca-z { opacity: .6; }
     .nbca-idle .nbca-check { stroke-dashoffset: 0; }
     .nbca-idle .nbca-boom { opacity: 0; }
     .nbca-idle .nbca-hg-top, .nbca-idle .nbca-hg-bottom { transform: scaleY(.5); }
+    .nbca-idle .nbca-pp-say { opacity: .8; }
   }
 </style>
 <div class="card-body nbca-idle">

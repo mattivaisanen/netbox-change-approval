@@ -41,6 +41,10 @@ IDLE_DRAWINGS = (
     'vacuum', 'ufo', 'sheep', 'basketball', 'satellite',
     'paperboat', 'dominoes', 'juggler', 'bee', 'ghost',
     'bowling', 'owl', 'cradle', 'frog', 'printer',
+    'dragon', 'disco', 'octopus', 'portal', 'pigeon',
+    'meditate', 'cloud', 'bottle', 'blackhole', 'blocks',
+    'shark', 'squirrel', 'skateboard', 'hypnosis', 'magician',
+    'stamp', 'drone', 'pingpong', 'spinner', 'bubblewrap',
 )
 IDLE_LINES = (
     gettext_noop('Nothing awaiting approval. The racks are humming quietly.'),
@@ -63,6 +67,16 @@ IDLE_LINES = (
     gettext_noop('Nothing in the queue. Not even a typo to catch.'),
     gettext_noop('All clear. The rack doors can stay shut today.'),
     gettext_noop('No change requests. The maintenance window is just a window.'),
+    gettext_noop('Inbox guarded by a dragon. Nothing got past it.'),
+    gettext_noop('No approvals waiting. The packets are throwing a disco.'),
+    gettext_noop('A carrier pigeon checked twice. No requests today.'),
+    gettext_noop('The approval queue fell into a black hole. Nobody minds.'),
+    gettext_noop('Nothing to approve. The servers are meditating. Ommm.'),
+    gettext_noop('The magician reached into the queue and found only a rabbit.'),
+    gettext_noop('Nothing pending. A squirrel is inspecting the cables instead.'),
+    gettext_noop('All quiet. Two routers are playing ping-pong to pass the time.'),
+    gettext_noop('Your approval powers are not needed today. Hang up the cape.'),
+    gettext_noop('No changes to review. The shark is keeping an eye on the undersea cable.'),
 )
 REQUESTER_IDLE_LINES = (
     gettext_noop('Nothing sent back. Clean changes all round.'),
@@ -83,6 +97,16 @@ REQUESTER_IDLE_LINES = (
     gettext_noop('Nothing to redo. Every VLAN right where it belongs.'),
     gettext_noop('No homework from the approvers today.'),
     gettext_noop('Clean slate. Not a single request needs your attention.'),
+    gettext_noop('Nothing sent back. The bubble wrap is all yours.'),
+    gettext_noop('No requests returned. Time for a kickflip.'),
+    gettext_noop('Nothing came back. Not even a message in a bottle.'),
+    gettext_noop('Everything went through. The loading spinner is taking a nap.'),
+    gettext_noop('No fixes needed. The cloud is just raining ones and zeros.'),
+    gettext_noop('Nothing bounced. The portal delivered every change.'),
+    gettext_noop('All your requests landed. Even the delivery drone is impressed.'),
+    gettext_noop('No revisions. Every block fell into place.'),
+    gettext_noop('Nothing to redo. You are getting very, very relaxed.'),
+    gettext_noop('Nothing returned. The octopus has all eight arms free.'),
 )
 
 

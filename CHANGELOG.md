@@ -3,11 +3,14 @@
 ## 0.5.2 (2026-11-01)
 
 ### New features
-- The Pending Approvals widget has 20 new drawings for when nothing is
-  waiting (a kettle, a snowman, a lighthouse, an hourglass, a UFO, counting
-  sheep, a Newton's cradle, a frog and more), for 40 in total, and 20 new
-  messages. Like the others, they are drawn in the theme's
-  colors and stand still for users who prefer reduced motion.
+- The Pending Approvals widget has 40 new drawings for when nothing is
+  waiting, for 60 in total, and 40 new messages. Among them: a snowman who
+  loses his nose, an owl turning its head all the way round, a UFO
+  borrowing a server, a carrier pigeon delivering mail, a squirrel nibbling
+  a cable, a shark biting the undersea cable, routers playing ping-pong, a
+  loading spinner taking a nap and a rubber stamp that only hits the table.
+  Like the others, they are drawn in the theme's colors and stand still for
+  users who prefer reduced motion.
 
 ### Improvements
 - The widget's idle drawing and line no longer repeat when the page
