@@ -1,0 +1,14 @@
+{# A satellite orbiting a ringed planet. Animations: dashboard_widget.html. #}
+<svg viewBox="0 0 120 80" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <circle class="nbca-star" cx="12" cy="12" r="1.2"/><circle class="nbca-star nbca-d1" cx="108" cy="16" r="1.1"/>
+  <circle class="nbca-star nbca-d2" cx="16" cy="66" r="1"/><circle class="nbca-star nbca-d3" cx="102" cy="68" r="1.2"/>
+  <circle cx="60" cy="40" r="13" fill="var(--nbca-main)" fill-opacity=".25"/>
+  <ellipse cx="60" cy="40" rx="22" ry="5" transform="rotate(-15 60 40)" stroke-width="1.5"/>
+  <g class="nbca-sat">
+    <rect x="-3" y="-3" width="6" height="6" rx="1" fill="var(--tblr-bg-surface, transparent)" stroke-width="1.5"/>
+    <path d="M-3 0 h-2 M3 0 h2" stroke-width="1"/>
+    <rect x="-12" y="-2.5" width="7" height="5" fill="var(--nbca-alt)" fill-opacity=".5" stroke-width="1"/>
+    <rect x="5" y="-2.5" width="7" height="5" fill="var(--nbca-alt)" fill-opacity=".5" stroke-width="1"/>
+    <circle class="nbca-led" cx="0" cy="-5" r="1.2"/>
+  </g>
+</svg>

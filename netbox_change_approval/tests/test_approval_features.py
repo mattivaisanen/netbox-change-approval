@@ -418,6 +418,43 @@ class WidgetIdleStateTests(_Base):
             html = render_to_string(f'netbox_change_approval/inc/idle/{name}.html')
             self.assertIn('<svg', html, name)
 
+    def test_idle_drawing_and_line_never_repeat_on_refresh(self):
+        from django.test import RequestFactory
+
+        from ..widgets import IDLE_DRAWINGS, REQUESTER_IDLE_LINES, ApprovalsWidget
+
+        request = RequestFactory().get('/')
+        request.user = self.submitter
+        request.session = {}
+        drawings, lines = [], []
+        for _ in range(len(IDLE_DRAWINGS) + 5):
+            html = ApprovalsWidget().render(request)
+            self.assertIn('nbca-idle', html)
+            drawings.append(IDLE_DRAWINGS[request.session['nbca_idle_drawing_last']])
+            lines.append(next(line for line in REQUESTER_IDLE_LINES if line in html))
+        for earlier, later in zip(drawings, drawings[1:]):
+            self.assertNotEqual(earlier, later)
+        for earlier, later in zip(lines, lines[1:]):
+            self.assertNotEqual(earlier, later)
+        # Every drawing shows up once before any comes back.
+        self.assertEqual(sorted(drawings[:len(IDLE_DRAWINGS)]), sorted(IDLE_DRAWINGS))
+
+    def test_pick_without_repeat(self):
+        from ..widgets import pick_without_repeat
+
+        class _Request:
+            session = {}
+
+        request = _Request()
+        options = ('a', 'b', 'c')
+        picks = [pick_without_repeat(request, 'k', options) for _ in range(30)]
+        self.assertTrue(all(x != y for x, y in zip(picks, picks[1:])))
+        # Each round of three covers every option.
+        for start in range(0, 30, 3):
+            self.assertEqual(sorted(picks[start:start + 3]), ['a', 'b', 'c'])
+        # Without a session it still picks something.
+        self.assertIn(pick_without_repeat(object(), 'k', options), options)
+
 
 class WidgetTitleLinkTests(_Base):
     def test_widget_script_links_title_to_inbox(self):

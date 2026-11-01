@@ -30,12 +30,17 @@ from . import permissions
 
 # Shown when nothing waits on the user: a random drawing from
 # templates/netbox_change_approval/inc/idle/ and a random line, IDLE_LINES
-# for approvers and REQUESTER_IDLE_LINES for everyone else.
+# for approvers and REQUESTER_IDLE_LINES for everyone else. Neither repeats
+# on the next refresh (see pick_without_repeat).
 IDLE_DRAWINGS = (
     'coffee', 'hammock', 'cat', 'duck', 'fishing',
     'night', 'plane', 'tumbleweed', 'checklist', 'beach',
     'snail', 'kite', 'balloon', 'plant', 'fishbowl',
     'rocket', 'campfire', 'clock', 'windmill', 'birds',
+    'kettle', 'snowman', 'lighthouse', 'hourglass', 'yoyo',
+    'vacuum', 'ufo', 'sheep', 'basketball', 'satellite',
+    'paperboat', 'dominoes', 'juggler', 'bee', 'ghost',
+    'bowling', 'owl', 'cradle', 'frog', 'printer',
 )
 IDLE_LINES = (
     gettext_noop('Nothing awaiting approval. The racks are humming quietly.'),
@@ -48,6 +53,16 @@ IDLE_LINES = (
     gettext_noop('All quiet. Even the LEDs are blinking slower.'),
     gettext_noop('Change window wide open, nobody climbing through.'),
     gettext_noop('The rubber stamp is gathering dust.'),
+    gettext_noop('Nothing to approve. The kettle has time to boil.'),
+    gettext_noop('Approval queue empty. Even the UPS is on standby.'),
+    gettext_noop('No requests to review. The servers are counting sheep.'),
+    gettext_noop('Nothing pending. The change board could take a long lunch.'),
+    gettext_noop('Nothing to sign. The pen is on a coffee break.'),
+    gettext_noop('Queue empty. Somewhere a switch is enjoying the silence.'),
+    gettext_noop('No approvals needed. The fiber is glowing with pride.'),
+    gettext_noop('Nothing in the queue. Not even a typo to catch.'),
+    gettext_noop('All clear. The rack doors can stay shut today.'),
+    gettext_noop('No change requests. The maintenance window is just a window.'),
 )
 REQUESTER_IDLE_LINES = (
     gettext_noop('Nothing sent back. Clean changes all round.'),
@@ -58,7 +73,43 @@ REQUESTER_IDLE_LINES = (
     gettext_noop('All requests settled. A fine moment for coffee.'),
     gettext_noop('Nothing to revise. The servers are taking it easy too.'),
     gettext_noop('Paperwork done. Tumbleweed territory.'),
+    gettext_noop('Nothing sent back. Your changes passed with flying colors.'),
+    gettext_noop('No requests waiting on you. Go stretch your legs.'),
+    gettext_noop('Nothing returned. The approvers had no notes.'),
+    gettext_noop('All your changes are in good hands.'),
+    gettext_noop('Nothing to fix. Even the cable labels are straight.'),
+    gettext_noop('No revisions requested. Smooth sailing.'),
+    gettext_noop('Your requests are all settled. The data center hums along.'),
+    gettext_noop('Nothing to redo. Every VLAN right where it belongs.'),
+    gettext_noop('No homework from the approvers today.'),
+    gettext_noop('Clean slate. Not a single request needs your attention.'),
 )
+
+
+def pick_without_repeat(request, key, options):
+    """
+    A random item of `options` that differs from the one this user saw last.
+
+    Works like a shuffled deck kept in the user's session: every option comes
+    up once before any comes back, and a new deck never starts with the item
+    the previous deck ended on. Without a session (or with one option) it is
+    a plain random choice.
+    """
+    session = getattr(request, 'session', None)
+    if session is None or len(options) < 2:
+        return random.choice(options)
+    last = session.get(f'{key}_last')
+    deck = [i for i in session.get(key, []) if isinstance(i, int) and 0 <= i < len(options) and i != last]
+    if not deck:
+        deck = random.sample(range(len(options)), len(options))
+        if deck[-1] == last:
+            # The deck is dealt from the end.
+            deck[0], deck[-1] = deck[-1], deck[0]
+    choice = deck.pop()
+    session[key] = deck
+    session[f'{key}_last'] = choice
+    return options[choice]
+
 
 
 @register_widget
@@ -131,7 +182,10 @@ class ApprovalsWidget(DashboardWidget):
         is_approver = request.user.has_perm(
             f'netbox_change_approval.{permissions.IS_APPROVER_ACTION}_changerequest'
         )
-        idle_line = _(random.choice(IDLE_LINES if is_approver else REQUESTER_IDLE_LINES))
+        idle_line = _(pick_without_repeat(
+            request, 'nbca_idle_line' if is_approver else 'nbca_idle_requester_line',
+            IDLE_LINES if is_approver else REQUESTER_IDLE_LINES,
+        ))
         # Field changes for each row's quick view (the arrow), as in the inbox.
         from .views import _diff_rows, mark_revision_changes, prefetch_display_names
 
@@ -148,5 +202,7 @@ class ApprovalsWidget(DashboardWidget):
             'change_requests': rows, 'sent_back': sent_back, 'closed': closed, 'idle_line': idle_line,
             'live_sig': self.signature(rows, sent_back, closed),
             'csrf_token': get_token(request) if closed else '',
-            'idle_drawing': f'netbox_change_approval/inc/idle/{random.choice(IDLE_DRAWINGS)}.html',
+            'idle_drawing': 'netbox_change_approval/inc/idle/{}.html'.format(
+                pick_without_repeat(request, 'nbca_idle_drawing', IDLE_DRAWINGS)
+            ),
         })
