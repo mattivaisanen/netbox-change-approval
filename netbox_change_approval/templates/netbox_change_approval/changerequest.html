@@ -1,7 +1,7 @@
 {% extends 'generic/object.html' %}
 {% load helpers %}
 {% load plugins %}
-{% load i18n nbca_diff %}
+{% load i18n nbca_diff nbca_features %}
 
 {% block object_identifier %}{% endblock %}
 
@@ -27,9 +27,11 @@
       <i class="mdi mdi-check"></i> {% trans "Approve" %}
     </a>
     {% endif %}
+    {% feature_on 'send_back' as send_back_on %}{% if send_back_on %}
     <a data-nbca-modal href="{% url 'plugins:netbox_change_approval:changerequest_sendback' pk=object.pk %}" class="btn btn-warning">
       <i class="mdi mdi-undo-variant"></i> {% trans "Send back" %}
     </a>
+    {% endif %}
     <a data-nbca-modal href="{% url 'plugins:netbox_change_approval:changerequest_reject' pk=object.pk %}" class="btn btn-danger">
       <i class="mdi mdi-close"></i> {% trans "Reject" %}
     </a>
@@ -180,7 +182,9 @@
             {% if not conflict_labels and not object_missing and not has_approved %}
             <li><a data-nbca-modal class="dropdown-item" href="{% url 'plugins:netbox_change_approval:changerequest_approve' pk=object.pk %}"><i class="mdi mdi-check text-success"></i> {% trans "Approve" %}</a></li>
             {% endif %}
+            {% feature_on 'send_back' as send_back_on %}{% if send_back_on %}
             <li><a data-nbca-modal class="dropdown-item" href="{% url 'plugins:netbox_change_approval:changerequest_sendback' pk=object.pk %}"><i class="mdi mdi-undo-variant text-warning"></i> {% trans "Request changes" %}</a></li>
+            {% endif %}
             <li><a data-nbca-modal class="dropdown-item" href="{% url 'plugins:netbox_change_approval:changerequest_reject' pk=object.pk %}"><i class="mdi mdi-close text-danger"></i> {% trans "Reject" %}</a></li>
           </ul>
         </div>
@@ -293,6 +297,7 @@
         {% endif %}
       </table>
     </div>
+    {% if comment_form or comments %}
     <div class="card" id="comments">
       <h2 class="card-header">{% trans "Comments" %}{% if comments %} <span class="badge text-bg-secondary">{{ comments|length }}</span>{% endif %}</h2>
       {% if comments %}
@@ -309,6 +314,7 @@
         {% endfor %}
       </ul>
       {% endif %}
+      {% if comment_form %}
       <div class="card-body">
         <form method="post" action="{% url 'plugins:netbox_change_approval:changerequest_comment' pk=object.pk %}">
           {% csrf_token %}
@@ -319,7 +325,9 @@
           </div>
         </form>
       </div>
+      {% endif %}
     </div>
+    {% endif %}
     {% if rack_previews %}
     <div class="card">
       <h2 class="card-header">{% trans "Rack" %}</h2>

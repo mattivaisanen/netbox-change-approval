@@ -291,6 +291,9 @@ def notify(users, change_request, event_type, detail='', actor=None, comment='')
     from django.contrib.contenttypes.models import ContentType
     from extras.models import Notification
 
+    from .features import NOTIFICATIONS, on
+
+    bell = on(NOTIFICATIONS)
     content_type = ContentType.objects.get_for_model(ChangeRequest)
     label = _label(change_request)
     if detail:
@@ -301,6 +304,9 @@ def notify(users, change_request, event_type, detail='', actor=None, comment='')
             continue
         seen.add(user.pk)
         recipients.append(user)
+        if not bell:
+            # Turned off on the Settings page; Event Rules below still run.
+            continue
         Notification.objects.filter(object_type=content_type, object_id=change_request.pk, user=user).delete()
         notification = Notification.objects.create(
             user=user, object_type=content_type, object_id=change_request.pk, event_type=event_type,

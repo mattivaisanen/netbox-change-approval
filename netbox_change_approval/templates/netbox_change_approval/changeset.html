@@ -1,6 +1,6 @@
 {% extends 'generic/_base.html' %}
 {% load helpers %}
-{% load i18n %}
+{% load i18n nbca_features %}
 
 {% block title %}{% trans "Change set" %}: {{ object.name }}{% endblock %}
 
@@ -28,7 +28,7 @@
   {% elif can_decide %}
     {% with lead=pending.0 %}
     <a data-nbca-modal href="{% url 'plugins:netbox_change_approval:changerequest_approve' pk=lead.pk %}" class="btn btn-success"><i class="mdi mdi-check"></i> {% trans "Approve all" %}</a>
-    <a data-nbca-modal href="{% url 'plugins:netbox_change_approval:changerequest_sendback' pk=lead.pk %}" class="btn btn-warning"><i class="mdi mdi-undo-variant"></i> {% trans "Send back" %}</a>
+    {% feature_on 'send_back' as send_back_on %}{% if send_back_on %}<a data-nbca-modal href="{% url 'plugins:netbox_change_approval:changerequest_sendback' pk=lead.pk %}" class="btn btn-warning"><i class="mdi mdi-undo-variant"></i> {% trans "Send back" %}</a>{% endif %}
     <a data-nbca-modal href="{% url 'plugins:netbox_change_approval:changerequest_reject' pk=lead.pk %}" class="btn btn-danger"><i class="mdi mdi-close"></i> {% trans "Reject all" %}</a>
     {% endwith %}
   {% endif %}

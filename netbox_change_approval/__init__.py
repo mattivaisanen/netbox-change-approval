@@ -45,6 +45,14 @@ class NetBoxChangeApprovalConfig(PluginConfig):
         'work_sheets': True,
         # Change sets (changesets.py): collect changes, submit them as one.
         'change_sets': True,
+        # Optional features, each on unless False (features.py; also on the
+        # Settings page).
+        'scheduled_approvals': True,
+        'send_back': True,
+        'comments': True,
+        'stand_ins': True,
+        'notifications': True,
+        'widget_drawings': True,
         # NetBox's address as users reach it (e.g. 'https://netbox.example.com'),
         # for full links in webhook data. Empty: links are paths only.
         'netbox_url': '',

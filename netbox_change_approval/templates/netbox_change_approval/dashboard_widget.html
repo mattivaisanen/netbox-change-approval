@@ -81,8 +81,8 @@
         {% if can_decide %}
         <a data-nbca-modal data-nbca-inplace href="{% url 'plugins:netbox_change_approval:changerequest_approve' pk=cr.pk %}?return_url=/"
            class="btn btn-sm btn-success" title="{% trans "Approve" %}"><i class="mdi mdi-check"></i></a>
-        <a data-nbca-modal data-nbca-inplace href="{% url 'plugins:netbox_change_approval:changerequest_sendback' pk=cr.pk %}?return_url=/"
-           class="btn btn-sm btn-warning" title="{% trans "Send back for revision" %}"><i class="mdi mdi-undo-variant"></i></a>
+        {% if send_back_on %}<a data-nbca-modal data-nbca-inplace href="{% url 'plugins:netbox_change_approval:changerequest_sendback' pk=cr.pk %}?return_url=/"
+           class="btn btn-sm btn-warning" title="{% trans "Send back for revision" %}"><i class="mdi mdi-undo-variant"></i></a>{% endif %}
         <a data-nbca-modal data-nbca-inplace href="{% url 'plugins:netbox_change_approval:changerequest_reject' pk=cr.pk %}?return_url=/"
            class="btn btn-sm btn-danger" title="{% trans "Reject" %}"><i class="mdi mdi-close"></i></a>
         {% endif %}
@@ -577,7 +577,7 @@
 </style>
 <div class="card-body nbca-idle">
   {# One of the drawings in inc/idle/, picked at random by the widget. #}
-  {% include idle_drawing %}
+  {% if idle_drawing %}{% include idle_drawing %}{% endif %}
   <div class="text-muted">{{ idle_line }}</div>
 </div>
 {% endif %}

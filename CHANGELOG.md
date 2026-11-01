@@ -3,6 +3,15 @@
 ## 0.5.2 (2026-11-01)
 
 ### New features
+- Optional features can now be turned on and off on Change Approval →
+  Settings, without a restart: Scheduled approvals, Send back, Comments,
+  Stand-ins, Notifications (the bell) and Widget drawings. All are on by
+  default. A feature turned off disappears from the pages and its actions
+  are refused; what it made earlier stays (requests already scheduled still
+  apply at their time, earlier comments stay visible, requests already sent
+  back can still be revised). Turning Notifications off keeps Event Rules
+  and webhooks running. Each also has a `configuration.py` key; see
+  docs/configuration.md.
 - The Pending Approvals widget has 40 new drawings for when nothing is
   waiting, for 60 in total, and 40 new messages. Among them: a snowman who
   loses his nose, an owl turning its head all the way round, a UFO
@@ -11,6 +20,12 @@
   loading spinner taking a nap and a rubber stamp that only hits the table.
   Like the others, they are drawn in the theme's colors and stand still for
   users who prefer reduced motion.
+
+### Bug fixes
+- A scheduled request now applies only the version that was approved.
+  Updating an approved, scheduled request drops its schedule so it is
+  reviewed again, and a second approver can no longer approve a scheduled
+  request and apply it at once, skipping the schedule.
 
 ### Improvements
 - The widget's idle drawing and line no longer repeat when the page

@@ -4,7 +4,7 @@ from django.urls import reverse
 from netbox.context import current_request
 from users.models import Group, ObjectPermission, User
 
-from .. import changesets, components, pending_marks, plugin_settings, worksheet
+from .. import changesets, components, features, pending_marks, plugin_settings, worksheet
 from ..models import ApprovalRule, PluginSetting
 from ..permissions import _IS_APPROVER_SYNC_PERM_NAME
 from .utils import fake_request
@@ -95,6 +95,7 @@ class SettingsPageTests(TestCase):
             'group_components_with_parent': 'on',
             'work_sheets': 'on',
             'change_sets': None,
+            **{key: 'on' for key in features.ALL},
         }
         data.update(changes)
         return {key: value for key, value in data.items() if value is not None}

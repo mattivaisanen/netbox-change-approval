@@ -91,6 +91,39 @@ SETTINGS = (
         KIND_BOOL,
     ),
     Setting(
+        'scheduled_approvals', _('Scheduled approvals'),
+        _('Approvers can give a time to apply an approved change, such as a maintenance window. '
+          'Off: changes apply when approved; ones already scheduled still apply at their time.'),
+        KIND_BOOL,
+    ),
+    Setting(
+        'send_back', _('Send back'),
+        _('Approvers can send a request back to its submitter for changes instead of rejecting it. '
+          'Off: requests already sent back can still be revised.'),
+        KIND_BOOL,
+    ),
+    Setting(
+        'comments', _('Comments'),
+        _('Anyone who can see a request can comment on it. Off: earlier comments stay visible.'),
+        KIND_BOOL,
+    ),
+    Setting(
+        'stand_ins', _('Stand-ins'),
+        _('Approvers who are away can name a stand-in on the Away page, who decides for them. '
+          'Off: the page is closed and approvals go to the group members only.'),
+        KIND_BOOL,
+    ),
+    Setting(
+        'notifications', _('Notifications'),
+        _('NetBox notifications (the bell) about change requests. Off: none; Event Rules still run.'),
+        KIND_BOOL,
+    ),
+    Setting(
+        'widget_drawings', _('Widget drawings'),
+        _('The animated drawing in the Pending Approvals widget when nothing is waiting.'),
+        KIND_BOOL,
+    ),
+    Setting(
         'webhook_message', _('Webhook message'),
         _('The text webhooks get as {{ data.message }}, in Jinja2. Variables: by, by_email, title, action, '
           'object_type, object, comment, link, id, status, reason, submitted_by, submitted_by_email, '

@@ -14,8 +14,12 @@ from django.utils import timezone
 
 
 def _active(today=None):
+    from .features import STAND_INS, on
     from .models import ApproverAbsence
 
+    if not on(STAND_INS):
+        # Turned off on the Settings page: nobody counts as away.
+        return ApproverAbsence.objects.none()
     today = today or timezone.localdate()
     return ApproverAbsence.objects.filter(starts__lte=today).filter(Q(ends__isnull=True) | Q(ends__gte=today))
 

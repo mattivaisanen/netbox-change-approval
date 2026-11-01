@@ -191,6 +191,13 @@ class ChangeRequestApproveForm(ConfirmationForm):
         help_text=_('Optional: apply it then (e.g. a maintenance window) instead of now. The object stays locked until then.'),
     )
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        from .features import SCHEDULED_APPROVALS, on
+
+        if not on(SCHEDULED_APPROVALS):
+            del self.fields['apply_at']
+
 
 class ChangeRequestRejectForm(ConfirmationForm):
     comment = forms.CharField(

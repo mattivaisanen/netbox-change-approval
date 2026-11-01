@@ -9,6 +9,9 @@
 {% endblock %}
 
 {% block content %}
+{% if turned_off %}
+<div class="alert alert-info" role="alert">{% trans "Stand-ins are turned off in Change Approval settings. Requests go to the members of each approver group." %}</div>
+{% else %}
 <div class="row">
   <div class="col-12 col-lg-6">
     {% if current %}
@@ -52,4 +55,5 @@
     </div>
   </div>
 </div>
+{% endif %}
 {% endblock %}

@@ -1,5 +1,5 @@
 {% extends 'generic/_base.html' %}
-{% load i18n nbca_diff %}
+{% load i18n nbca_diff nbca_features %}
 
 {# Plain text: base.html reuses this block for the browser tab title. #}
 {% block title %}{% trans "Approval Inbox" %}{% if inbox_count or field_work_total %} ({{ inbox_count|add:field_work_total }}){% endif %}{% endblock %}
@@ -117,8 +117,8 @@
             {% if section.key == 'decide' %}
               <a data-nbca-modal href="{% url 'plugins:netbox_change_approval:changerequest_approve' pk=cr.pk %}?return_url={{ request.path|urlencode }}"
                  class="btn btn-sm btn-success" title="{% trans "Approve" %}"><i class="mdi mdi-check"></i></a>
-              <a data-nbca-modal href="{% url 'plugins:netbox_change_approval:changerequest_sendback' pk=cr.pk %}?return_url={{ request.path|urlencode }}"
-                 class="btn btn-sm btn-warning" title="{% trans "Send back for revision" %}"><i class="mdi mdi-undo-variant"></i></a>
+              {% feature_on 'send_back' as send_back_on %}{% if send_back_on %}<a data-nbca-modal href="{% url 'plugins:netbox_change_approval:changerequest_sendback' pk=cr.pk %}?return_url={{ request.path|urlencode }}"
+                 class="btn btn-sm btn-warning" title="{% trans "Send back for revision" %}"><i class="mdi mdi-undo-variant"></i></a>{% endif %}
               <a data-nbca-modal href="{% url 'plugins:netbox_change_approval:changerequest_reject' pk=cr.pk %}?return_url={{ request.path|urlencode }}"
                  class="btn btn-sm btn-danger" title="{% trans "Reject" %}"><i class="mdi mdi-close"></i></a>
             {% elif section.key == 'sent_back' %}

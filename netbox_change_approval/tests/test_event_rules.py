@@ -307,6 +307,8 @@ class WebhookMessageTemplateTests(TestCase):
         data = {s.key: '' for s in plugin_settings.SETTINGS if s.kind not in ('bool',)}
         data.update({'pending_row_style': 'by_action', 'group_components_with_parent': 'on',
                      'work_sheets': 'on', 'change_sets': 'on',
+                     'scheduled_approvals': 'on', 'send_back': 'on', 'comments': 'on', 'stand_ins': 'on',
+                     'notifications': 'on', 'widget_drawings': 'on',
                      'webhook_message': '{{ title }} #{{ id }} by {{ by }} <{{ by_email }}>\r\n{{ link }}'})
         self.client.post(reverse('plugins:netbox_change_approval:settings'), data)
         text = notifications.event_data(change_request, notifications.NEEDS_APPROVAL, [], actor=self.submitter)['message']

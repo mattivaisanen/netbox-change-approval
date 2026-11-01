@@ -12,6 +12,12 @@ NetBox `configuration.py`.
 | `group_components_with_parent` | bool | `True` | While a new device or VM waits for approval, its interfaces, ports, bays, modules, inventory items, VM disks and IP/MAC addresses on its interfaces belong to its request instead of getting their own. `False` gives each its own request again. |
 | `work_sheets` | bool | `True` | Field work: approved changes that need work on site (mounting a device, patching a cable, configuring an IP address, ...) become tasks in the **Field work** section of the Approval Inbox, with a printable work sheet by rack. `False` turns it off. |
 | `change_sets` | bool | `True` | Change sets (Change Approval → Change Sets): collect several changes and submit them for approval as one item. `False` turns them off. |
+| `scheduled_approvals` | bool | `True` | Approvers can give an **Apply at** time when approving. `False` hides it; requests already scheduled still apply at their time. |
+| `send_back` | bool | `True` | Approvers can send a request back to its submitter for changes. `False` hides **Send back** (Reject still works); requests already sent back can still be revised. |
+| `comments` | bool | `True` | Comments on change requests. `False` hides the comment box; earlier comments stay visible. |
+| `stand_ins` | bool | `True` | Away / Stand-in page: an away approver's stand-in decides for them. `False` closes the page and stand-ins stop deciding. |
+| `notifications` | bool | `True` | NetBox notifications (the bell) from this plugin. `False` sends none; Event Rules (webhooks) still run. |
+| `widget_drawings` | bool | `True` | The animated drawing in the Pending Approvals widget when nothing is waiting. `False` shows only the line of text. |
 | `netbox_url` | str | `''` | NetBox's address as users reach it, e.g. `https://netbox.example.com`. Puts full links (`link`) in webhook data; see [webhooks.md](webhooks.md). Only in `configuration.py`. |
 | `webhook_message` | str | see below | Jinja2 template of the webhook `message` text, also editable on the Settings page. See [webhooks.md](webhooks.md#changing-the-message). |
 
@@ -33,9 +39,8 @@ PLUGINS_CONFIG = {
 
 ## Changing settings in NetBox
 
-Superusers can change `pending_row_style`, `group_components_with_parent`,
-`work_sheets` and `change_sets` on
-**Change Approval → Settings**, without editing `configuration.py` or
+Superusers can change every setting above except `exempt_models` and
+`netbox_url` on **Change Approval → Settings**, without editing `configuration.py` or
 restarting NetBox:
 
 - `configuration.py` (or the plugin default) gives each setting its value.

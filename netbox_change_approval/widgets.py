@@ -25,7 +25,7 @@ from django.utils.translation import gettext_noop
 from extras.dashboard.utils import register_widget
 from extras.dashboard.widgets import DashboardWidget
 
-from . import permissions
+from . import features, permissions
 
 
 # Shown when nothing waits on the user: a random drawing from
@@ -225,8 +225,9 @@ class ApprovalsWidget(DashboardWidget):
         return render_to_string(self.template_name, {
             'change_requests': rows, 'sent_back': sent_back, 'closed': closed, 'idle_line': idle_line,
             'live_sig': self.signature(rows, sent_back, closed),
+            'send_back_on': features.on(features.SEND_BACK),
             'csrf_token': get_token(request) if closed else '',
             'idle_drawing': 'netbox_change_approval/inc/idle/{}.html'.format(
                 pick_without_repeat(request, 'nbca_idle_drawing', IDLE_DRAWINGS)
-            ),
+            ) if features.on(features.WIDGET_DRAWINGS) else None,
         })

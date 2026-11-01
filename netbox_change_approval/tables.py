@@ -52,8 +52,8 @@ _DECISION_BUTTONS = """
 {% if record.submitted_by_id != request.user.pk %}{% if record.nbca_can_decide %}
 <a data-nbca-modal href="{% url 'plugins:netbox_change_approval:changerequest_approve' pk=record.pk %}?return_url={{ request.get_full_path|urlencode }}"
    class="btn btn-sm btn-success" title="Approve"><i class="mdi mdi-check"></i></a>
-<a data-nbca-modal href="{% url 'plugins:netbox_change_approval:changerequest_sendback' pk=record.pk %}?return_url={{ request.get_full_path|urlencode }}"
-   class="btn btn-sm btn-warning" title="Send back for revision"><i class="mdi mdi-undo-variant"></i></a>
+{% load nbca_features %}{% feature_on 'send_back' as send_back_on %}{% if send_back_on %}<a data-nbca-modal href="{% url 'plugins:netbox_change_approval:changerequest_sendback' pk=record.pk %}?return_url={{ request.get_full_path|urlencode }}"
+   class="btn btn-sm btn-warning" title="Send back for revision"><i class="mdi mdi-undo-variant"></i></a>{% endif %}
 <a data-nbca-modal href="{% url 'plugins:netbox_change_approval:changerequest_reject' pk=record.pk %}?return_url={{ request.get_full_path|urlencode }}"
    class="btn btn-sm btn-danger" title="Reject"><i class="mdi mdi-close"></i></a>
 {% endif %}{% endif %}

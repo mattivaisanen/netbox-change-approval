@@ -18,7 +18,7 @@ from utilities.forms.forms import ConfirmationForm
 from utilities.htmx import htmx_partial
 from utilities.views import ConditionalLoginRequiredMixin, register_model_view
 
-from . import absence, amend, approvals, changesets, components, reviews, filtersets, forms, inbox, notifications, permissions, placement, revision, serialization, tables
+from . import absence, amend, approvals, changesets, features, components, reviews, filtersets, forms, inbox, notifications, permissions, placement, revision, serialization, tables
 from .exceptions import AlreadyDecided, ChangeConflict, CreatedObjectInUse
 from .rule_access import RuleReadMixin, RuleWriteMixin
 from .object_actions import BulkApprove, BulkReject
@@ -430,7 +430,7 @@ class ChangeRequestView(_AnyLoggedInUserCanView, generic.ObjectView):
             'has_approved': instance.has_approved(request.user),
             'approvals_so_far': approvals.approvers_so_far(instance),
             'comments': instance.comments.select_related('author'),
-            'comment_form': forms.ChangeRequestCommentForm(),
+            'comment_form': forms.ChangeRequestCommentForm() if features.on(features.COMMENTS) else None,
             'components': components.component_summary(instance),
             'update_url': (
                 amend.edit_url(instance) if amend.amendable(instance, request.user) else None
@@ -612,6 +612,11 @@ class ChangeRequestApproveView(_ChangeRequestDecisionView):
     def post(self, request, pk):
         if (denied := self.check_permission(request)) is not None:
             return denied
+        if request.POST.get('apply_at') and not features.on(features.SCHEDULED_APPROVALS):
+            # A page opened before the feature was turned off: don't apply
+            # now what the approver meant for later.
+            messages.error(request, _('Scheduled approvals are turned off. Nothing was approved.'))
+            return redirect(self.change_request.get_absolute_url())
         form = forms.ChangeRequestApproveForm(request.POST)
         if not form.is_valid():
             messages.error(request, _('Could not process request: %(errors)s') % {
@@ -769,6 +774,12 @@ class ChangeRequestSendBackView(_ChangeRequestDecisionView):
     whole batch), but the submitter can resubmit the same request."""
     template_name = 'netbox_change_approval/changerequest_sendback.html'
 
+    def check_permission(self, request):
+        if not features.on(features.SEND_BACK):
+            messages.error(request, _('Send back is turned off. Reject the request instead.'))
+            return redirect(self.change_request.get_absolute_url())
+        return super().check_permission(request)
+
     def _render(self, request, form, return_url):
         return _confirm_page(request, self.template_name, {
             'object': self.change_request,
@@ -893,6 +904,9 @@ class ChangeRequestCommentView(ConditionalLoginRequiredMixin, View):
     approver group and earlier commenters are notified."""
     def post(self, request, pk):
         change_request = get_object_or_404(ChangeRequest, pk=pk)
+        if not features.on(features.COMMENTS):
+            messages.error(request, _('Comments are turned off.'))
+            return redirect(change_request.get_absolute_url())
         if not request.user.is_authenticated or not permissions.can_view_change_request(request.user, change_request):
             messages.error(request, _("You don't have access to this change request."))
             return redirect(reverse('plugins:netbox_change_approval:changerequest_inbox'))
@@ -1162,6 +1176,8 @@ class AwayView(ConditionalLoginRequiredMixin, View):
     def get(self, request):
         if not request.user.is_authenticated:
             return redirect(f"{reverse('login')}?next={request.path}")
+        if not features.on(features.STAND_INS):
+            return render(request, self.template_name, {'turned_off': True})
         from django.utils import timezone
 
         current = absence.current_for(request.user)
@@ -1175,6 +1191,9 @@ class AwayView(ConditionalLoginRequiredMixin, View):
 
         if not request.user.is_authenticated:
             return redirect(reverse('login'))
+        if not features.on(features.STAND_INS):
+            messages.error(request, _('Stand-ins are turned off.'))
+            return redirect(reverse('plugins:netbox_change_approval:away'))
         if request.POST.get('clear'):
             ApproverAbsence.objects.filter(user=request.user).delete()
             messages.success(request, _('You are no longer marked as away.'))
