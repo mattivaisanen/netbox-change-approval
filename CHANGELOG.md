@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.5.2 (2026-11-01)
+
+### New features
+- The Pending Approvals widget has 20 new drawings for when nothing is
+  waiting (a kettle, a snowman, a lighthouse, an hourglass, a UFO, counting
+  sheep, a Newton's cradle, a frog and more), for 40 in total, and 20 new
+  messages. Like the others, they are drawn in the theme's
+  colors and stand still for users who prefer reduced motion.
+
+### Improvements
+- The widget's idle drawing and line no longer repeat when the page
+  refreshes. Each user goes through all of them in a shuffled order before
+  any comes back.
+- The 0.5.1 changelog now lists the theme color change for pending markers,
+  which was filed under 0.5.0 by mistake.
+
 ## 0.5.1 (2026-10-27)
 
 Upgrade: run `manage.py migrate` (adds where a change request remembers
@@ -22,6 +38,11 @@ its changelog entries).
   back, approved, rejected, ...) together with the request's own, newest
   first. For requests from earlier versions, entries whose message names
   the request are shown.
+
+### Improvements
+- Pending change markers (row edge, action icon, banner edge, and device
+  outlines in rack elevations) follow the theme's change action colors
+  when a theme sets them.
 
 ## 0.5.0 (2026-10-27)
 
@@ -58,9 +79,6 @@ request is kept).
   order: decide pending requests, run `prepare_uninstall` (try
   `--dry-run` first), optionally drop the history, then remove the plugin.
 - The README asks readers to read it in full before installing.
-- Pending change markers (row edge, action icon, banner edge, and device
-  outlines in rack elevations) follow the theme's change action colors
-  when a theme sets them.
 
 ## 0.4.1 (2026-10-26)
 
