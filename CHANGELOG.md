@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.5.3 (2026-11-04)
+
+### New features
+- Read-only REST API at `/api/plugins/change-approval/` for dashboards
+  (Grafana, Power BI), reports and scripts: `change-requests/`,
+  `approvals/` and `rules/`. Change requests can be filtered by status,
+  action, requester (`submitted_by_name`), decider, approver group, object
+  type and dates (`submitted_at__gte=...`, `decided_at__lte=...`, ...).
+  Uses NetBox's own tokens and view permissions; approvals follow the view
+  permission on change requests. See docs/api.md, which includes a Grafana
+  example.
+
+### Bug fixes
+- NetBox's change log API (`/api/core/object-changes/`) failed with
+  "unexpected keyword argument 'nested'" when the list included a change
+  to a change request or approval rule. Those entries now show the request
+  or rule in brief.
+
 ## 0.5.2 (2026-11-01)
 
 ### New features

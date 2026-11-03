@@ -1,13 +1,22 @@
 """
-Serializers NetBox looks up by name (utilities.api.get_serializer_for_model)
-when it needs a change request or approval rule as data: Event Rules on
-"Object created/updated/deleted", webhooks, and scripts. This plugin has no
-REST endpoints of its own, so these are plain read-only serializers without
-the API links NetBox's own serializers carry.
+Two sets of read-only serializers:
+
+- ChangeRequestSerializer / ApprovalRuleSerializer: the ones NetBox looks up
+  by name (utilities.api.get_serializer_for_model) when it needs a change
+  request or rule as data: Event Rules, webhooks, scripts, and the changed
+  object in the change log (/api/core/object-changes/). Their fields are what
+  webhook templates use, so keep them stable.
+- *APISerializer: the plugin's REST API (api/views.py) under
+  /api/plugins/change-approval/, shaped like NetBox's own API (API `url`,
+  `display_url`, `?fields=`/`?omit=`/`?brief=`) and without the costly
+  webhook-only fields (recipients, message, ...).
 """
 from rest_framework import serializers
 
-from ..models import ApprovalRule, ChangeRequest
+from netbox.api.fields import ChoiceField
+from netbox.api.serializers import BaseModelSerializer
+
+from ..models import ActionChoices, ApprovalRule, ChangeRequest, ChangeRequestApproval, StatusChoices
 
 
 def _user(user):
@@ -18,7 +27,28 @@ def _user(user):
     return {'id': user.pk, 'username': user.username, 'email': user.email or ''}
 
 
-class ChangeRequestSerializer(serializers.ModelSerializer):
+class _NestableMixin:
+    """Accepts the keyword arguments NetBox passes to any serializer it finds
+    by name: `nested=True` when the object is shown inside another one (e.g.
+    `changed_object` of a change log entry), `fields`/`omit` to pick fields.
+    Nested, only Meta.brief_fields are shown."""
+
+    def __init__(self, *args, nested=False, fields=None, omit=None, **kwargs):
+        self.nested = nested
+        if nested and not fields and not omit:
+            fields = self.Meta.brief_fields
+        self._include_fields = fields or []
+        self._omit_fields = omit or []
+        super().__init__(*args, **kwargs)
+
+    def get_fields(self):
+        fields = super().get_fields()
+        if self._include_fields:
+            fields = {name: f for name, f in fields.items() if name in self._include_fields}
+        return {name: f for name, f in fields.items() if name not in self._omit_fields}
+
+
+class ChangeRequestSerializer(_NestableMixin, serializers.ModelSerializer):
     display = serializers.SerializerMethodField()
     url = serializers.SerializerMethodField()
     object_type = serializers.SerializerMethodField()
@@ -42,6 +72,7 @@ class ChangeRequestSerializer(serializers.ModelSerializer):
             'created', 'last_updated', 'link', 'recipients', 'recipient_emails',
             'last_comment', 'message', 'revision_changes',
         )
+        brief_fields = ('id', 'display', 'url', 'object_type', 'object_repr', 'action', 'status')
         read_only_fields = fields
 
     def get_display(self, obj):
@@ -114,7 +145,7 @@ class ChangeRequestSerializer(serializers.ModelSerializer):
         return obj.approver_group_label or None
 
 
-class ApprovalRuleSerializer(serializers.ModelSerializer):
+class ApprovalRuleSerializer(_NestableMixin, serializers.ModelSerializer):
     display = serializers.SerializerMethodField()
     url = serializers.SerializerMethodField()
     object_type = serializers.SerializerMethodField()
@@ -127,6 +158,7 @@ class ApprovalRuleSerializer(serializers.ModelSerializer):
             'approver_group', 'required_approvals', 'require_reason', 'expire_after_days', 'enabled', 'description',
             'created', 'last_updated',
         )
+        brief_fields = ('id', 'display', 'url', 'description')
         read_only_fields = fields
 
     def get_display(self, obj):
@@ -139,4 +171,89 @@ class ApprovalRuleSerializer(serializers.ModelSerializer):
         return f'{obj.content_type.app_label}.{obj.content_type.model}' if obj.content_type_id else None
 
     def get_approver_group(self, obj):
+        return obj.approver_group.name if obj.approver_group_id else None
+
+
+# --- REST API (api/views.py) ---
+
+def _api_user(user) -> dict | None:
+    """{id, username} of a user; id is None once the user is deleted."""
+    if user is None:
+        return None
+    return {'id': getattr(user, 'pk', None), 'username': user.get_username()}
+
+
+class ChangeRequestAPISerializer(BaseModelSerializer):
+    object_type = serializers.SerializerMethodField()
+    action = ChoiceField(choices=ActionChoices.choices, read_only=True)
+    status = ChoiceField(choices=StatusChoices.choices, read_only=True)
+    # Method fields named like the foreign keys they read, so NetBox's API
+    # prefetches those rows for a whole page at once.
+    submitted_by = serializers.SerializerMethodField()
+    decided_by = serializers.SerializerMethodField()
+    approver_group = serializers.SerializerMethodField()
+    auto_approved_by_rule = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ChangeRequest
+        fields = (
+            'id', 'url', 'display_url', 'display', 'object_type', 'object_id', 'object_repr', 'action', 'status',
+            'auto_approved', 'auto_approved_by_rule', 'revision', 'batch_id', 'submitted_by', 'submitted_at',
+            'approver_group', 'required_approvals', 'reason', 'decided_by', 'decided_at', 'decision_comment',
+            'applied_at', 'expires_at', 'diff', 'created', 'last_updated',
+        )
+        brief_fields = ('id', 'url', 'display', 'object_type', 'object_repr', 'action', 'status')
+        read_only_fields = fields
+
+    def get_object_type(self, obj) -> str | None:
+        return f'{obj.content_type.app_label}.{obj.content_type.model}' if obj.content_type_id else None
+
+    def get_submitted_by(self, obj) -> dict | None:
+        return _api_user(obj.submitted_by_label)
+
+    def get_decided_by(self, obj) -> dict | None:
+        return _api_user(obj.decided_by_label)
+
+    def get_approver_group(self, obj) -> str | None:
+        return obj.approver_group_label or None
+
+    def get_auto_approved_by_rule(self, obj) -> str | None:
+        return obj.approving_rule or None
+
+
+class ChangeRequestApprovalAPISerializer(BaseModelSerializer):
+    # Approvals have no page of their own: no `url`/`display_url`.
+    url = None
+    display_url = None
+    change_request = ChangeRequestAPISerializer(nested=True, read_only=True)
+    user = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ChangeRequestApproval
+        fields = ('id', 'display', 'change_request', 'user', 'revision', 'created')
+        brief_fields = ('id', 'display', 'user', 'revision', 'created')
+        read_only_fields = fields
+
+    def get_user(self, obj) -> dict | None:
+        return _api_user(obj.user_label)
+
+
+class ApprovalRuleAPISerializer(BaseModelSerializer):
+    object_type = serializers.SerializerMethodField()
+    approver_group = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ApprovalRule
+        fields = (
+            'id', 'url', 'display_url', 'display', 'is_default', 'priority', 'object_type', 'constraint', 'action',
+            'outcome', 'approver_group', 'required_approvals', 'require_reason', 'expire_after_days', 'enabled',
+            'description', 'created', 'last_updated',
+        )
+        brief_fields = ('id', 'url', 'display', 'description')
+        read_only_fields = fields
+
+    def get_object_type(self, obj) -> str | None:
+        return f'{obj.content_type.app_label}.{obj.content_type.model}' if obj.content_type_id else None
+
+    def get_approver_group(self, obj) -> str | None:
         return obj.approver_group.name if obj.approver_group_id else None

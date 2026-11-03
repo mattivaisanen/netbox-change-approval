@@ -36,6 +36,7 @@ models, in the web UI, the REST API, background jobs and custom scripts.
   rack A3, U20-21").
 - Comments, expiry, NetBox notifications, and NetBox events for e-mail, Teams
   or webhooks.
+- Read-only REST API for dashboards and reports.
 - A `bypass_approval` permission for trusted users, using NetBox's own
   permission system.
 
@@ -124,6 +125,7 @@ Changes that were already approved stay in NetBox. The full details are in
   change sets, notifications and limitations
 - [Configuration](docs/configuration.md)
 - [Notifications by e-mail, Teams or webhooks](docs/webhooks.md)
+- [REST API and Grafana dashboards](docs/api.md)
 - [Developer notes](DEVELOPER.md)
 - [Changelog](CHANGELOG.md)
 
