@@ -14,7 +14,7 @@ from . import serializers
 
 
 class ChangeRequestViewSet(NetBoxReadOnlyModelViewSet):
-    queryset = ChangeRequest.objects.select_related('content_type')
+    queryset = ChangeRequest.objects.select_related('content_type', 'submitted_by', 'decided_by')
     serializer_class = serializers.ChangeRequestAPISerializer
     filterset_class = filtersets.ChangeRequestFilterSet
 

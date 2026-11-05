@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.5.4 (2026-11-05)
+
+### Improvements
+- REST API: change requests now give the requester and the decider as
+  plain fields, `submitted_by_id`, `submitted_by_username`,
+  `decided_by_id` and `decided_by_username`, instead of the nested
+  `submitted_by` and `decided_by` objects. Dashboards such as Grafana can
+  use them as columns without unpacking. The id is null once the user is
+  deleted; the username is kept. Filters are unchanged.
+
 ## 0.5.3 (2026-11-04)
 
 ### New features

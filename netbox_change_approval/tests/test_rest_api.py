@@ -54,8 +54,22 @@ class RestAPITests(TestCase):
         row = data['results'][0]
         self.assertEqual(row['id'], self.requests[1].pk)
         self.assertEqual(row['status']['value'], 'pending')
-        self.assertEqual(row['submitted_by']['username'], 'bob')
+        self.assertEqual(row['submitted_by_username'], 'bob')
+        self.assertEqual(row['submitted_by_id'], self.bob.pk)
+        self.assertIsNone(row['decided_by_id'])
+        self.assertIsNone(row['decided_by_username'])
         self.assertEqual(row['object_type'], 'dcim.manufacturer')
+
+    def test_deleted_decider_keeps_username_without_id(self):
+        _can_view(self.alice, ChangeRequest)
+        decider = User.objects.create(username='carol')
+        ChangeRequest.objects.filter(pk=self.requests[0].pk).update(decided_by=decider, decided_by_name='carol')
+        decider.delete()
+
+        row = self._get(f'change-requests/{self.requests[0].pk}/')
+
+        self.assertIsNone(row['decided_by_id'])
+        self.assertEqual(row['decided_by_username'], 'carol')
 
     def test_approvals_follow_change_request_view_permission(self):
         _can_view(self.alice, ChangeRequest, constraints={'id': self.requests[0].pk})

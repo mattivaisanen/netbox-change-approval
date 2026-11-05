@@ -56,8 +56,9 @@ The full list is in NetBox's API documentation at `/api/schema/swagger-ui/`.
 
 A change request has, among others: `id`, `url` (API), `display_url` (web
 page), `object_type` (`app.model`), `object_id`, `object_repr`, `action` and
-`status` (each `{"value", "label"}`), `submitted_by` and `decided_by` (each
-`{"id", "username"}`; `id` is null once the user is deleted),
+`status` (each `{"value", "label"}`), `submitted_by_id`,
+`submitted_by_username`, `decided_by_id` and `decided_by_username` (plain
+values; the id is null once the user is deleted, the username is kept),
 `submitted_at`, `decided_at`, `applied_at`, `expires_at`, `approver_group`
 (name), `required_approvals`, `auto_approved`, `auto_approved_by_rule` (name),
 `revision`, `reason`, `decision_comment` and `diff` (requested changes).
@@ -76,7 +77,7 @@ data source:
    `https://netbox.example.com/api/plugins/change-approval/change-requests/?limit=1000&submitted_at__gte=${__from:date:iso}&submitted_at__lte=${__to:date:iso}`,
    *Rows / Root* `results`.
 3. Add columns such as `submitted_at` (time), `status.value`,
-   `submitted_by.username`, `object_type`, and group or count them in the
+   `submitted_by_username`, `object_type`, and group or count them in the
    panel (e.g. a bar chart of requests per status, or per requester).
 
 For more than 1000 rows, raise `MAX_PAGE_SIZE` in NetBox's configuration or

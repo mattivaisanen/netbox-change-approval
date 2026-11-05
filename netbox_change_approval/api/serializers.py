@@ -183,14 +183,25 @@ def _api_user(user) -> dict | None:
     return {'id': getattr(user, 'pk', None), 'username': user.get_username()}
 
 
+def _username(user) -> str | None:
+    """Username of a user, also of a deleted one (its name is kept)."""
+    return user.get_username() if user is not None else None
+
+
 class ChangeRequestAPISerializer(BaseModelSerializer):
     object_type = serializers.SerializerMethodField()
     action = ChoiceField(choices=ActionChoices.choices, read_only=True)
     status = ChoiceField(choices=StatusChoices.choices, read_only=True)
+    # Users as plain values rather than nested objects, so dashboards
+    # (e.g. Grafana) can use them as columns directly. The id is null once
+    # the user is deleted; the username is kept. The view selects the user
+    # rows along with the page.
+    submitted_by_id = serializers.IntegerField(read_only=True, allow_null=True)
+    submitted_by_username = serializers.SerializerMethodField()
+    decided_by_id = serializers.IntegerField(read_only=True, allow_null=True)
+    decided_by_username = serializers.SerializerMethodField()
     # Method fields named like the foreign keys they read, so NetBox's API
     # prefetches those rows for a whole page at once.
-    submitted_by = serializers.SerializerMethodField()
-    decided_by = serializers.SerializerMethodField()
     approver_group = serializers.SerializerMethodField()
     auto_approved_by_rule = serializers.SerializerMethodField()
 
@@ -198,8 +209,9 @@ class ChangeRequestAPISerializer(BaseModelSerializer):
         model = ChangeRequest
         fields = (
             'id', 'url', 'display_url', 'display', 'object_type', 'object_id', 'object_repr', 'action', 'status',
-            'auto_approved', 'auto_approved_by_rule', 'revision', 'batch_id', 'submitted_by', 'submitted_at',
-            'approver_group', 'required_approvals', 'reason', 'decided_by', 'decided_at', 'decision_comment',
+            'auto_approved', 'auto_approved_by_rule', 'revision', 'batch_id', 'submitted_by_id',
+            'submitted_by_username', 'submitted_at', 'approver_group', 'required_approvals', 'reason',
+            'decided_by_id', 'decided_by_username', 'decided_at', 'decision_comment',
             'applied_at', 'expires_at', 'diff', 'created', 'last_updated',
         )
         brief_fields = ('id', 'url', 'display', 'object_type', 'object_repr', 'action', 'status')
@@ -208,11 +220,11 @@ class ChangeRequestAPISerializer(BaseModelSerializer):
     def get_object_type(self, obj) -> str | None:
         return f'{obj.content_type.app_label}.{obj.content_type.model}' if obj.content_type_id else None
 
-    def get_submitted_by(self, obj) -> dict | None:
-        return _api_user(obj.submitted_by_label)
+    def get_submitted_by_username(self, obj) -> str | None:
+        return _username(obj.submitted_by_label)
 
-    def get_decided_by(self, obj) -> dict | None:
-        return _api_user(obj.decided_by_label)
+    def get_decided_by_username(self, obj) -> str | None:
+        return _username(obj.decided_by_label)
 
     def get_approver_group(self, obj) -> str | None:
         return obj.approver_group_label or None
