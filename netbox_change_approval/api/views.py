@@ -8,7 +8,7 @@ from rest_framework.viewsets import ReadOnlyModelViewSet
 from netbox.api.authentication import TokenPermissions
 from netbox.api.viewsets import NetBoxReadOnlyModelViewSet
 
-from .. import filtersets
+from .. import filtersets, permissions
 from ..models import ApprovalRule, ChangeRequest, ChangeRequestApproval
 from . import serializers
 
@@ -17,6 +17,12 @@ class ChangeRequestViewSet(NetBoxReadOnlyModelViewSet):
     queryset = ChangeRequest.objects.select_related('content_type', 'submitted_by', 'decided_by')
     serializer_class = serializers.ChangeRequestAPISerializer
     filterset_class = filtersets.ChangeRequestFilterSet
+
+    def get_queryset(self):
+        # Same rule as the web UI: on top of the view permission on change
+        # requests, the user must be allowed to view the object (a request's
+        # diff shows its field values), or be its submitter or an approver.
+        return permissions.visible_change_requests(self.request.user, super().get_queryset())
 
 
 class ApprovalRuleViewSet(NetBoxReadOnlyModelViewSet):
@@ -44,9 +50,11 @@ class ChangeRequestApprovalViewSet(ReadOnlyModelViewSet):
     permission_classes = [ViewChangeRequestsPermission]
 
     def get_queryset(self):
-        # Only approvals of change requests this user may view (object
-        # permissions with constraints apply too).
-        visible = ChangeRequest.objects.restrict(self.request.user, 'view')
+        # Only approvals of change requests this user may view: object
+        # permissions with constraints apply, and the same object visibility
+        # rule as for change requests (permissions.visible_change_requests).
+        user = self.request.user
+        visible = permissions.visible_change_requests(user, ChangeRequest.objects.restrict(user, 'view'))
         return super().get_queryset().filter(change_request__in=visible).select_related(
             'user', 'change_request__content_type',
         )

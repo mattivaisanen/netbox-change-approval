@@ -3,7 +3,8 @@ from django.utils import timezone
 
 from core.models import ObjectType
 from dcim.models import Manufacturer
-from users.models import Group, ObjectPermission, User
+from users.constants import TOKEN_PREFIX
+from users.models import Group, ObjectPermission, Token, User
 from utilities.api import get_serializer_for_model
 
 from .. import gating
@@ -47,6 +48,7 @@ class RestAPITests(TestCase):
 
     def test_change_requests_filter_by_requester_status_and_date(self):
         _can_view(self.alice, ChangeRequest)
+        _can_view(self.alice, Manufacturer)
         today = timezone.localdate().isoformat()
         data = self._get(f'change-requests/?status=pending&submitted_by_name=bob&submitted_at__gte={today}')
 
@@ -95,3 +97,55 @@ class RestAPITests(TestCase):
             data = get_serializer_for_model(type(obj))(obj, nested=True, context={'request': None}).data
             self.assertEqual(data['id'], obj.pk)
             self.assertNotIn('recipients', data)
+
+
+class RestAPIVisibilityTests(TestCase):
+    """The API applies the web UI's visibility rule: a change request's diff
+    shows the object's field values, so a token that may view change requests
+    but not the object sees neither the request nor its approvals, unless its
+    user submitted the request or is one of its approvers."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.approvers = Group.objects.create(name='Manufacturer Approvers')
+        cls.submitter = User.objects.create(username='submitter')
+        cls.approver = User.objects.create(username='approver')
+        cls.approver.groups.add(cls.approvers)
+        cls.reader = User.objects.create(username='reader')
+        obj = Manufacturer.objects.get(pk=Manufacturer.objects.create(name='M', slug='m').pk)
+        obj.description = 'changed'
+        cls.change_request = gating.gate(obj, ActionChoices.UPDATE, fake_request(cls.submitter))
+        ChangeRequest.objects.filter(pk=cls.change_request.pk).update(approver_group=cls.approvers)
+        ChangeRequestApproval.objects.create(change_request=cls.change_request, user=cls.approver)
+        for user in (cls.submitter, cls.approver, cls.reader):
+            _can_view(user, ChangeRequest)
+
+    def _get(self, user, path):
+        token = Token.objects.create(user=user)
+        response = self.client.get(
+            API + path, HTTP_ACCEPT='application/json',
+            HTTP_AUTHORIZATION=f'Bearer {TOKEN_PREFIX}{token.key}.{token.token}',
+        )
+        return response
+
+    def _ids(self, user, path):
+        response = self._get(user, path)
+        self.assertEqual(response.status_code, 200, response.content)
+        return [row['id'] for row in response.json()['results']]
+
+    def test_without_object_view_permission_request_and_approvals_are_hidden(self):
+        self.assertEqual(self._ids(self.reader, 'change-requests/'), [])
+        self.assertEqual(self._get(self.reader, f'change-requests/{self.change_request.pk}/').status_code, 404)
+        self.assertEqual(self._ids(self.reader, 'approvals/'), [])
+
+    def test_object_view_permission_shows_request_and_approvals(self):
+        _can_view(self.reader, Manufacturer)
+
+        self.assertEqual(self._ids(self.reader, 'change-requests/'), [self.change_request.pk])
+        self.assertEqual(len(self._ids(self.reader, 'approvals/')), 1)
+
+    def test_submitter_and_approver_see_request_without_object_permission(self):
+        for user in (self.submitter, self.approver):
+            with self.subTest(user=user.username):
+                self.assertEqual(self._ids(user, 'change-requests/'), [self.change_request.pk])
+                self.assertEqual(len(self._ids(user, 'approvals/')), 1)
