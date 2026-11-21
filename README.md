@@ -126,6 +126,8 @@ Changes that were already approved stay in NetBox. The full details are in
 - [Configuration](docs/configuration.md)
 - [Notifications by e-mail, Teams or webhooks](docs/webhooks.md)
 - [REST API and Grafana dashboards](docs/api.md)
+- [Integrating with other plugins](docs/integrating.md): the stable Python
+  interface, `netbox_change_approval.public`
 - [Developer notes](DEVELOPER.md)
 - [Changelog](CHANGELOG.md)
 
