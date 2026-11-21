@@ -1,5 +1,34 @@
 # Changelog
 
+## 0.5.5 (2026-11-21)
+
+### New features
+- A stable Python interface for other plugins and scripts,
+  `netbox_change_approval.public`: group changes into one approval
+  (`batch()`), check whether a model goes through approval (`is_gated()`),
+  find an object's pending create request (`pending_create_for()`), list the
+  change requests a user may see (`visible_change_requests()`), and status
+  and action constants. See docs/integrating.md.
+
+### Bug fixes
+- REST API: a token allowed to view change requests could read requests,
+  and the field values in their changes, about objects its user may not
+  view. The API now follows the web UI: the user must be allowed to view
+  the object, or be the request's submitter or one of its approvers. This
+  also applies to approvals.
+- Deleting an object that needs no approval (auto-approval rule or bypass
+  permission) could fail when another plugin deleted related rows while it
+  ran, because each of those deletes was checked on its own. They now
+  follow the delete that started them.
+- Custom validators defined in a Configuration Revision (Admin →
+  Configuration History) were ignored, and the field could not be edited
+  there, while the plugin was installed. They now work alongside the
+  plugin, as do validators in `configuration.py`.
+
+### Improvements
+- docs/configuration.md explains how custom validators work with the
+  plugin.
+
 ## 0.5.4 (2026-11-05)
 
 ### Improvements
