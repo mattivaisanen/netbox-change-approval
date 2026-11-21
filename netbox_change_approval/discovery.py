@@ -1,16 +1,15 @@
 """
-Finds every NetBox object type this plugin should gate, and wires NetBox's
-CUSTOM_VALIDATORS setting so create/update requests for those types run through
-our validator. Delete gating (netbox_change_approval.signals) and the detail-page
+Finds every NetBox object type this plugin should gate, and runs our validator
+on create/update of those types (from NetBox's post_clean signal, next to
+CUSTOM_VALIDATORS). Delete gating (netbox_change_approval.signals) and the detail-page
 banner (netbox_change_approval.template_content) both source their model list from
 here too, so there is exactly one place that decides "is this model gated".
 """
 from django.apps import apps
-from django.conf import settings
 
 from netbox.models import NetBoxModel
 
-#: dotted path of the validator every gated model gets appended under CUSTOM_VALIDATORS
+#: dotted path of the validator every gated model runs on create/update
 VALIDATOR_PATH = 'netbox_change_approval.validators.ApprovalGateValidator'
 
 #: this plugin's own app label — its own models are never gated (an approval rule
@@ -66,22 +65,29 @@ def is_gated_model(model):
 
 def wire_up_gated_models():
     """
-    Merge this plugin's validator into settings.CUSTOM_VALIDATORS for every gated model.
+    Run this plugin's validator on create/update of every gated model.
 
-    NetBox's dynamic config system (netbox.config.get_config()) checks
-    `hasattr(settings, 'CUSTOM_VALIDATORS')` before falling back to the database-backed
-    value, so setting this attribute here takes priority over anything configured via
-    NetBox's own Configuration Revisions UI. We therefore *merge* into whatever is
-    already on settings (e.g. from the operator's configuration.py) instead of
-    replacing it, so this plugin composes with any custom validators already in use.
+    NetBox runs CUSTOM_VALIDATORS from a post_clean receiver
+    (extras.signals.run_save_validators), reading them through get_config():
+    from configuration.py if set there, else from the active Configuration
+    Revision. This connects a second post_clean receiver per gated model
+    instead of adding to settings.CUSTOM_VALIDATORS: a value written to
+    settings would hide the Configuration Revision value and lock that field
+    in NetBox's form. NetBox's receiver is connected first, so the operator's
+    own validators still run before ours, as when ours was appended to them.
     """
-    existing = dict(getattr(settings, 'CUSTOM_VALIDATORS', {}) or {})
+    from netbox.signals import post_clean
 
     for model in iter_gated_models():
-        label = model_label(model)
-        validators = list(existing.get(label, []))
-        if VALIDATOR_PATH not in validators:
-            validators.append(VALIDATOR_PATH)
-        existing[label] = validators
+        post_clean.connect(
+            run_approval_validator, sender=model,
+            dispatch_uid=f'netbox_change_approval:{model._meta.label}:validate',
+        )
 
-    settings.CUSTOM_VALIDATORS = existing
+
+def run_approval_validator(sender, instance, **kwargs):
+    # NetBox's own runner: same request lookup and validator call as for
+    # CUSTOM_VALIDATORS.
+    from extras.utils import run_validators
+
+    run_validators(instance, [VALIDATOR_PATH])

@@ -85,3 +85,22 @@ reuse infrastructure NetBox already has a UI for:
   approvers".
 - **Notifications** — Operations → Event Rules, against the `Change Request`
   object type. See README "Getting notified of pending changes".
+
+## Custom validators
+
+The plugin checks creates and updates with its own validator, which runs
+after NetBox's `CUSTOM_VALIDATORS` for the same object. It doesn't add itself
+to the `CUSTOM_VALIDATORS` setting, so your own validators keep working
+wherever you define them:
+
+- in `configuration.py`, or
+- in a Configuration Revision (**Admin → Configuration History**, no restart
+  needed).
+
+As in NetBox itself, a `CUSTOM_VALIDATORS` value in `configuration.py` takes
+precedence over Configuration Revisions. If one of your validators rejects a
+change, NetBox shows its error and no change request is created.
+
+Versions before 0.5.5 wrote `CUSTOM_VALIDATORS` at startup, so validators set
+in Configuration Revisions were ignored and the field could not be edited
+there.

@@ -13,9 +13,9 @@ from .models import ActionChoices
 
 class ApprovalGateValidator(CustomValidator):
     """
-    Registered (by discovery.wire_up_gated_models) under CUSTOM_VALIDATORS for every
-    gated model. Runs on every create/update, inside instance.clean() — see
-    discovery.py for exactly how and why that fires.
+    Run (by discovery.wire_up_gated_models) for every gated model on every
+    create/update, inside instance.clean(), right after NetBox's
+    CUSTOM_VALIDATORS. See discovery.py for how and why that fires.
     """
 
     def validate(self, instance, request):

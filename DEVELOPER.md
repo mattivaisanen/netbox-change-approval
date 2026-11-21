@@ -19,9 +19,8 @@ is tested on and the minimum it supports
 (not just docs — see the comments in the modules below for exactly where):
 
 1. **`CustomValidator`** (`extras/validators.py`) runs inside
-   `NetBoxModel.clean()` for every model listed in the `CUSTOM_VALIDATORS`
-   setting, *before* a create/update is saved, and receives the current
-   request. Raising `ValidationError` there is caught natively by Django's
+   `NetBoxModel.clean()` (from NetBox's `post_clean` signal), *before* a
+   create/update is saved, and receives the current request. Raising `ValidationError` there is caught natively by Django's
    `ModelForm` — it just shows up as a normal form error. No view overriding
    needed.
 2. **`netbox.context.current_request`** is a `ContextVar` NetBox itself
@@ -34,8 +33,8 @@ is tested on and the minimum it supports
    this way.
 
 Given those three, "gate everything, no model list" becomes: discover every
-`NetBoxModel` subclass at startup, register our validator for `CUSTOM_VALIDATORS`
-on all of them, and connect one `pre_delete` receiver to all of them.
+`NetBoxModel` subclass at startup, run our validator from `post_clean` for all
+of them, and connect one `pre_delete` receiver to all of them.
 
 ## Module map
 
@@ -130,23 +129,21 @@ Django field's own `.to_python()` — the same method Django forms use to turn a
 submitted string back into a `date`/`Decimal`/etc. — rather than hand-rolling
 per-type parsing.
 
-## Why `CUSTOM_VALIDATORS` is *merged*, not replaced
+## Why the validator isn't in `CUSTOM_VALIDATORS`
 
-`CUSTOM_VALIDATORS` is technically one of NetBox's dynamic, DB-backed
-`Config` parameters — but `Config.__getattr__` checks
-`hasattr(settings, 'CUSTOM_VALIDATORS')` *first*, before falling back to the
-database value. So setting it in `apps.py`-equivalent (`__init__.py: ready()`
-→ `discovery.wire_up_gated_models()`) takes priority unconditionally. If we
-*replaced* `settings.CUSTOM_VALIDATORS` outright, any validators an operator
-configured themselves in `configuration.py` — for their own, unrelated
-purposes — would silently stop running. `wire_up_gated_models()` reads
-whatever's already there and appends to each model's list instead.
+`CUSTOM_VALIDATORS` is one of NetBox's dynamic, DB-backed `Config`
+parameters, but `Config.__getattr__` checks `hasattr(settings, ...)` *first*.
+Up to 0.5.4 the plugin appended its validator to `settings.CUSTOM_VALIDATORS`
+at startup, so the value from Configuration Revisions was never read and the
+field was locked in NetBox's revision form.
 
-One consequence worth knowing: once this plugin is installed, NetBox's own
-*dynamic* Configuration Revisions UI can no longer be used to change
-`CUSTOM_VALIDATORS` at runtime — the hard-coded `settings` value always wins.
-This is called out in `discovery.py` and is a NetBox-level behavior, not
-something this plugin can route around.
+NetBox runs `CUSTOM_VALIDATORS` from a `post_clean` receiver
+(`extras.signals.run_save_validators`). `discovery.wire_up_gated_models()`
+connects a second `post_clean` receiver for each gated model, which calls
+NetBox's own `run_validators()` with our validator. `settings` stays
+untouched, so both `configuration.py` and Configuration Revisions work as in
+plain NetBox. NetBox's receiver is connected at import, before plugins are
+ready, so the operator's validators still run before ours.
 
 ## NetBox's `Group` is not Django's `Group`
 
