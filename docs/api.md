@@ -20,13 +20,16 @@ on NetBox's own endpoints.
 ## Permissions
 
 - Change requests: *View* on *Change Approval > change request*. Constraints
-  apply, e.g. `{"submitted_by": "$user"}` shows a user only their own.
+  apply, e.g. `{"submitted_by": "$user"}` shows a user only their own. As in
+  the web UI, a user also needs the view permission on the object a request
+  is about (its diff shows the object's values), unless they submitted the
+  request or are one of its approvers.
 - Approvals: no permission of their own. A user sees the approvals of the
   change requests they may view.
 - Rules: *View* on *Change Approval > approval rule*.
 
-A read-only token for a dashboard user with only these view permissions is
-enough.
+A read-only token for a dashboard user with these view permissions, plus
+view permissions on the object types it should report on, is enough.
 
 ## Filters
 
