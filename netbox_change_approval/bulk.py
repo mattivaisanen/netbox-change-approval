@@ -33,7 +33,7 @@ from django.db import router, transaction
 
 from netbox.context import events_queue
 
-from .context import batch_collector
+from .context import batch_collector, delete_scope_open
 from .discovery import is_gated_model
 from .exceptions import ChangeApprovalRequired
 
@@ -150,13 +150,20 @@ def _wrap_save_object(original):
 
 
 def wrap_model_delete(model):
-    """Make `model.delete()` run in its own savepoint while a batch is collecting."""
+    """Make `model.delete()` run in its own savepoint while a batch is collecting,
+    and inside a delete scope (context.delete_scope)."""
     original = model.delete
     if getattr(original, '_nbca_wrapped', False):
         return
 
     @wraps(original)
     def delete(self, *args, **kwargs):
+        # The scope lets deletes nested in an allowed one through (see
+        # context.delete_scope); it is closed again however delete() ends.
+        with delete_scope_open(self):
+            return _delete(self, *args, **kwargs)
+
+    def _delete(self, *args, **kwargs):
         collector = batch_collector.get()
         if collector is None or collector.mode == BatchCollector.REFUSE or _in_isolated_delete.get():
             return original(self, *args, **kwargs)

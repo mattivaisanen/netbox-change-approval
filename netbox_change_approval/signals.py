@@ -8,6 +8,7 @@ from netbox.context import current_request
 
 from . import permissions
 from .bulk import wrap_model_delete
+from .context import allow_deletes_in_scope, delete_scope_root, inside_allowed_delete
 from .discovery import is_gated_model, iter_gated_models
 from .exceptions import ChangeApprovalRequired, ObjectLocked
 from .gating import gate, take_pending_create
@@ -28,6 +29,9 @@ def gate_delete(sender, instance, **kwargs):
     ChangeApprovalMiddleware.process_exception(), after that rollback has already
     happened.
     """
+    if inside_allowed_delete():
+        return  # started while an allowed delete runs (see context.delete_scope)
+
     request = current_request.get()
 
     # Deleting one object deletes its dependents too (a device's interfaces, a
@@ -43,8 +47,25 @@ def gate_delete(sender, instance, **kwargs):
             return  # an ungated object's delete; its dependents go with it
         target = origin
 
+    # A delete started from another receiver while a gated object's delete()
+    # runs (e.g. another plugin's pre_delete deleting related rows) follows
+    # that outer delete. Receivers run in connection order, so the outer
+    # object may not be decided yet: decide it first. If it needs approval,
+    # this raises for the outer object, which is the delete the user asked for.
+    root = delete_scope_root()
+    if root is not None and root is not target and is_gated_model(type(root)):
+        _decide_delete(root, request)
+        return
+
+    _decide_delete(target, request)
+
+
+def _decide_delete(target, request):
+    """Let the delete of `target` through (and remember that), or raise
+    ChangeApprovalRequired with the request it needs."""
     decided = getattr(target, _DELETE_DECIDED_ATTR, False)
     if decided:
+        allow_deletes_in_scope()
         return  # already let through for this delete
 
     try:
@@ -58,6 +79,7 @@ def gate_delete(sender, instance, **kwargs):
         # Remember it, so the object's other dependents (and the object itself)
         # don't run the check again or log a second auto-approved request.
         setattr(target, _DELETE_DECIDED_ATTR, True)
+        allow_deletes_in_scope()
         return
 
     _refuse_if_api_bulk(ChangeApprovalRequired(change_request))
